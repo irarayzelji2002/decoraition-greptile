@@ -1,0 +1,117 @@
+/* Root container */
+.settings-container {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background-color: var(--bgcolor);
+  color: var(--color-white);
+  height: 100vh;
+}
+.inputLabel {
+  margin-right: 10px;
+
+  width: 100px;
+  color: var(--color-grey);
+}
+.inputField {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  height: 3em;
+  min-width: 100%;
+}
+.inputFieldThree {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  height: 20em;
+  min-width: 100%;
+}
+.inputFieldImportant {
+  display: flex;
+  align-items: center;
+
+  border: var(--color-grey) 1px solid;
+  padding: 6px;
+  padding-left: 24px;
+  height: 3em;
+  min-width: auto;
+}
+
+/* AppBar styling */
+.app-bar {
+  background-color: #26262c;
+}
+
+/* Tab styling */
+.tabs {
+  color: var(--color-white);
+}
+
+.MuiTab-root {
+  font-size: 1rem;
+  text-transform: none;
+}
+
+.tab-label {
+  color: var(--color-white);
+}
+
+/* Avatar and buttons container */
+.avatar-container {
+  display: flex;
+  align-items: center;
+  border-bottom: var(--color-grey) 1px solid;
+  padding-bottom: 20px;
+  margin-bottom: 40px;
+}
+
+/* Profile buttons */
+.avatar-container .MuiButton-root {
+  margin-bottom: 10px;
+  color: var(--color-white);
+}
+
+.change-photo-btn {
+  background: var(--gradientButton);
+}
+
+.remove-photo-btn {
+  border-color: #ff867f;
+  color: #ff867f;
+}
+
+/* Form fields styling */
+.MuiTextField-root {
+  margin-bottom: 16px;
+  background-color: tra;
+  border-radius: 4px;
+}
+
+.MuiInputBase-input {
+  color: var(--color-white);
+}
+
+.MuiInputLabel-root {
+  color: #9a9a9a;
+}
+
+.MuiOutlinedInput-root {
+  fieldset {
+    border-color: var(--color-white);
+  }
+}
+
+.MuiOutlinedInput-root:hover fieldset {
+  border-color: #fc3d69;
+}
+
+/* Icon button styling */
+.MuiIconButton-root {
+  color: #fc3d69;
+}
+
+/* Notification Tab styling */
+.notification-settings {
+  color: var(--color-white);
+}

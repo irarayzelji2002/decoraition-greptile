@@ -1,0 +1,35 @@
+.details-container {
+  background-color: var(--bgcolor);
+
+  color: var(--color-white);
+  padding: 20px;
+  height: calc(100vh - 60px);
+  overflow-y: auto;
+}
+
+.content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.room-image {
+  width: 100%;
+  max-width: 600px;
+  border-radius: 12px;
+}
+
+.room-info {
+  margin-top: 20px;
+  width: 100%;
+  max-width: 600px;
+}
+
+.room-info h1 {
+  font-size: 24px;
+  margin-bottom: 10px;
+}
+
+.room-info p {
+  margin: 5px 0;
+}

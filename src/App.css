@@ -1,0 +1,143 @@
+body {
+  background-color: var(--bgMain) !important;
+  font-family: "Inter", sans-serif !important;
+  overflow: auto !important;
+  overflow-x: hidden;
+}
+html {
+  overflow-x: hidden;
+}
+.headTitle {
+  font-size: 1.125em;
+  font-weight: bold;
+  margin-top: 16px;
+  color: azure;
+}
+
+.custom-toast-success {
+  background-color: var(--inputBg) !important; /* Green background for success */
+  color: var(--color-white) !important; /* White text color */
+}
+
+.custom-toast-error {
+  background-color: var(--inputBg) !important; /* Green background for success */
+  color: var(--color-white) !important;
+}
+
+.scroll-container {
+  position: relative;
+  z-index: 1000; /* Ensure the scroll container is above other elements */
+  overflow: auto;
+  max-height: 100vh; /* Adjust as needed */
+}
+
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  background-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0px 1000px transparent !important;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+::-webkit-scrollbar {
+  width: 10px; /* Width of the scrollbar */
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-tertiary); /* Background color of the scrollbar track */
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--gradientCircle); /* Color of the scrollbar thumb */
+  border-radius: 6px; /* Rounded corners of the scrollbar thumb */
+  border: 2px solid var(--color-tertiary); /* Space around the thumb */
+}
+
+.rightBeside {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+  width: 100%;
+}
+
+:root {
+  --bg-header: url("../public/img/bg-login.png");
+  --bg-image: #1f1e22;
+  --color-primary: #faa653;
+  --color-secondary: #f04f59;
+  --color-tertiary: #27262c;
+  --borders: #5e5e5e;
+  --color-grey: #9d9ca6;
+  --bright-grey: #6c6c6c;
+  --color-quaternary: #ef4f56;
+  --color-white: #fafafa;
+  --color-white-hover: #e6e6e6;
+  --color-blue: #0866ff;
+  --color-blue-hover: #0050d1;
+  --color-black: #080808;
+  --logo: #8f5e5e;
+  --nav-card-modal: #27262c;
+  --bgcolor: #1f1e22;
+  --comment-capsule: #f68950;
+  --budget-capsule: #397438;
+  --inputBg: #3e3c47;
+  --iconBg: #302f37;
+  --brightFont: #ff8344;
+  --brightFontHover: #ff9058;
+  --borderInput: #515151;
+  --gradientCircle: linear-gradient(20deg, #ec2073, #ff894d);
+  --gradientCircleHover: linear-gradient(20deg, #ff894d, #ec2073);
+  --gradientButton: linear-gradient(90deg, #f89a47, #f15f3e, #ec2073);
+  --gradientButtonHover: linear-gradient(90deg, #ec2073, #f15f3e, #f89a47);
+  --gradientFont: linear-gradient(20deg, #f89a47, #f15f3e, #ec2073);
+  --darkGradient: linear-gradient(#1e1e1e, #1e1e1e);
+  --lightGradient: linear-gradient(#27262c, #27262c);
+  --budgetCard: #32313a;
+  --bgMain: #1f1e22;
+  --slider: #707070;
+  --dropdown: #25232a;
+  --dropdownHover: #3e3c47;
+  --dropdownSelected: #32313a;
+  --borderLanding: #f15f3e;
+  --landingGradientEven: linear-gradient(270deg, #f89a47cc, #f15f3e99, #ec207300);
+  --landingGradientOdd: linear-gradient(90deg, #f89a47cc, #f15f3e99, #ec207300);
+}
+
+.light-mode {
+  /* Light mode variables */
+  --bg-image: url("../public/img/bg-white.png");
+  --bg-header: url("../public/img/bg-white.png");
+  --color-primary: #faa653;
+  --color-secondary: #ff6347;
+  --color-tertiary: #f0f0f0;
+  --color-grey: #666666;
+  --bright-grey: #afaeae;
+  --color-quaternary: #ff571a;
+  --color-quaternary-hover: #ff5b20;
+  --color-white: #0a0a0a;
+  --color-black: #f8f8f8;
+  --logo: #0a0a0a;
+  --nav-card-modal: #ffffff;
+  --bgcolor: #e7e7e7;
+  --comment-capsule: #f68950;
+  --budget-capsule: #2c8b2a;
+  --inputBg: #f0f0f0;
+  --iconBg: #fafafa;
+  --brightFont: #ff7a28;
+  --borderInput: #515151;
+  --gradientCircle: linear-gradient(20deg, #ec2073, #ff894d);
+  --gradientCircleHover: linear-gradient(20deg, #ff894d, #ec2073);
+  --gradientButton: linear-gradient(90deg, #f89a47, #f15f3e, #ec2073);
+  --gradientButtonHover: linear-gradient(90deg, #ec2073, #f15f3e, #f89a47);
+  --gradientFont: linear-gradient(20deg, #f89a47, #f15f3e, #ec2073);
+  --darkGradient: linear-gradient(#c6c6c6, #e5e5e5);
+  --dropdown: #e0e0e0; /* Light version of #25232a */
+  --dropdownHover: #f0f0f0; /* Light version of #3e3c47 */
+  --dropdownSelected: #d0d0d0; /* Light version of #32313a */
+  --budgetCard: #e0e0e0;
+  --lightGradient: linear-gradient(#e0e0e0, #e0e0e0); /* Light version of #27262c */
+  --bgMain: #dbdae2;
+}

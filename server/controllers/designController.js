@@ -3,7 +3,7 @@ const { ref, uploadBytes, getDownloadURL, deleteObject } = require("firebase/sto
 const { doc, getDoc, arrayUnion } = require("firebase/firestore");
 
 // Create Design
-exports.handleCreateDesign = async (req, res) => {
+exports.createDesign = async (req, res) => {
   const createdDocuments = [];
   try {
     const { userId, designName } = req.body;
@@ -44,9 +44,11 @@ exports.handleCreateDesign = async (req, res) => {
       designId: designId,
       budget: {
         amount: 0,
-        currency: "USD",
+        currency: "PHP", //default
       },
       items: [],
+      createdAt: new Date(),
+      modifiedAt: new Date(),
     };
 
     const budgetRef = await db.collection("budgets").add(budgetData);
@@ -109,6 +111,22 @@ exports.fetchUserDesigns = async (req, res) => {
   }
 };
 
+// Update Name
+exports.updateDesignName = async (req, res) => {
+  try {
+    const { designId } = req.params;
+    const { name } = req.body;
+    const designRef = db.collection("designs").doc(designId);
+    await designRef.update({ designName: name, modifiedAt: new Date() });
+    res
+      .status(200)
+      .json({ success: true, message: "Design name updated successfully", designName: name });
+  } catch (error) {
+    console.error("Error updating design name:", error);
+    res.status(500).json({ error: "Failed to update design name" });
+  }
+};
+
 // Update
 exports.updateDesign = async (req, res) => {
   try {
@@ -124,7 +142,7 @@ exports.updateDesign = async (req, res) => {
 };
 
 // Delete
-exports.handleDeleteDesign = async (req, res) => {
+exports.deleteDesign = async (req, res) => {
   try {
     const { designId } = req.params;
     const { userId } = req.body;
@@ -133,12 +151,13 @@ exports.handleDeleteDesign = async (req, res) => {
     await db.collection("designs").doc(designId).delete();
 
     // Remove the design from the user's designs array
-    await db
-      .collection("users")
-      .doc(userId)
-      .update({
-        designs: db.FieldValue.arrayRemove({ designId, role: 2 }),
-      });
+    const userRef = db.collection("users").doc(userId);
+    const userDoc = await userRef.get();
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      const updatedDesigns = userData.designs.filter((design) => design.designId !== designId);
+      await userRef.update({ designs: updatedDesigns });
+    }
 
     // Remove the design from any projects it might be in
     const projectsSnapshot = await db
@@ -148,9 +167,9 @@ exports.handleDeleteDesign = async (req, res) => {
 
     const batch = db.batch();
     projectsSnapshot.docs.forEach((doc) => {
-      batch.update(doc.ref, {
-        designs: db.FieldValue.arrayRemove({ designId }),
-      });
+      const projectData = doc.data();
+      const updatedDesigns = projectData.designs.filter((design) => design.designId !== designId);
+      batch.update(doc.ref, { designs: updatedDesigns });
     });
     await batch.commit();
 

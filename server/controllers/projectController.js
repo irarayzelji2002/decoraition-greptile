@@ -180,12 +180,15 @@ exports.handleDeleteProject = async (req, res) => {
     await db.collection("projects").doc(projectId).delete();
 
     // Remove the project from the user's projects array
-    await db
-      .collection("users")
-      .doc(userId)
-      .update({
-        projects: db.FieldValue.arrayRemove({ projectId, role: 2 }),
-      });
+    const userRef = db.collection("users").doc(userId);
+    const userDoc = await userRef.get();
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      const updatedProjects = userData.projects.filter(
+        (project) => project.projectId !== projectId
+      );
+      await userRef.update({ projects: updatedProjects });
+    }
 
     res.status(200).json({ message: "Project deleted successfully" });
   } catch (error) {

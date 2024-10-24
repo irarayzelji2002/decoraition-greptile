@@ -21,6 +21,9 @@ exports.handleCreateProject = async (req, res) => {
         generalAccessSetting: 0, //0 for Restricted, 1 for Anyone with the link
         generalAccessRole: 0, //0 for viewer, 1 for content manager, 2 for contributor)
         allowDownload: true,
+        inactivityDays: 90,
+        deletionDays: 30,
+        notifyDays: 7,
       },
       designs: [],
     };
@@ -38,8 +41,8 @@ exports.handleCreateProject = async (req, res) => {
     const planMapData = {
       projectId,
       link: `/planMap/${projectId}`,
-      createdAt: db.FieldValue.serverTimestamp(),
-      modifiedAt: db.FieldValue.serverTimestamp(),
+      createdAt: new Date(),
+      modifiedAt: new Date(),
       planMapSettings: {
         generalAccessSetting: 0,
         generalAccessRole: 0,
@@ -57,8 +60,8 @@ exports.handleCreateProject = async (req, res) => {
     const timelineData = {
       projectId,
       link: `/timeline/${projectId}`,
-      createdAt: db.FieldValue.serverTimestamp(),
-      modifiedAt: db.FieldValue.serverTimestamp(),
+      createdAt: new Date(),
+      modifiedAt: new Date(),
       timelineSettings: {
         generalAccessSetting: 0,
         generalAccessRole: 0,
@@ -75,8 +78,8 @@ exports.handleCreateProject = async (req, res) => {
     const projectBudgetData = {
       projectId,
       link: `/projectBudget/${projectId}`,
-      createdAt: db.FieldValue.serverTimestamp(),
-      modifiedAt: db.FieldValue.serverTimestamp(),
+      createdAt: new Date(),
+      modifiedAt: new Date(),
       budgetSettings: {
         generalAccessSetting: 0,
         generalAccessRole: 0,

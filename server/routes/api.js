@@ -74,10 +74,10 @@ router.post("/user/get-usernames", userController.getUsernames);
 // Design routes
 router.get("/design/:userId", authenticateUser, designController.fetchUserDesigns);
 router.post("/design/create", authenticateUser, designController.createDesign);
-router.delete("/design/delete/:designId", authenticateUser, designController.deleteDesign);
+router.post("/design/delete/:designId", authenticateUser, designController.deleteDesign);
 router.put("/design/:designId/update-name", authenticateUser, designController.updateDesignName);
 router.put(
-  "/designs/:designId/update-settings",
+  "/design/:designId/update-settings",
   authenticateUser,
   designController.updateDesignSettings
 );
@@ -92,21 +92,27 @@ router.post(
   upload.single("file"),
   budgetController.addItem
 );
-router.put("/design/item/:itemId/update-item", authenticateUser, budgetController.updateItem);
+router.put(
+  "/design/item/:itemId/update-item",
+  authenticateUser,
+  upload.single("file"),
+  budgetController.updateItem
+);
 router.put(
   "/design/item/:itemId/update-item-included-in-total",
   authenticateUser,
   budgetController.updateItemIncludedInTotal
 );
-router.delete("/design/item/:itemId/delete-item", authenticateUser, budgetController.deleteItem);
+router.post("/design/item/:itemId/delete-item", authenticateUser, budgetController.deleteItem);
 
 // Project routes
 router.get("/project/:userId", authenticateUser, projectController.fetchUserProjects);
 router.post("/project/create", authenticateUser, projectController.handleCreateProject);
-router.delete(
-  "/project/delete/:projectId",
+router.post("/project/delete/:projectId", authenticateUser, projectController.handleDeleteProject);
+router.put(
+  "/project/:projectId/update-name",
   authenticateUser,
-  projectController.handleDeleteProject
+  projectController.updateProjectName
 );
 
 module.exports = router;

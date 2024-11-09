@@ -1,0 +1,114 @@
+/* General styling */
+
+.edit-event {
+  background-color: var(--bgcolor);
+  color: var(--color-white);
+  font-weight: bold;
+  padding: 20px;
+  font-family: "Inter", sans-serif !important;
+}
+
+.form-container {
+  max-width: 600px;
+  margin: auto;
+}
+
+/* Form group styling */
+.form-group {
+  margin-bottom: 20px;
+}
+
+.form-group label {
+  display: block;
+  margin-bottom: 5px;
+  font-size: 1rem;
+}
+
+.form-group input,
+.form-group textarea {
+  width: 95%;
+  padding: 12px;
+  border-radius: 4px;
+  border: 2px solid var(--borderInput);
+  background-color: var(--bgcolor);
+  color: var(--color-white);
+}
+
+textarea {
+  min-height: 100px;
+}
+
+/* Reminders section styling */
+.reminders {
+  margin-top: 20px;
+}
+
+.reminders-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.reminders-header span {
+  font-size: 1rem;
+  font-weight: bold;
+}
+
+.reminder-item {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.reminder-item input {
+  flex-grow: 1;
+  margin-right: 10px;
+}
+
+.gradient-button,
+.edit-event-button {
+  background-image: var(--gradientButton);
+  border: none;
+  padding: 10px 20px;
+  color: var(--color-white);
+  border-radius: 20px;
+  cursor: pointer;
+  font-weight: bold;
+  margin-bottom: 20px;
+  width: 100%;
+  display: block;
+}
+
+.gradient-button:hover,
+.edit-event-button:hover {
+  background-image: var(--gradientButtonHover);
+}
+
+/* Button for icons (Add, Delete, Edit) */
+.icon-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: var(--color-white);
+  font-size: 1.2rem;
+  padding: 0;
+  transition: color 0.3s ease;
+}
+
+.icon-button:hover {
+  color: #f15f3e;
+}
+
+.add-button {
+  margin-bottom: 10px;
+}
+
+.reminder-actions {
+  display: flex;
+  align-items: center;
+}
+/* editEvent.css */
+input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+}

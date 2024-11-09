@@ -1,0 +1,51 @@
+body,
+html,
+.App {
+  height: fit-content;
+}
+
+html {
+  background-color: var(--bgMain);
+}
+.h1-welcome {
+  font-size: 3.125em;
+  background: var(--gradientFont);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+.headtext {
+  margin-bottom: 24px;
+}
+.bg-login {
+  background-image: var(--bg-header);
+  background-repeat: no-repeat;
+  background-size: cover;
+  background-attachment: fixed;
+  width: 100%;
+  min-height: 100vh;
+  justify-content: center;
+  align-items: center;
+  display: flex;
+  flex-direction: column;
+}
+.modal-bg {
+  background-color: var(--nav-card-modal);
+  opacity: 0.9;
+  width: 560px;
+  max-width: 90%;
+  height: fit-content;
+  border-radius: 24px;
+  padding-bottom: 64px;
+}
+.signIn {
+  background-image: var(--gradientFont);
+  border-radius: 20px !important;
+  width: 80% !important;
+}
+
+.formLabels {
+  color: var(--color-white);
+  font-weight: bold;
+}

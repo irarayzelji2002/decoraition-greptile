@@ -1,0 +1,151 @@
+.search-item-page {
+  background-color: var(--bgcolor);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  position: relative;
+  overflow-x: hidden;
+}
+
+.search-bar {
+  width: 70%;
+  max-width: 1200px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 30px 10px 10px;
+}
+
+.search-input {
+  width: 100%;
+  padding: 10px;
+  padding-left: 40px;
+  border-radius: 5px;
+  border: none;
+  background-color: var(--nav-card-modal);
+  color: var(--color-white);
+  font-size: 1em;
+}
+
+.search-icon {
+  color: var(--color-white);
+  font-size: 1.5em;
+}
+
+.grid-container {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+  width: 70%;
+  max-width: 1200px;
+  padding: 20px;
+  justify-content: center;
+}
+
+.grid-item {
+  background-color: var(--budgetCard);
+  border-radius: 8px;
+  padding: 10px;
+  text-align: left;
+}
+
+.image-placeholder2 {
+  width: 100%;
+  height: 100px;
+  background-color: var(--bgcolor);
+  border-radius: 8px;
+  margin-bottom: 10px;
+}
+
+.item-details {
+  font-size: 0.875em;
+}
+
+.item-name {
+  color: var(--color-white);
+  margin: 5px 0;
+}
+
+.item-price {
+  color: var(--brightFont);
+  margin: 5px 0;
+  font-weight: bold;
+}
+
+.item-store {
+  color: var(--color-grey);
+  margin: 5px 0;
+}
+
+.select-button-container {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  width: 100%;
+}
+
+.select-button {
+  background: var(--gradientButton);
+  color: var(--color-white);
+  padding: 10px 20px;
+  border: none;
+  width: 20%;
+  border-radius: 25px;
+  font-size: 1em;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.select-button:hover {
+  background: var(--gradientButtonHover);
+  color: var(--color-white);
+}
+
+@media (max-width: 768px) {
+  .search-bar {
+    width: 90%;
+    padding: 20px 10px;
+  }
+
+  .search-icon {
+    left: 20px;
+    font-size: 1.25em;
+  }
+
+  .grid-container {
+    grid-template-columns: repeat(2, 1fr);
+    width: 90%;
+  }
+
+  .select-button {
+    width: 80%;
+    font-size: 0.875em;
+  }
+}
+
+@media (max-width: 480px) {
+  .search-bar {
+    width: 100%;
+    padding: 15px 5px;
+  }
+
+  .search-icon {
+    left: 10px;
+    font-size: 1.125em;
+  }
+
+  .search-input {
+    padding-left: 30px;
+  }
+
+  .grid-container {
+    grid-template-columns: 1fr;
+    padding: 10px;
+  }
+
+  .select-button {
+    width: 100%;
+    font-size: 0.75em;
+  }
+}

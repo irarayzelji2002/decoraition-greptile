@@ -1,0 +1,162 @@
+.timeline-container {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: center;
+
+  color: var(--color-white);
+  height: 100vh;
+  padding: 20px;
+}
+.calendar-head {
+  width: 100%;
+  max-width: 600px;
+  background-color: var(--nav-card-modal);
+  justify-content: space-between;
+  padding: 24px;
+  border-radius: 24px;
+  align-items: center;
+  margin-bottom: 200px;
+}
+
+.reminder-display {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  width: 100%;
+  max-width: 600px;
+  background-color: var(--nav-card-modal);
+  padding: 24px;
+  border-radius: 16px;
+  margin-bottom: 20px;
+}
+
+.react-calendar__navigation button:hover {
+  background-color: var(--iconBg) !important; /* Change to your desired hover background color */
+  color: var(--color-white); /* Change to your desired hover text color */
+
+  /* Add any other hover styles you want */
+}
+/* Calendar section */
+.react-calendar__navigation__label {
+  color: var(--color-white);
+}
+
+.react-calendar__navigation__arrow {
+  color: var(--color-white);
+}
+
+.calendar-section {
+  margin-bottom: 20px;
+  width: 100%;
+  max-width: 600px;
+  display: flex;
+  justify-content: center;
+}
+
+/* Custom styling for the calendar */
+.custom-calendar {
+  background-color: var(--nav-card-modal);
+  color: var(--color-white);
+  border: none;
+
+  padding: 10px;
+}
+.custom-calendar .react-calendar__tile--active {
+  background-image: var(--gradientButton);
+  color: white;
+}
+/* Hover effect on calendar tiles */
+.custom-calendar .react-calendar__tile:hover {
+  background-color: var(--iconBg);
+  color: white;
+}
+
+.custom-calendar .react-calendar__tile:focus {
+  outline: none;
+  background-color: var(--iconBg);
+}
+
+/* Default focus date (clicked but not active) */
+
+.custom-calendar .react-calendar__tile--now {
+  background-color: var(--nav-card-modal);
+  color: white;
+}
+
+.custom-calendar .react-calendar__tile {
+  color: var(--color-white);
+  border-radius: 5px;
+  transition: background-color 0.3s ease;
+}
+
+/* Task list */
+.task-list {
+  width: 100%;
+  max-width: 600px;
+}
+.add-event-button {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 12px;
+}
+
+.task-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--bgMain);
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1rem;
+}
+
+.task-text h3 {
+  margin: 0;
+  color: var(--color-white);
+}
+
+.task-text p {
+  margin: 0;
+  color: #aaa;
+}
+
+.task-actions {
+  display: flex;
+  gap: 0.5rem;
+}
+.icon-container {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--gradientButton);
+  padding: 8px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: background-color 0.3s ease;
+}
+
+.icon-container:hover {
+  background: var(--gradientButtonHover);
+}
+
+.icon-container svg {
+  color: white;
+  font-size: 1em;
+}
+
+.svg-icon {
+  color: var(--gradientButton);
+  font-size: 1.5em;
+  transition: color 0.3s ease;
+}
+
+.svg-icon:hover {
+  color: var(--gradientButtonHover);
+}
+
+@media (max-width: 768px) {
+  .calendar-head {
+    width: 80%;
+  }
+}

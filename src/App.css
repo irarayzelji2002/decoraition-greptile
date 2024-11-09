@@ -1,0 +1,283 @@
+body {
+  background-color: var(--bgMain) !important;
+  font-family: "Inter", sans-serif !important;
+  overflow: auto !important;
+  overflow-x: hidden;
+}
+html {
+  overflow-x: hidden;
+}
+.headTitle {
+  font-size: 1.125em;
+  font-weight: bold;
+  margin-top: 16px;
+  color: azure;
+}
+
+.custom-toast-success {
+  background-color: var(--inputBg) !important; /* Green background for success */
+  color: var(--color-white) !important; /* White text color */
+}
+
+.custom-toast-error {
+  background-color: var(--inputBg) !important; /* Green background for success */
+  color: var(--color-white) !important;
+}
+
+.scroll-container {
+  position: relative;
+  z-index: 1000; /* Ensure the scroll container is above other elements */
+  overflow: auto;
+  max-height: 100vh; /* Adjust as needed */
+}
+
+input:-webkit-autofill,
+textarea:-webkit-autofill,
+select:-webkit-autofill {
+  background-color: transparent !important;
+  color: #ffffff !important;
+  box-shadow: 0 0 0px 1000px transparent !important;
+  -webkit-text-fill-color: #ffffff !important;
+  transition: background-color 5000s ease-in-out 0s;
+}
+
+::-webkit-scrollbar {
+  width: 10px; /* Width of the scrollbar */
+  height: 10px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent; /* Background color of the scrollbar track */
+  box-shadow: none;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--dropdownSelectedHover); /* Color of the scrollbar thumb */
+  border-radius: 6px; /* Rounded corners of the scrollbar thumb */
+  border: 2px solid transparent; /* Space around the thumb */
+}
+
+.rightBeside {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: row;
+  width: 100%;
+}
+
+.small-btn {
+  text-transform: none;
+  font-weight: bold;
+  border-radius: 20px !important;
+  width: 150px;
+  background: var(--gradientButton);
+}
+
+.small-btn:hover {
+  background: var(--gradientButtonHover);
+}
+
+.small-btn.editing {
+  background: linear-gradient(to right, #4caf50, #81c784);
+}
+
+.small-btn.editing:hover {
+  background: linear-gradient(to right, #388e3c, #66bb6a);
+}
+
+.invisible-button {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.invisible-button:hover {
+  background-color: transparent !important;
+  box-shadow: none !important;
+}
+
+.form-control-label-right {
+  display: flex !important;
+  justify-content: space-between;
+  width: 100%;
+}
+
+.form-control-label-right .MuiFormControlLabel-label {
+  flex-grow: 1;
+}
+
+.see-dropdown {
+  width: 140px;
+}
+
+.custom-select {
+  width: 100%;
+  color: var(--color-white) !important;
+  border: 2px solid var(--borderInput) !important;
+}
+
+.custom-select .MuiOutlinedInput-notchedOutline {
+  border: none;
+}
+
+.custom-select:hover .MuiOutlinedInput-notchedOutline {
+  border: none;
+}
+
+.custom-select.Mui-focused .MuiOutlinedInput-notchedOutline {
+  border: none;
+}
+
+.center-me {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  width: auto;
+}
+
+.error-text {
+  color: var(--errorText);
+  font-size: 0.875em;
+}
+
+.element {
+  margin-bottom: 16px !important;
+  background-color: var(--nav-card-modal) !important;
+}
+
+.element input {
+  color: var(--color-white) !important;
+}
+
+.element .MuiOutlinedInput-root fieldset {
+  border-color: var(--borderInput) !important;
+}
+
+.element .MuiOutlinedInput-root:hover fieldset {
+  border-color: var(--borderInput) !important;
+}
+
+.element .MuiOutlinedInput-root.Mui-focused fieldset {
+  border-color: var(--brightFont) !important;
+}
+
+.MuiTypography-root {
+  font-family: "Inter", sans-serif !important;
+}
+
+:root {
+  --bg-header: url("../public/img/bg-login.png");
+  --bg-image: #1f1e22;
+  --color-primary: #faa653;
+  --color-secondary: #f04f59;
+  --color-tertiary: #27262c;
+  --borders: #5e5e5e;
+  --color-grey: #9d9ca6;
+  --color-grey2: #c1c0ce;
+  --bright-grey: #6c6c6c;
+  --color-quaternary: #ef4f56;
+  --errorText: #ef4f56;
+  --color-white: #fafafa;
+  --color-white-hover: #e6e6e6;
+  --color-blue: #0866ff;
+  --color-blue-hover: #0050d1;
+  --color-black: #080808;
+  --logo: #8f5e5e;
+  --nav-card-modal: #27262c;
+  --bgcolor: #1f1e22;
+  --comment-capsule: #f68950;
+  --budget-capsule: #397438;
+  --inputBg: #3e3c47;
+  --inputBgBrighter: #4a4853;
+  --iconBg: #302f37;
+  --brightFont: #ff8344;
+  --brightFontHover: #ff9058;
+  --borderInput: #515151;
+  --borderInputBrighter: #646464;
+  --gradientCircle: linear-gradient(20deg, #ec2073, #ff894d);
+  --gradientCircleDisabled: linear-gradient(20deg, #db3074, #e78655);
+  --gradientCircleHover: linear-gradient(20deg, #ff894d, #ec2073);
+  --gradientButton: linear-gradient(90deg, #f89a47, #f15f3e, #ec2073);
+  --gradientButtonHover: linear-gradient(90deg, #ec2073, #f15f3e, #f89a47);
+  --gradientFont: linear-gradient(20deg, #f89a47, #f15f3e, #ec2073);
+  --darkGradient: linear-gradient(#1e1e1e, #1e1e1e);
+  --lightGradient: linear-gradient(#27262c, #27262c);
+  --gradientIcon: linear-gradient(180deg, #f9a754, #f26b27, #ef4e59);
+  --budgetCard: #32313a;
+  --bgMain: #1e1d21;
+  --slider: #3c3b42;
+  --sliderHighlight: #707070;
+  --dropdown: #25232a;
+  --dropdownHover: #32313a;
+  --dropdownSelected: #3e3c47;
+  --dropdownSelectedHover: #4a4853;
+  --dropdown2: #32313a;
+  --dropdownHover2: #3e3c47;
+  --dropdownSelected2: #4a4853;
+  --dropdownSelectedHover2: #54525e;
+  --borderLanding: #f15f3e;
+  --landingGradientEven: linear-gradient(270deg, #f89a47cc, #f15f3e99, #ec207300);
+  --landingGradientOdd: linear-gradient(90deg, #f89a47cc, #f15f3e99, #ec207300);
+  --uib-color: #ec2073;
+  --table-stroke: #3e3c47;
+  --table-rows: #27262c;
+  --table-rows-hover: #34333b;
+  --lighterDarkBg: #27262c;
+  --iconDark: #525156;
+  --greyText: #b2b2b4;
+  --greyTextDarker: #848385;
+  --disabledButton: #626168;
+  --disabledInput: #3b3a42;
+  --selectImagePreview: #4b4955;
+  --noContent: #4b4a4d;
+  --thumbnailBorder: #5f5c6c;
+  --thumbnailFill: #323139;
+  --iconButtonHover: rgba(60, 59, 66, 0.3);
+  --iconButtonActive: rgba(60, 59, 66, 0.5);
+  --iconButtonHover2: rgba(112, 111, 119, 0.3);
+  --iconButtonActive2: rgba(112, 111, 119, 0.5);
+  --topInfoGradient: linear-gradient(
+    to top,
+    rgba(39, 38, 44, 0),
+    rgba(39, 38, 44, 0.3),
+    rgba(39, 38, 44, 0.9)
+  );
+  --yellow: #fec269;
+  --optional: #88888b;
+}
+
+.light-mode {
+  /* Light mode variables */
+  --bg-image: url("../public/img/bg-white.png");
+  --bg-header: url("../public/img/bg-white.png");
+  --color-primary: #faa653;
+  --color-secondary: #ff6347;
+  --color-tertiary: #f0f0f0;
+  --color-grey: #666666;
+  --bright-grey: #afaeae;
+  --color-quaternary: #ff571a;
+  --color-quaternary-hover: #ff5b20;
+  --color-white: #0a0a0a;
+  --color-black: #f8f8f8;
+  --logo: #0a0a0a;
+  --nav-card-modal: #ffffff;
+  --bgcolor: #e7e7e7;
+  --comment-capsule: #f68950;
+  --budget-capsule: #2c8b2a;
+  --inputBg: #f0f0f0;
+  --iconBg: #fafafa;
+  --brightFont: #ff7a28;
+  --borderInput: #515151;
+  --gradientCircle: linear-gradient(20deg, #ec2073, #ff894d);
+  --gradientCircleHover: linear-gradient(20deg, #ff894d, #ec2073);
+  --gradientButton: linear-gradient(90deg, #f89a47, #f15f3e, #ec2073);
+  --gradientButtonHover: linear-gradient(90deg, #ec2073, #f15f3e, #f89a47);
+  --gradientFont: linear-gradient(20deg, #f89a47, #f15f3e, #ec2073);
+  --darkGradient: linear-gradient(#c6c6c6, #e5e5e5);
+  --dropdown: #e0e0e0; /* Light version of #25232a */
+  --dropdownHover: #f0f0f0; /* Light version of #3e3c47 */
+  --dropdownSelected: #d0d0d0; /* Light version of #32313a */
+  --budgetCard: #e0e0e0;
+  --lightGradient: linear-gradient(#e0e0e0, #e0e0e0); /* Light version of #27262c */
+  --bgMain: #dbdae2;
+}

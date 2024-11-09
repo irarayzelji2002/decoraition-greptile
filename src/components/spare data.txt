@@ -1,0 +1,63 @@
+const getModalContent = (content) => {
+  switch (content) {
+    case "Owner":
+      return (
+        <>
+          <SearchBar>
+            <InputBase
+              placeholder="Search…"
+              inputProps={{ "aria-label": "search" }}
+              sx={{ flex: 1, color: "var(--color-white)" }}
+            />
+            <IconButton type="submit" aria-label="search">
+              <SearchIcon sx={{ color: "var(--color-white)" }} />
+            </IconButton>
+          </SearchBar>
+          <OptionButton>Any owner</OptionButton>
+          <OptionButton>Owned by me</OptionButton>
+        </>
+      );
+    case "Date Modified":
+      return (
+        <>
+          <OptionButton>Any time</OptionButton>
+          <OptionButton>Today</OptionButton>
+          <OptionButton>This week</OptionButton>
+          <OptionButton>This month</OptionButton>
+          <OptionButton>This year</OptionButton>
+          <OptionButton>Choose date range</OptionButton>
+        </>
+      );
+    case "Date Created":
+      return (
+        <>
+          <OptionButton>Any time</OptionButton>
+          <OptionButton>Today</OptionButton>
+          <OptionButton>This week</OptionButton>
+          <OptionButton>This month</OptionButton>
+          <OptionButton>This year</OptionButton>
+          <OptionButton>Choose date range</OptionButton>
+        </>
+      );
+    case "Sort By":
+      return (
+        <>
+          <OptionButton>Date modified</OptionButton>
+          <OptionButton>Date created</OptionButton>
+          <OptionButton>Name</OptionButton>
+          <OptionButton>Owner</OptionButton>
+        </>
+      );
+    case "Order":
+      return (
+        <>
+          <OptionButton>Descending</OptionButton>
+          <OptionButton>Ascending</OptionButton>
+        </>
+      );
+    default:
+      return null;
+  }
+};
+
+from project.js

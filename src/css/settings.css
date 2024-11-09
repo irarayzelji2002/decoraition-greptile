@@ -1,0 +1,179 @@
+/* Root container */
+.settings-container {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  background-color: var(--bgcolor);
+  color: var(--color-white);
+  height: 100vh;
+}
+.inputLabel {
+  margin-right: 10px;
+
+  width: 100px;
+  color: var(--color-grey);
+}
+.inputField {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  height: 3em;
+  min-width: 100%;
+}
+.inputFieldThree {
+  display: flex;
+  align-items: center;
+  margin-bottom: 10px;
+  height: 20em;
+  min-width: 100%;
+}
+.inputFieldImportant {
+  display: flex;
+  align-items: center;
+
+  border: var(--color-grey) 1px solid;
+  padding: 6px;
+  padding-left: 24px;
+  height: 3em;
+  min-width: auto;
+}
+
+/* AppBar styling */
+.app-bar {
+  background-color: #26262c;
+}
+
+/* Tab styling */
+.tabs {
+  color: var(--color-white);
+}
+
+.MuiTab-root {
+  font-size: 1rem;
+  text-transform: none;
+}
+
+.tab-label {
+  color: var(--color-white);
+}
+
+/* Avatar and buttons container */
+.avatar-container {
+  display: flex;
+  align-items: center;
+  border-bottom: var(--color-grey) 1px solid;
+  padding-bottom: 20px;
+  margin-bottom: 40px;
+}
+
+/* Profile buttons */
+.avatar-container .MuiButton-root {
+  margin-bottom: 10px;
+  color: var(--color-white);
+}
+
+.change-photo-btn {
+  background: var(--gradientButton);
+}
+
+.remove-photo-btn {
+  border-color: #ff867f;
+  color: #ff867f;
+}
+
+/* Form fields styling */
+.MuiTextField-root {
+  margin-bottom: 16px;
+  background-color: tra;
+  border-radius: 4px;
+}
+
+.MuiInputBase-input {
+  color: var(--color-white);
+}
+
+.MuiInputLabel-root {
+  color: #9a9a9a;
+}
+
+.MuiOutlinedInput-root {
+  fieldset {
+    border-color: var(--color-white);
+  }
+}
+
+.MuiOutlinedInput-root:hover fieldset {
+  border-color: #fc3d69;
+}
+
+/* Icon button styling */
+.MuiIconButton-root {
+  color: #fc3d69;
+}
+
+/* Notification Tab styling */
+.notification-settings {
+  color: var(--color-white);
+}
+
+/* Tab Navigation */
+.tabNavigation {
+  display: flex !important;
+  justify-content: space-between !important;
+  margin-bottom: 4rem !important;
+}
+
+.tabItem {
+  font-size: 18px !important;
+  font-weight: bold !important;
+  text-transform: none !important;
+  cursor: pointer !important;
+  padding-bottom: 1rem !important;
+}
+
+.tabItem.active {
+  background-image: var(--gradientFont) !important;
+  background-clip: text !important;
+  -webkit-background-clip: text !important;
+  color: transparent !important;
+  border-bottom: 2px solid transparent !important;
+  border-image: var(--gradientFont) 1 !important;
+  border-image-slice: 1 !important;
+}
+
+.tabItem:focus,
+.tabItem:active {
+  outline: none !important;
+  background-color: transparent !important;
+}
+
+/* General Access */
+.accessIcon {
+  color: var(--color-white) !important;
+}
+
+.accessSelect {
+  /* Add any additional styles if needed */
+}
+
+/* Viewer Settings */
+.customSwitchContainer {
+  display: flex !important;
+  align-items: center !important;
+  justify-content: space-between !important;
+  width: 100% !important;
+  margin-bottom: 1rem !important;
+}
+
+.switchLabel {
+  /* Add any additional styles if needed */
+}
+
+/* Inactivity Settings */
+.inactivitySettings {
+  /* Add any additional styles if needed */
+}
+
+.inactivityTextField {
+  /* Add any additional styles if needed */
+}

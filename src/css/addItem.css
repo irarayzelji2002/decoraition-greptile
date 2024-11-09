@@ -1,0 +1,339 @@
+.add-item-container {
+  display: flex;
+  padding: 20px;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+}
+
+.left-column,
+.right-column {
+  width: 40%;
+  height: 80vh;
+  padding: 40px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+.search-section {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+/* Search Section */
+.search-section input {
+  padding-top: 12px;
+  padding-bottom: 12px;
+  padding-left: 12px;
+  width: auto;
+  border: 2px solid var(--borderInput);
+  border-radius: 24px;
+  background-color: transparent;
+  color: var(--color-white);
+  font-size: 1.125em;
+  margin-bottom: 20px;
+}
+.search-section input:focus-within {
+  border-color: var(--brightFont);
+}
+
+/* Upload Section */
+.upload-section {
+  text-align: center;
+}
+
+.uploaded-image {
+  max-width: 100%;
+  border-radius: 8px;
+}
+
+.image-placeholder {
+  width: 100%;
+
+  display: flex;
+  justify-content: center;
+  align-items: center;
+
+  background-color: var(--nav-card-modal);
+  border-radius: 8px;
+  color: var(--noContent);
+  font-size: 1.125em;
+  font-weight: 500;
+}
+
+.image-placeholder-container {
+  width: 100%;
+  height: 350px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+  gap: 20px;
+
+  background-color: var(--nav-card-modal);
+  border-radius: 8px;
+  color: var(--color-white);
+  font-size: 1.125em;
+  margin-bottom: 20px;
+}
+
+.upload-btn:hover,
+.upload-btn:focus {
+  background-image: var(--darkGradient), var(--gradientButtonHover);
+}
+
+.upload-btn:click {
+  background: var(--gradientButton);
+  border-radius: 20px !important;
+  color: var(--color-white);
+}
+
+.upload-btn {
+  background-color: transparent;
+  color: var(--color-white);
+  font-weight: bold;
+  padding: 8px;
+  font-size: 1em;
+  border-radius: 20px !important;
+  cursor: pointer;
+  width: 100%;
+
+  /* Gradient Border */
+  border: 2px solid transparent;
+  background-image: var(--darkGradient), var(--gradientButton);
+  background-origin: border-box;
+  background-clip: padding-box, border-box;
+}
+
+/* Form Section */
+.form-section {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+}
+
+.item-name-label,
+.price-label {
+  display: block;
+  margin-bottom: 10px;
+  color: var(--color-white);
+  font-size: 1em;
+  font-weight: bold;
+}
+
+.search-section input:focus-within {
+  border-color: var(--brightFont);
+}
+
+.input-group {
+  width: 100%;
+  padding: 18px;
+  background-color: var(--nav-card-modal);
+  border: 2px solid var(--borderInput);
+  border-radius: 8px;
+  margin-bottom: 10px;
+  margin-top: 10px;
+}
+
+.input-group:focus-within {
+  border-color: var(--brightFont);
+}
+
+.search-section input:focus-within {
+  border-color: var(--brightFont);
+}
+
+/* Input styling */
+.input-group input,
+.price-quantity-section input,
+.price-quantity-section select {
+  width: 100%;
+  border: none;
+  background-color: transparent;
+  color: var(--color-white);
+  font-size: 1.125em;
+}
+
+.input-group input:focus,
+.price-quantity-section input:focus,
+.price-quantity-section select:focus {
+  outline: none; /* Remove focus outline */
+  box-shadow: none; /* Remove focus box-shadow */
+}
+
+/* Container for Price and Currency Selector */
+.price-quantity-section {
+  display: flex;
+
+  justify-content: space-between;
+  gap: 20px;
+}
+
+.price-quantity-section select {
+  width: 30%;
+}
+
+.price-quantity-section input {
+  width: 65%;
+}
+
+/* Quantity Section */
+.quantity-section {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background-color: var(--nav-card-modal);
+  border: 2px solid var(--borderInput);
+  border-radius: 8px;
+  height: 60px;
+}
+
+.quantity-section button {
+  background-color: var(--nav-card-modal);
+  color: var(--borderInput);
+  border: 2px solid var(--borderInput);
+  padding: 20px 20px;
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.125em;
+}
+
+.quantity-section span {
+  font-size: 1.25em;
+  color: var(--borderInput);
+}
+
+.quantity-section button:hover {
+  background: var(--gradientCircle);
+}
+
+/* Add Item Button */
+.add-item-btn {
+  padding-left: 18px;
+  padding-right: 18px;
+  padding-top: 8px;
+  padding-bottom: 8px;
+  background: var(--gradientButton);
+  border-radius: 20px !important;
+  color: var(--color-white);
+  font-weight: bold !important;
+  border: none;
+  cursor: pointer;
+
+  font-size: 1.125em;
+}
+
+.add-item-btn:hover {
+  background: var(--gradientButtonHover);
+}
+
+/* Responsive Styles */
+@media (max-width: 768px) {
+  .left-column,
+  .right-column {
+    width: 100%;
+    padding: 0%;
+  }
+
+  .add-item-container {
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .search-section input {
+    font-size: 1em;
+  }
+
+  .image-placeholder {
+    font-size: 1em;
+  }
+  .left-column,
+  .right-column {
+    height: auto;
+  }
+
+  .upload-btn {
+    padding: 8px;
+    font-size: 0.875em;
+  }
+  .right-column {
+    margin-left: 0;
+  }
+
+  .input-group {
+    padding: 10px;
+  }
+
+  .price-quantity-section select,
+  .price-quantity-section input {
+    font-size: 1em;
+  }
+
+  .quantity-section {
+    padding: 10px;
+  }
+
+  .quantity-section button {
+    padding: 8px 16px;
+    font-size: 1em;
+  }
+
+  .add-item-btn {
+    font-size: 1em;
+  }
+
+  .item-name-label,
+  .price-label {
+    font-size: 0.875em;
+  }
+}
+
+/* Additional responsiveness for very small screens */
+@media (max-width: 480px) {
+  .left-column,
+  .right-column {
+    padding: 0;
+  }
+  .search-section input {
+    font-size: 0.875em;
+  }
+
+  .image-placeholder {
+    font-size: 0.875em;
+  }
+
+  .upload-btn {
+    padding: 6px;
+    font-size: 0.75em;
+  }
+
+  .input-group {
+    padding: 8px;
+  }
+
+  .price-quantity-section select,
+  .price-quantity-section input {
+    font-size: 0.875em;
+  }
+
+  .quantity-section {
+    padding: 8px;
+  }
+
+  .quantity-section button {
+    padding: 6px 12px;
+    font-size: 0.875em;
+  }
+
+  .add-item-btn {
+    padding: 10px;
+    font-size: 0.875em;
+  }
+
+  .item-name-label,
+  .price-label {
+    font-size: 0.75em;
+  }
+}

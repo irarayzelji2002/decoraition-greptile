@@ -52,44 +52,7 @@ import { ChromePicker } from "react-color";
 import { huePickerEncodedSvg } from "./svg/AddColor";
 import { showToast, getContrastingTextColor } from "../../functions/utils";
 import { debounce, set } from "lodash";
-
-const canvasStyles = {
-  canvasContainer: {
-    position: "relative",
-    width: "100%",
-    height: "calc(100vh - 200px)",
-    display: "flex",
-    flexDirection: "column",
-    gap: "20px",
-  },
-  canvasStack: {
-    position: "relative",
-    width: "100%",
-    flex: 1,
-    aspectRatio: "1/1",
-    margin: "0 auto",
-  },
-  canvas: {
-    position: "absolute",
-    top: 0,
-    left: 0,
-    width: "100%",
-    height: "100%",
-  },
-  controls: {
-    display: "flex",
-    gap: "15px",
-    flexWrap: "wrap",
-    backgroundColor: "var(--color-grey3)",
-    borderRadius: "8px",
-  },
-  previewSection: {
-    display: "flex",
-    flexDirection: "column",
-    gap: "10px",
-    padding: "10px",
-  },
-};
+import { useCanvasDrawing } from "../../hooks/useCanvasDrawing";
 
 function SelectMaskCanvas({
   selectedImage,
@@ -98,11 +61,14 @@ function SelectMaskCanvas({
   controlWidthComments,
   controlWidthPromptBar,
 }) {
-  // Canvas refs
+  // Canvas/Container refs
   const addCanvasRef = useRef(null);
   const removeCanvasRef = useRef(null);
   const samCanvasRef = useRef(null);
+  const canvasStackRef = useRef(null);
   const previewCanvasRef = useRef(null);
+  const initImageRef = useRef(null);
+  const containerRef = useRef(null);
 
   // Show/Hide States
   const [showAllOptions, setShowAllOptions] = useState(true);
@@ -122,6 +88,7 @@ function SelectMaskCanvas({
   const [maskPrompt, setMaskPrompt] = useState("");
   const [samMasks, setSamMasks] = useState([]);
   const [selectedSamMask, setSelectedSamMask] = useState(null);
+  const [samMaskImage, setSamMaskImage] = useState(null);
   const [showPreview, setShowPreview] = useState(false);
 
   // Mask Type
@@ -160,8 +127,6 @@ function SelectMaskCanvas({
     applyMask: "",
   };
   const [errors, setErrors] = useState(initErrors);
-
-  const containerRef = useRef(null);
 
   const adjustCss = useCallback(() => {
     console.log("containerRef", containerRef);
@@ -258,10 +223,6 @@ function SelectMaskCanvas({
   }, [showPromptBar, showComments, controlWidthComments, controlWidthPromptBar]);
 
   useEffect(() => {
-    initializeCanvases();
-  }, [selectedImage]);
-
-  useEffect(() => {
     if (canvasMode) {
       console.log("add", canvasMode);
     } else {
@@ -344,74 +305,181 @@ function SelectMaskCanvas({
     return canvasRef;
   };
 
-  const initializeCanvases = () => {
+  // Drawing hooks
+
+  const addDrawing = useCanvasDrawing(addCanvasRef, pickedColorAdd, opacityAdd, brushModeAdd);
+
+  const removeDrawing = useCanvasDrawing(
+    removeCanvasRef,
+    pickedColorRemove,
+    opacityRemove,
+    brushModeRemove
+  );
+
+  // Initialize canvases
+  useEffect(() => {
     if (!selectedImage) return;
-
-    const canvasSize = Math.min(window.innerWidth * 0.8, window.innerHeight * 0.8);
-    [addCanvasRef, removeCanvasRef, samCanvasRef, previewCanvasRef].forEach((ref) => {
-      if (ref.current) {
-        ref.current.width = canvasSize;
-        ref.current.height = canvasSize;
-        const ctx = ref.current.getContext("2d");
-        ctx.imageSmoothingEnabled = true;
-      }
-    });
-
-    // Draw initial image
-    drawInitialImage();
-  };
-
-  const drawInitialImage = () => {
-    const img = new Image();
-    img.src = selectedImage.link;
-    img.onload = () => {
-      const ctx = addCanvasRef.current.getContext("2d");
-      ctx.drawImage(img, 0, 0, addCanvasRef.current.width, addCanvasRef.current.height);
+    const initCanvas = (canvas) => {
+      if (!canvas.current) return;
+      canvas.current.width = selectedImage.width;
+      canvas.current.height = selectedImage.height;
     };
-  };
+    [addCanvasRef, removeCanvasRef, samCanvasRef, previewCanvasRef].forEach(initCanvas);
+  }, [selectedImage]);
 
-  const handleStartDrawing = (e) => {
-    setIsDrawing(true);
-    const canvas = canvasMode === "add" ? addCanvasRef.current : removeCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  useEffect(() => {
+    if (!selectedImage || !canvasStackRef.current) return;
 
-    const ctx = canvas.getContext("2d");
-    ctx.beginPath();
-    ctx.moveTo(x, y);
-    ctx.strokeStyle = pickedColorAdd;
-    ctx.lineWidth = brushSizeAdd;
-    ctx.globalAlpha = opacityAdd;
-    ctx.lineCap = "round";
-  };
+    const updateCanvasSize = () => {
+      const stack = canvasStackRef.current;
+      const stackWidth = stack.offsetWidth;
+      const stackHeight = stack.offsetHeight;
+      const size = Math.min(stackWidth, stackHeight);
 
-  const handleDrawing = (e) => {
-    if (!isDrawing) return;
+      const scale = window.devicePixelRatio;
+      [addCanvasRef, removeCanvasRef, samCanvasRef].forEach((ref) => {
+        if (!ref.current) return;
+        ref.current.width = size * scale;
+        ref.current.height = size * scale;
+        ref.current.style.width = `${size}px`;
+        ref.current.style.height = `${size}px`;
 
-    const canvas = canvasMode === "add" ? addCanvasRef.current : removeCanvasRef.current;
-    const rect = canvas.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+        const ctx = ref.current.getContext("2d");
+        ctx.scale(scale, scale);
+      });
+    };
 
-    const ctx = canvas.getContext("2d");
-    ctx.lineTo(x, y);
-    ctx.stroke();
-  };
+    updateCanvasSize();
+    window.addEventListener("resize", updateCanvasSize);
+    return () => window.removeEventListener("resize", updateCanvasSize);
+  }, [selectedImage]);
 
-  const handleStopDrawing = () => {
-    setIsDrawing(false);
-    const canvas = canvasMode === "add" ? addCanvasRef.current : removeCanvasRef.current;
-    const ctx = canvas.getContext("2d");
-    ctx.closePath();
-  };
-
-  const clearCanvas = (canvasRef) => {
-    const ctx = canvasRef.current.getContext("2d");
-    ctx.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    if (canvasRef === addCanvasRef || canvasRef === removeCanvasRef) {
-      drawInitialImage();
+  useEffect(() => {
+    if (canvasMode) {
+      addDrawing.setCustomCursor(brushSizeAdd);
+    } else {
+      removeDrawing.setCustomCursor(brushSizeRemove);
     }
+  }, [canvasMode, brushSizeAdd, brushSizeRemove]);
+
+  useEffect(() => {
+    if (!showPreview || !previewCanvasRef.current) return;
+
+    const previewCtx = previewCanvasRef.current.getContext("2d");
+    const width = previewCanvasRef.current.width;
+    const height = previewCanvasRef.current.height;
+
+    // Clear preview
+    previewCtx.clearRect(0, 0, width, height);
+
+    // Draw base image
+    if (initImageRef.current) {
+      previewCtx.globalAlpha = 1;
+      previewCtx.drawImage(initImageRef.current, 0, 0, width, height);
+    }
+
+    // Combine masks
+    const tempCanvas = document.createElement("canvas");
+    tempCanvas.width = width;
+    tempCanvas.height = height;
+    const tempCtx = tempCanvas.getContext("2d");
+
+    // Draw SAM mask
+    if (samMaskImage) {
+      tempCtx.drawImage(samCanvasRef.current, 0, 0);
+    }
+
+    // Draw add mask
+    if (maskVisibilityAdd) {
+      tempCtx.globalAlpha = opacityAdd;
+      tempCtx.drawImage(addCanvasRef.current, 0, 0);
+    }
+
+    // Draw remove mask
+    if (maskVisibilityRemove) {
+      tempCtx.globalCompositeOperation = "destination-out";
+      tempCtx.globalAlpha = opacityRemove;
+      tempCtx.drawImage(removeCanvasRef.current, 0, 0);
+      tempCtx.globalCompositeOperation = "source-over";
+    }
+
+    // Apply combined mask to preview
+    previewCtx.globalAlpha = 0.5;
+    previewCtx.drawImage(tempCanvas, 0, 0);
+  }, [
+    showPreview,
+    samMaskImage,
+    maskVisibilityAdd,
+    maskVisibilityRemove,
+    opacityAdd,
+    opacityRemove,
+  ]);
+
+  // Drawing handlers
+  const handleMouseDown = (e, isAdd) => {
+    const drawing = isAdd ? addDrawing : removeDrawing;
+    drawing.setDrawing(true);
+    handleDraw(e, isAdd);
+  };
+
+  const handleMouseMove = (e, isAdd) => {
+    const drawing = isAdd ? addDrawing : removeDrawing;
+    if (!drawing.drawing) return;
+    handleDraw(e, isAdd);
+  };
+
+  const handleMouseUp = (isAdd) => {
+    const drawing = isAdd ? addDrawing : removeDrawing;
+    drawing.setDrawing(false);
+  };
+
+  const handleDraw = (e, isAdd) => {
+    const drawing = isAdd ? addDrawing : removeDrawing;
+    const brushSize = isAdd ? brushSizeAdd : brushSizeRemove;
+    drawing.draw(e, brushSize);
+  };
+
+  const clearCanvas = (canvasRef) => {};
+
+  // Add these functions
+  const handlePreviewMask = async () => {
+    if (!selectedSamMask) {
+      setErrors((prev) => ({ ...prev, selectedSamMask: "Please select a SAM mask" }));
+      return;
+    }
+
+    const addMaskBase64 = await addDrawing.getBase64Mask();
+    const removeMaskBase64 = await removeDrawing.getBase64Mask();
+
+    const formData = new FormData();
+    formData.append("refine_option", refineMaskOption ? "0" : "1");
+    formData.append("sam_mask", selectedSamMask.mask);
+    formData.append("user_mask_add", addMaskBase64);
+    formData.append("user_mask_remove", removeMaskBase64);
+
+    try {
+      const response = await fetch("/preview-mask", {
+        method: "POST",
+        body: formData,
+      });
+
+      if (!response.ok) throw new Error("Failed to preview mask");
+
+      const data = await response.json();
+      setSamMaskImage(data.masked_image);
+      setShowPreview(true);
+    } catch (error) {
+      console.error("Error previewing mask:", error);
+    }
+  };
+
+  const handleApplyMask = async () => {
+    const data = await handlePreviewMask();
+    if (!data) return;
+
+    setSamMaskImage(data.masked_image);
+    addDrawing.clearCanvas();
+    removeDrawing.clearCanvas();
   };
 
   const handleGenerateMask = async () => {
@@ -441,6 +509,40 @@ function SelectMaskCanvas({
   };
 
   const onMaskSelect = (samMask, addMask, removeMask) => {};
+
+  const hexToRgb = (hex) => {
+    const shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    hex = hex.replace(shorthandRegex, (m, r, g, b) => r + r + g + g + b + b);
+    const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+    return result
+      ? `${parseInt(result[1], 16)},${parseInt(result[2], 16)},${parseInt(result[3], 16)}`
+      : null;
+  };
+
+  const getBase64Mask = async (canvas) => {
+    const ctx = canvas.getContext("2d");
+    const imgData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const bwCanvas = document.createElement("canvas");
+    const bwCtx = bwCanvas.getContext("2d");
+
+    bwCanvas.width = canvas.width;
+    bwCanvas.height = canvas.height;
+
+    // Create black and white mask
+    const bwImageData = bwCtx.createImageData(imgData.width, imgData.height);
+    for (let i = 0; i < imgData.data.length; i += 4) {
+      const alpha = imgData.data[i + 3];
+      const isDrawnPath = alpha > 0;
+
+      bwImageData.data[i] = isDrawnPath ? 255 : 0; // R
+      bwImageData.data[i + 1] = isDrawnPath ? 255 : 0; // G
+      bwImageData.data[i + 2] = isDrawnPath ? 255 : 0; // B
+      bwImageData.data[i + 3] = 255; // A
+    }
+
+    bwCtx.putImageData(bwImageData, 0, 0);
+    return bwCanvas.toDataURL();
+  };
 
   return (
     <Box sx={canvasStyles.canvasContainer} ref={containerRef}>
@@ -968,37 +1070,70 @@ function SelectMaskCanvas({
       </Box>
 
       {/* Canvas Stack */}
-      <Box sx={canvasStyles.canvasStack}>
-        <canvas
-          ref={samCanvasRef}
+      <Box sx={canvasStyles.canvasStack} ref={canvasStackRef}>
+        <img
+          ref={initImageRef}
+          src={selectedImage.link}
           style={{
-            ...canvasStyles.canvas,
-            zIndex: 1,
-            display: selectedSamMask ? "block" : "none",
+            ...styles.baseImage,
+            opacity: showPreview ? 0.5 : 1,
           }}
+          alt="Initial"
         />
-        <canvas
-          ref={addCanvasRef}
-          style={{
-            ...canvasStyles.canvas,
-            zIndex: canvasMode === "add" ? 3 : 2,
-          }}
-          onMouseDown={handleStartDrawing}
-          onMouseMove={handleDrawing}
-          onMouseUp={handleStopDrawing}
-          onMouseOut={handleStopDrawing}
-        />
+
+        <div ref={samCanvasRef} style={styles.samCanvas}>
+          {samMaskImage && (
+            <img
+              src={samMaskImage}
+              style={{
+                ...styles.samMaskImage,
+                filter: `drop-shadow(0px 1000px 0px rgba(${hexToRgb(
+                  pickedColorSam
+                )}, ${opacitySam}))`,
+                opacity: maskVisibilityAdd ? 1 : 0,
+              }}
+              alt="SAM Mask"
+            />
+          )}
+        </div>
+
         <canvas
           ref={removeCanvasRef}
           style={{
-            ...canvasStyles.canvas,
-            zIndex: canvasMode === "remove" ? 3 : 2,
+            ...styles.canvas,
+            zIndex: canvasMode ? 1 : 2,
+            pointerEvents: canvasMode ? "none" : "auto",
+            opacity: maskVisibilityRemove ? (canvasMode ? 0.6 : 1) : 0,
           }}
-          onMouseDown={handleStartDrawing}
-          onMouseMove={handleDrawing}
-          onMouseUp={handleStopDrawing}
-          onMouseOut={handleStopDrawing}
+          onMouseDown={(e) => handleMouseDown(e, false)}
+          onMouseMove={(e) => handleMouseMove(e, false)}
+          onMouseUp={() => handleMouseUp(false)}
+          onMouseOut={() => handleMouseUp(false)}
         />
+
+        <canvas
+          ref={addCanvasRef}
+          style={{
+            ...styles.canvas,
+            zIndex: canvasMode ? 2 : 1,
+            pointerEvents: canvasMode ? "auto" : "none",
+            opacity: maskVisibilityAdd ? (canvasMode ? 1 : 0.6) : 0,
+          }}
+          onMouseDown={(e) => handleMouseDown(e, true)}
+          onMouseMove={(e) => handleMouseMove(e, true)}
+          onMouseUp={() => handleMouseUp(true)}
+          onMouseOut={() => handleMouseUp(true)}
+        />
+
+        {showPreview && (
+          <canvas
+            ref={previewCanvasRef}
+            style={{
+              ...styles.canvas,
+              zIndex: 3,
+            }}
+          />
+        )}
       </Box>
 
       {/* Preview Section */}
@@ -1474,18 +1609,21 @@ const SamMaskModal = ({ isOpen, onClose, samMasks, selectedSamMask, setSelectedS
           Select a mask generated from the prompt to apply to the image
         </Typography>
         <Box sx={{ display: "flex", gap: "10px", flexWrap: "wrap" }}>
-          {samMasks.map((mask, index) => (
+          {samMasks.map((option, index) => (
             <Box
               key={index}
-              onClick={() => setSelectedSamMask(mask)}
+              onClick={() => setSelectedSamMask(option)}
               sx={{
+                ...styles.maskOption,
                 cursor: "pointer",
-                border: selectedSamMask === mask ? "2px solid var(--color-primary)" : "none",
+                border: selectedSamMask === option ? "2px solid var(--color-primary)" : "none",
                 borderRadius: "4px",
                 overflow: "hidden",
               }}
             >
-              <img src={mask.preview} alt={`Mask ${index + 1}`} style={{ width: "150px" }} />
+              <img src={option.blended} alt="Blended" />
+              <img src={option.mask} alt="Mask" />
+              <img src={option.masked} alt="Masked" />
             </Box>
           ))}
         </Box>
@@ -1510,6 +1648,21 @@ const SamMaskModal = ({ isOpen, onClose, samMasks, selectedSamMask, setSelectedS
         </Button>
       </DialogActions>
     </Dialog>
+  );
+};
+
+const PreviewSection = ({ show, initImage, combinedMask }) => {
+  if (!show) return null;
+
+  return (
+    <Box sx={styles.previewContainer}>
+      <img src={initImage} style={styles.previewBaseImage} alt="Preview Base" />
+      <div style={styles.previewMask}>
+        {combinedMask && (
+          <img src={combinedMask} style={styles.previewMaskImage} alt="Preview Mask" />
+        )}
+      </div>
+    </Box>
   );
 };
 
@@ -1646,5 +1799,136 @@ export const sliderStyles = {
   },
   "& .MuiSlider-valueLabel::before": {
     color: "var(--slider)",
+  },
+};
+
+const canvasStyles = {
+  canvasContainer: {
+    position: "relative",
+    width: "100%",
+    height: "calc(100vh - 200px)",
+    display: "flex",
+    flexDirection: "column",
+    gap: "20px",
+  },
+  canvasStack: {
+    position: "relative",
+    width: "100%",
+    height: "100%",
+    aspectRatio: "1/1",
+    margin: "0 auto",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    backgroundColor: "var(--color-grey4)",
+    borderRadius: "8px",
+    overflow: "hidden",
+  },
+  canvas: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+  },
+  controls: {
+    display: "flex",
+    gap: "15px",
+    flexWrap: "wrap",
+    backgroundColor: "var(--color-grey3)",
+    borderRadius: "8px",
+  },
+  previewSection: {
+    display: "flex",
+    flexDirection: "column",
+    gap: "10px",
+    padding: "10px",
+  },
+};
+
+const styles = {
+  container: {
+    width: "100%",
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    gap: 2,
+  },
+  baseImage: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    maxWidth: "100%",
+    maxHeight: "100%",
+    objectFit: "contain",
+  },
+  samCanvas: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+  },
+  samMaskImage: {
+    width: "100%",
+    height: "100%",
+    transform: "translateY(-1000px)",
+  },
+  canvas: {
+    position: "absolute",
+    top: "50%",
+    left: "50%",
+    transform: "translate(-50%, -50%)",
+    maxWidth: "100%",
+    maxHeight: "100%",
+    pointerEvents: "auto",
+  },
+  previewContainer: {
+    position: "relative",
+    width: "100%",
+    aspectRatio: "1/1",
+  },
+  previewBaseImage: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    objectFit: "contain",
+  },
+  previewMask: {
+    position: "absolute",
+    top: 0,
+    left: 0,
+    width: "100%",
+    height: "100%",
+    overflow: "hidden",
+  },
+  previewMaskImage: {
+    width: "100%",
+    height: "100%",
+    filter: "drop-shadow(0px 1000px 0px rgba(117, 67, 255, 0.5))",
+    transform: "translateY(-1000px)",
+  },
+  dialogContent: {
+    padding: 2,
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+    gap: 2,
+  },
+  maskOption: {
+    display: "flex",
+    flexDirection: "column",
+    gap: 1,
+    cursor: "pointer",
+    "&:hover": {
+      opacity: 0.8,
+    },
+    "& img": {
+      width: "100%",
+      height: "auto",
+    },
   },
 };

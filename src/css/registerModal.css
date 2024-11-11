@@ -5,7 +5,7 @@ html,
   width: 100vw;
 }
 .h1-register {
-  font-size: 3.125em;
+  font-size: var(--font-size-h8);
   background: var(--gradientFont);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -14,7 +14,7 @@ html,
 }
 
 .h1-otp {
-  font-size: 3.125em;
+  font-size: var(--font-size-h8);
   background: var(--gradientFont);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
@@ -76,7 +76,7 @@ h5 {
   display: flex;
   align-items: center;
   color: #fff; /* Adjust color as needed */
-  font-size: 16px;
+  font-size: var(--font-size-h6) !important;
 }
 
 .terms-checkbox input[type="checkbox"] {
@@ -87,7 +87,7 @@ h5 {
 }
 
 .terms-checkbox label {
-  font-size: 16px;
+  font-size: var(--font-size-h6) !important;
   color: #d3d3d3;
 }
 

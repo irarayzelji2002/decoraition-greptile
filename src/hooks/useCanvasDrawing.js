@@ -1,24 +1,12 @@
-import { useState, useCallback, useEffect } from "react";
+import { useState, useCallback, useEffect, useMemo } from "react";
 
 export const useCanvasDrawing = (canvasRef, color, opacity, brushMode) => {
   const [drawing, setDrawing] = useState(false);
-  const [path] = useState(new Path2D());
+  const [path, setPath] = useState(new Path2D());
   const [erasedRegions, setErasedRegions] = useState([]);
   const [erasedPath, setErasedPath] = useState(new Path2D());
   const [hasDrawnPath, setHasDrawnPath] = useState(false);
   const [needsRedraw, setNeedsRedraw] = useState(false);
-
-  const getBrushArcPoints = useCallback((centerX, centerY, radius) => {
-    const points = [];
-    const numPoints = 10;
-    for (let i = 0; i < numPoints; i++) {
-      const angle = (2 * Math.PI * i) / numPoints;
-      const x = centerX + radius * Math.cos(angle);
-      const y = centerY + radius * Math.sin(angle);
-      points.push({ x, y });
-    }
-    return points;
-  }, []);
 
   const setCustomCursor = useCallback(
     (brushSize) => {
@@ -57,6 +45,26 @@ export const useCanvasDrawing = (canvasRef, color, opacity, brushMode) => {
     [canvasRef]
   );
 
+  const getBrushArcPoints = useCallback((centerX, centerY, radius) => {
+    const points = [];
+    const numPoints = 10;
+    for (let i = 0; i < numPoints; i++) {
+      const angle = (2 * Math.PI * i) / numPoints;
+      const x = centerX + radius * Math.cos(angle);
+      const y = centerY + radius * Math.sin(angle);
+      points.push({ x, y });
+    }
+    return points;
+  }, []);
+
+  const rebuildErasedPath = useCallback(() => {
+    const erasedPath = new Path2D();
+    for (let i = 0; i < erasedRegions.length; i++) {
+      erasedPath.addPath(erasedRegions[i]);
+    }
+    setErasedPath(erasedPath);
+  }, [erasedRegions]);
+
   const draw = useCallback(
     (event, brushSize) => {
       if (!canvasRef.current) return;
@@ -82,6 +90,9 @@ export const useCanvasDrawing = (canvasRef, color, opacity, brushMode) => {
               setErasedRegions((prev) => {
                 const newRegions = [...prev];
                 newRegions.splice(i, 1);
+                const newErasedPath = new Path2D();
+                newRegions.forEach((region) => newErasedPath.addPath(region));
+                setErasedPath(newErasedPath);
                 return newRegions;
               });
               break;
@@ -89,24 +100,35 @@ export const useCanvasDrawing = (canvasRef, color, opacity, brushMode) => {
           }
           if (isErased) break;
         }
-
+        if (isErased) rebuildErasedPath();
         path.addPath(strokePath);
         setHasDrawnPath(true);
-        context.globalAlpha = opacity;
+        context.globalAlpha = 1;
         context.fillStyle = color;
         context.fill(strokePath);
       } else {
         if (hasDrawnPath) {
+          // Direct canvas manipulation for smoother erasing
           setErasedRegions((prev) => [...prev, strokePath]);
           context.globalCompositeOperation = "destination-out";
           context.globalAlpha = 1;
           context.fill(strokePath);
           context.globalCompositeOperation = "source-over";
+          rebuildErasedPath();
         }
       }
       setNeedsRedraw(true);
     },
-    [canvasRef, erasedRegions, hasDrawnPath, path, getBrushArcPoints, color, opacity, brushMode]
+    [
+      canvasRef,
+      brushMode,
+      rebuildErasedPath,
+      path,
+      color,
+      erasedRegions,
+      getBrushArcPoints,
+      hasDrawnPath,
+    ]
   );
 
   const redrawCanvas = useCallback(() => {
@@ -129,18 +151,31 @@ export const useCanvasDrawing = (canvasRef, color, opacity, brushMode) => {
     if (!canvasRef.current) return;
     const context = canvasRef.current.getContext("2d");
     context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
-    path.reset();
+
+    // Reset all related states
+    setPath(new Path2D());
     setErasedPath(new Path2D());
     setErasedRegions([]);
     setHasDrawnPath(false);
     setNeedsRedraw(false);
-  }, [canvasRef, path]);
+
+    // Reset the context state
+    context.globalAlpha = 1;
+    context.fillStyle = color;
+    context.globalCompositeOperation = "source-over";
+  }, [canvasRef, opacity, color]);
 
   useEffect(() => {
     if (needsRedraw) {
       redrawCanvas();
     }
-  }, [needsRedraw, redrawCanvas]);
+  }, [color, opacity, needsRedraw, redrawCanvas]);
+
+  useEffect(() => {
+    if (!drawing) {
+      redrawCanvas();
+    }
+  }, [drawing]);
 
   const isCanvasEmpty = useCallback(() => {
     if (!canvasRef.current) return true;
@@ -148,12 +183,19 @@ export const useCanvasDrawing = (canvasRef, color, opacity, brushMode) => {
     const imgData = context.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
     const pixels = imgData.data;
 
+    // Loop through pixels (rgba channels)
     for (let i = 0; i < pixels.length; i += 4) {
-      if (pixels[i] !== 0 || pixels[i + 1] !== 0 || pixels[i + 2] !== 0 || pixels[i + 3] !== 0) {
-        return false;
+      const r = pixels[i];
+      const g = pixels[i + 1];
+      const b = pixels[i + 2];
+      const alpha = pixels[i + 3];
+
+      // If any pixel is not fully black or transparent, the canvas is not empty
+      if (r !== 0 || g !== 0 || b !== 0 || alpha !== 0) {
+        return false; // Canvas is not empty
       }
     }
-    return true;
+    return true; // Canvas is empty (no strokes/masks)
   }, [canvasRef]);
 
   const getBase64Mask = useCallback(() => {
@@ -179,6 +221,82 @@ export const useCanvasDrawing = (canvasRef, color, opacity, brushMode) => {
     return bwCanvas.toDataURL();
   }, [canvasRef]);
 
+  const userMaskBase64BAW = useCallback(() => {
+    return new Promise((resolve) => {
+      // Ensure that the canvas is available
+      if (!canvasRef.current) return resolve(null);
+
+      // Create a new canvas to store black and white image data
+      const bwCanvas = document.createElement("canvas");
+      const bwContext = bwCanvas.getContext("2d");
+      bwCanvas.width = canvasRef.current.width;
+      bwCanvas.height = canvasRef.current.height;
+
+      // Fill the entire canvas with black
+      bwContext.fillStyle = "black";
+      bwContext.fillRect(0, 0, bwCanvas.width, bwCanvas.height);
+
+      // Get the drawn path from the current canvas context
+      const ctx = canvasRef.current.getContext("2d");
+      const imgData = ctx.getImageData(0, 0, canvasRef.current.width, canvasRef.current.height);
+      const bwImageData = bwContext.createImageData(imgData.width, imgData.height);
+
+      for (let i = 0; i < imgData.data.length; i += 4) {
+        const r = imgData.data[i];
+        const g = imgData.data[i + 1];
+        const b = imgData.data[i + 2];
+        const alpha = imgData.data[i + 3];
+
+        // Check if this pixel is part of a drawn path (non-black and fully opaque)
+        const isDrawnPath = alpha > 0 && (r !== 0 || g !== 0 || b !== 0);
+        const isErasedPath = alpha === 0; // Alpha 0 represents an erased area
+
+        if (isDrawnPath) {
+          // For drawn paths, set the color to white
+          bwImageData.data[i] = 255;
+          bwImageData.data[i + 1] = 255;
+          bwImageData.data[i + 2] = 255;
+          bwImageData.data[i + 3] = 255; // Fully opaque
+        } else if (isErasedPath) {
+          // Erased path - remains black (0), already black so no change needed
+          bwImageData.data[i] = 0;
+          bwImageData.data[i + 1] = 0;
+          bwImageData.data[i + 2] = 0;
+          bwImageData.data[i + 3] = 255; // Fully opaque
+        } else {
+          // Unaffected background - keep it black
+          bwImageData.data[i] = 0;
+          bwImageData.data[i + 1] = 0;
+          bwImageData.data[i + 2] = 0;
+          bwImageData.data[i + 3] = 255; // Fully opaque
+        }
+      }
+
+      // Put the adjusted black and white image data back on the canvas
+      bwContext.putImageData(bwImageData, 0, 0);
+
+      // Convert the black-and-white canvas to a base64 string and resolve it
+      const base64Image = bwCanvas.toDataURL();
+      resolve(base64Image);
+    });
+  }, [canvasRef]);
+
+  const redrawCanvasVisibility = useCallback(
+    (visible) => {
+      if (!canvasRef.current) return;
+      const context = canvasRef.current.getContext("2d");
+      context.clearRect(0, 0, canvasRef.current.width, canvasRef.current.height);
+      context.globalAlpha = visible ? opacity : 0;
+      context.fillStyle = color;
+      context.fill(path);
+      context.globalCompositeOperation = "destination-out";
+      context.globalAlpha = 1;
+      context.fill(erasedPath);
+      context.globalCompositeOperation = "source-over";
+    },
+    [canvasRef, color, opacity, path, erasedPath]
+  );
+
   return {
     drawing,
     setDrawing,
@@ -188,5 +306,8 @@ export const useCanvasDrawing = (canvasRef, color, opacity, brushMode) => {
     redrawCanvas,
     isCanvasEmpty,
     getBase64Mask,
+    userMaskBase64BAW,
+    redrawCanvasVisibility,
+    setNeedsRedraw,
   };
 };

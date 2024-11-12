@@ -1,5 +1,6 @@
 import axios from "axios";
 import { showToast } from "../../../functions/utils";
+import { set } from "lodash";
 
 export const handleCommentTabClick = (side, setActiveCommentTab) => {
   setActiveCommentTab(side);
@@ -344,5 +345,642 @@ export const handleDeleteColorPalette = async (colorPalette, user, userDoc) => {
   } catch (error) {
     console.error("Error deleting color palette:", error);
     return { success: false, message: "Failed to delete color palette" };
+  }
+};
+
+// Image Generation Functions
+// Get task position message
+export const getQueuePositionMessage = (position) => {
+  // Adjusting position to get the correct "in line" position
+  const truePosition = position;
+
+  const ordinalSuffix = (num) => {
+    const lastDigit = num % 10;
+    const suffix =
+      lastDigit === 1 && num !== 11
+        ? "st"
+        : lastDigit === 2 && num !== 12
+        ? "nd"
+        : lastDigit === 3 && num !== 13
+        ? "rd"
+        : "th";
+    return `${num}${suffix}`;
+  };
+
+  if (truePosition === 1) {
+    return "You're next in line.";
+  } else if (truePosition <= 20) {
+    return `You're ${ordinalSuffix(truePosition)} in line.`;
+  } else {
+    return `You're in queue. There are ${truePosition - 1} tasks in front of you.`;
+  }
+};
+
+// Check task status
+export const checkTaskStatus = async (
+  taskId,
+  setStatusMessage,
+  setProgress,
+  setEta,
+  setIsGenerating,
+  setGeneratedImagesPreview,
+  setGeneratedImages
+) => {
+  let running = false;
+  console.log("Tracking Status: ");
+  while (!running) {
+    const response = await fetch(
+      `https://ai-api.decoraition.org/generate-image/task-status?task_id=${taskId}`
+    );
+
+    if (!response.ok) {
+      const errorMessage = await response.json();
+      throw new Error(errorMessage.error || "Failed to get task results");
+    }
+
+    const data = await response.json();
+
+    if (data.position !== 1) {
+      let message = getQueuePositionMessage(data.position);
+      setStatusMessage(message);
+      console.log(message);
+    } else {
+      running = true;
+      setStatusMessage("Image generation in progress");
+      // Track progress until task is complete
+      console.log("Tracking Image: ");
+      await trackImageGenerationProgress(
+        taskId,
+        setStatusMessage,
+        setProgress,
+        setEta,
+        setIsGenerating,
+        setGeneratedImagesPreview
+      );
+      // Fetch and display the generated images
+      console.log("Displaying Image: ");
+      const retryCount = 0;
+      await displayGeneratedImages(taskId, retryCount, setGeneratedImages);
+    }
+
+    if (!running) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+};
+
+// Track progress of image generation
+export const trackImageGenerationProgress = async (
+  taskId,
+  setStatusMessage,
+  setProgress,
+  setEta,
+  setIsGenerating,
+  setGeneratedImagesPreview
+) => {
+  setIsGenerating(true);
+  let progress = 0;
+  let eta_relative = 0;
+  let current_image_index = 0;
+  let current_image = null;
+  let previous_image = null;
+  let completed = false;
+  let status = "pending";
+  let curr_step = 0;
+  let prev_step = -1;
+  const number_of_images = window.number_of_images || 1;
+
+  // Create image tags in the image container
+  const imageContainer = document.getElementById("image_container");
+  imageContainer.innerHTML = "";
+  for (let i = 0; i < number_of_images; i++) {
+    setGeneratedImagesPreview((prev) => [...prev, { id: i, src: "" }]);
+  }
+
+  while (!completed) {
+    // Fetch API
+    const response = await fetch(
+      `https://ai-api.decoraition.org/generate-image/image-status?task_id=${taskId}`
+    );
+
+    if (!response.ok) {
+      const errorMessage = await response.json();
+      throw new Error(errorMessage.error || "Failed to get progress.");
+    }
+
+    const data = await response.json();
+    progress = data.progress;
+    eta_relative = data.eta_relative;
+    current_image = data.current_image;
+    status = data.status;
+    curr_step = data.state.sampling_step;
+
+    // Display progress for each image
+    if (current_image_index < number_of_images) {
+      setStatusMessage(
+        `Image generation in progress. Generating image ${
+          current_image_index + 1
+        } of ${number_of_images}`
+      );
+    }
+    const progress_percent = Math.round(progress * 100);
+    setProgress(progress_percent);
+    setEta(`${Math.round(eta_relative).toFixed(0)}s`);
+    console.log(
+      `Progress: ${progress_percent}%; ETA: ${Math.round(eta_relative).toFixed(
+        0
+      )}s; Sampling Step: ${curr_step}`
+    );
+
+    // Display image if current_image changes
+    if (current_image !== null && previous_image !== current_image) {
+      // eslint-disable-next-line no-loop-func
+      setGeneratedImagesPreview((prev) =>
+        prev.map((img) =>
+          img.id === current_image_index
+            ? { ...img, src: `data:image/png;base64,${data.current_image}` }
+            : img
+        )
+      );
+      previous_image = current_image;
+    }
+
+    // Check if we completed the image based on sampling steps
+    if ((prev_step === 29 || prev_step === 30) && curr_step === 0) {
+      current_image_index++;
+    }
+    prev_step = curr_step;
+
+    // Mark the task as completed if current_image becomes null after being non-null & status is success/failed
+    if (
+      previous_image !== null &&
+      current_image === null &&
+      (status === "success" || status === "failed")
+    ) {
+      completed = true;
+      console.log("Image generation completed.");
+      setStatusMessage("Image generation complete");
+      setProgress(100);
+      setEta("");
+      setIsGenerating(false);
+      setProgress(0);
+    }
+
+    if (!completed) {
+      await new Promise((resolve) => setTimeout(resolve, 100));
+    }
+  }
+};
+
+// Fetch and display the generated images
+export const displayGeneratedImages = async (taskId, retryCount = 0, setGeneratedImages) => {
+  const response = await fetch(
+    `https://ai-api.decoraition.org/generate-image/get-results?task_id=${taskId}`,
+    {
+      method: "GET",
+    }
+  );
+
+  if (response.status === 202) {
+    console.log("Request accepted, still processing. Please wait...");
+    await new Promise((resolve) => setTimeout(resolve, 1000));
+    return displayGeneratedImages(taskId, retryCount + 1, setGeneratedImages);
+  } else if (!response.ok) {
+    const errorMessage = await response.json();
+    throw new Error(errorMessage.error || "Failed to get task results");
+  }
+
+  const data = await response.json();
+  if (data && data.image_paths) {
+    data.image_paths.forEach((path) => {
+      setGeneratedImages((prev) => [...prev, { link: path, description: "", comments: [] }]);
+    });
+  }
+};
+
+// Generate Mask is clicked
+export const generateMask = async (
+  maskPrompt,
+  initImage,
+  setErrors,
+  setStatusMessage,
+  setSamMasks,
+  selectedSamMask,
+  setSelectedSamMask,
+  setSamMaskImage, // mask images
+  setSamMaskMask, // masked image
+  samDrawing
+) => {
+  let formErrors = {};
+  const err_msgs = document.querySelectorAll(".err_msg");
+  for (let i = 0; i < err_msgs.length; i++) {
+    err_msgs[i].innerHTML = "";
+  }
+  // Get form elements
+  const mask_prompt = maskPrompt.trim();
+  const init_image = initImage; //initImage.files[0]
+
+  // Validation
+  if (!mask_prompt) {
+    formErrors.maskPrompt = "Mask prompt is required to generate a mask.";
+  }
+  if (!init_image) {
+    formErrors.initImage = "Initial image is required to generate a mask.";
+  }
+  if (Object.keys(formErrors).length > 0) {
+    setErrors(formErrors);
+    return;
+  }
+
+  // Create FormData object
+  const formData = new FormData();
+  formData.append("mask_prompt", mask_prompt);
+  formData.append("init_image", init_image);
+
+  // Fetch API
+  try {
+    setStatusMessage("Generating mask");
+    const response = await fetch("https://ai-api.decoraition.org/generate-sam-mask", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      let formErrors = {};
+      setStatusMessage("");
+      formErrors.general =
+        "Failed to generate mask. Make sure to type an object present in the image in the mask prompt.";
+      setErrors(formErrors);
+      throw new Error("Failed to generate SAM mask");
+    }
+
+    const data = await response.json();
+    const { blended_images, masks, masked_images } = data.image_paths;
+    setStatusMessage("");
+
+    // Dynamically create a radio group for the 3 mask options
+    blended_images.forEach((blended_image, index) => {
+      setSamMasks((prev) => [
+        ...prev,
+        {
+          id: index,
+          blended: blended_images[index],
+          mask: masks[index],
+          masked: masked_images[index],
+        },
+      ]);
+      if (index === 0) {
+        setSelectedSamMask({
+          id: index,
+          blended: blended_images[index],
+          mask: masks[index],
+          masked: masked_images[index],
+        });
+        setSamMaskImage(masks[index]);
+        setSamMaskMask(masked_images[index]);
+      }
+      samDrawing.useSelectedMask(selectedSamMask);
+    });
+  } catch (error) {
+    console.error("Error:", error);
+  }
+};
+
+// Preview Mask is clicked/called
+export const previewMask = async (
+  samMaskImage,
+  base64ImageAdd,
+  base64ImageRemove,
+  selectedSamMask,
+  setErrors,
+  refineMaskOption,
+  showPreview,
+  setPreviewMask
+) => {
+  let formErrors = {};
+  // Validate data
+  if (!selectedSamMask) {
+    formErrors.samMask = "Please select a SAM mask.";
+  }
+  const sam_mask_path = samMaskImage;
+  const user_mask_add = base64ImageAdd;
+  const user_mask_remove = base64ImageRemove;
+  if (!user_mask_add) {
+    formErrors.userMaskAdd = "Please provide the add mask.";
+  }
+  if (!user_mask_remove) {
+    formErrors.userMaskRemove = "Please provide the remove mask.";
+  }
+  if (Object.keys(formErrors).length > 0) {
+    setErrors((prev) => ({ ...prev, ...formErrors }));
+    return;
+  }
+  const refineOptionIndex = refineMaskOption ? 0 : 1;
+
+  // Create FormData object
+  const formData = new FormData();
+  formData.append("refine_option", refineOptionIndex);
+  formData.append("sam_mask", sam_mask_path);
+  formData.append("user_mask_add", user_mask_add);
+  formData.append("user_mask_remove", user_mask_remove);
+  console.log("Form Data:");
+  console.log(formData);
+
+  // Fetch API
+  try {
+    const response = await fetch("https://ai-api.decoraition.org/preview-mask", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!response.ok) {
+      document.getElementById("combine_mask_general_err").innerHTML = "Failed to combine masks";
+      throw new Error("Failed to combine masks");
+    }
+
+    const data = await response.json();
+
+    if (showPreview) {
+      const { mask, masked_image } = data;
+      setPreviewMask(masked_image);
+    }
+    return data;
+  } catch (error) {
+    console.error("Error:", error);
+    document.getElementById("combine_mask_general_err").innerHTML =
+      "An error occurred. Please try again.";
+  }
+};
+
+// Apply Mask is clicked/called
+export const applyMask = async (
+  setErrors,
+  samDrawing,
+  setSamMaskMask,
+  color,
+  opacity,
+  setSamMaskImage,
+  setCombinedMask,
+  handleClearAllCanvas,
+  setPreviewMask,
+  samMaskImage,
+  base64ImageAdd,
+  base64ImageRemove,
+  selectedSamMask,
+  refineMaskOption,
+  showPreview
+) => {
+  const data = await previewMask(
+    samMaskImage,
+    base64ImageAdd,
+    base64ImageRemove,
+    selectedSamMask,
+    setErrors,
+    refineMaskOption,
+    showPreview,
+    setPreviewMask
+  ); // return mask
+  if (!data) {
+    let formErrors = {};
+    formErrors.combinedMask = "An error occurred. Please try again.";
+    setErrors((prev) => ({ ...prev, ...formErrors }));
+  }
+  const { mask, masked_image } = data;
+  setCombinedMask(data);
+  setPreviewMask(null);
+
+  // Add masked_image to samCanvas with styles
+  let samMask = new Image();
+  samMask.src = masked_image;
+  samMask.onload = function () {
+    setSamMaskMask(samMask.src);
+    samDrawing.applySAMMaskStyling(color, opacity);
+    setSamMaskImage(mask);
+    handleClearAllCanvas();
+  };
+};
+
+// Generate is clicked (first image) - TO FIX
+export const generateNextImage = async (
+  setStatusMessage,
+  setProgress,
+  setEta,
+  setIsGenerating,
+  setGeneratedImagesPreview,
+  setGeneratedImages
+) => {
+  let err_count = 0;
+  const err_msgs = document.querySelectorAll(".err_msg");
+  for (let i = 0; i < err_msgs.length; i++) {
+    err_msgs[i].innerHTML = "";
+  }
+  // Get form elements
+  const prompt = document.getElementById("prompt").value.trim();
+  const number_of_images = document.getElementById("number_of_images").value.trim();
+  window.number_of_images = number_of_images;
+  const color_palette = document.getElementById("color_palette").value.trim();
+  const init_image = document.getElementById("init_image").files[0];
+  const combinedMaskImg = document.querySelector("#sam_canvas img");
+  let combined_masked_image = "";
+  let combined_mask = "";
+  const style_reference = document.getElementById("style_reference").files[0];
+  const mask_prompt = document.getElementById("mask_prompt").value.trim();
+
+  // Validation
+  // Combine mask
+  const samCanvas = document.getElementById("sam_canvas");
+  const selectedMaskRadio = document.querySelectorAll('input[name="selected_mask"]');
+  if (samCanvas.innerHTML === "" && selectedMaskRadio.length === 0) {
+    if (!init_image && !mask_prompt) {
+      document.getElementById("general_err").innerHTML =
+        "Generate a mask first with the mask prompt and init image.";
+      return;
+    } else if (!mask_prompt || !init_image) {
+      if (!mask_prompt) {
+        document.getElementById("mask_prompt_err").innerHTML =
+          "Mask prompt is required to generate a mask.";
+      }
+      if (!init_image) {
+        document.getElementById("init_image_err").innerHTML =
+          "Init image is required to generate a mask.";
+      }
+      return;
+    } else {
+      document.getElementById("general_err").innerHTML = "Generate a mask first.";
+      return;
+    }
+  } else if (samCanvas.innerHTML === "") {
+    document.getElementById("general_err").innerHTML = "Generate a mask first.";
+  }
+  if (combinedMaskImg) {
+    combined_masked_image = combinedMaskImg.src; //path
+  }
+  if (combined_masked_image === "" || !combined_masked_image) {
+    if (combined_masked_image === "" && samCanvas.innerHTML === "") {
+      document.getElementById("general_err").innerHTML = "Generate a mask first.";
+    } else {
+      document.getElementById("general_err").innerHTML =
+        "Generate a mask first with the mask prompt and init image.";
+    }
+    return;
+  } else {
+    //combined_masked_image not empty
+    await applyMask();
+    const { mask, masked_image } = window.combined_mask;
+    combined_mask = mask;
+    // const addCanvas = document.getElementById("add_canvas");
+    // const removeCanvas = document.getElementById("remove_canvas");
+
+    // const isAddCanvasEmpty = window.isCanvasEmpty(addCanvas);
+    // const isRemoveCanvasEmpty = window.isCanvasEmpty(removeCanvas);
+
+    // // both canvas not empty, haven't applied mask
+    // if (!(isAddCanvasEmpty && isRemoveCanvasEmpty)) {
+    // 	document.getElementById("general_err").innerHTML = "Please apply the mask before generating.";
+    // 	err_count++;
+    // }
+  }
+  if (!prompt) {
+    document.getElementById("prompt_err").innerHTML = "Prompt is required.";
+    err_count++;
+  }
+  if (!number_of_images || number_of_images < 1 || number_of_images > 4) {
+    document.getElementById("number_of_images_err").innerHTML =
+      "Please enter a valid number of images (1-4).";
+    err_count++;
+  }
+
+  if (err_count > 0) {
+    return;
+  }
+
+  // Create FormData object
+  const formData = new FormData();
+  formData.append("prompt", prompt);
+  formData.append("number_of_images", number_of_images);
+  if (color_palette) {
+    const colorsArray = color_palette.split(",").map((color) => color.trim());
+    formData.append("color_palette", JSON.stringify(colorsArray));
+  }
+  formData.append("init_image", init_image);
+  formData.append("combined_mask", combined_mask);
+  if (style_reference) {
+    formData.append("style_reference", style_reference);
+  }
+  console.log("Form Data:");
+  console.log(formData);
+
+  // Fetch API call to generate the next image
+  try {
+    const generateResponse = await fetch("https://ai-api.decoraition.org/generate-next-image", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!generateResponse.ok) {
+      document.getElementById("general_err").innerHTML = "Failed to queue task";
+      throw new Error("Failed to queue task");
+    }
+
+    const generateData = await generateResponse.json();
+    const taskId = generateData.task.task_id;
+    console.log(`Task ID: ${taskId}`);
+    let task = await checkTaskStatus(
+      taskId,
+      setStatusMessage,
+      setProgress,
+      setEta,
+      setIsGenerating,
+      setGeneratedImagesPreview,
+      setGeneratedImages
+    );
+  } catch (error) {
+    console.error("Error:", error);
+  }
+};
+
+// Generate is clicked (next image) - TO FIX
+export const generateFirstImage = async () => {
+  let err_count = 0;
+  const err_msgs = document.querySelectorAll(".err_msg");
+  for (let i = 0; i < err_msgs.length; i++) {
+    err_msgs[i].innerHTML = "";
+  }
+
+  // Get form elements
+  const prompt = document.getElementById("prompt").value.trim();
+  const number_of_images = document.getElementById("number_of_images").value.trim();
+  window.number_of_images = number_of_images;
+  const color_palette = document.getElementById("color_palette").value.trim();
+  const base_image = document.getElementById("base_image").files[0];
+  const style_reference = document.getElementById("style_reference").files[0];
+
+  // Validation
+  if (!prompt) {
+    document.getElementById("prompt_err").innerHTML = "Prompt is required.";
+    err_count++;
+  }
+  if (!number_of_images || number_of_images < 1 || number_of_images > 4) {
+    document.getElementById("number_of_images_err").innerHTML =
+      "Please enter a valid number of images (1-4).";
+    err_count++;
+  }
+  if (base_image) {
+    const validExtensions = ["jpg", "jpeg", "png"];
+    const fileExtension = base_image.name.split(".").pop().toLowerCase();
+
+    if (!validExtensions.includes(fileExtension)) {
+      document.getElementById("base_image_err").innerHTML =
+        "Invalid file type. Please upload a JPG or PNG image.";
+      err_count++;
+    }
+  }
+  if (style_reference) {
+    const validExtensions = ["jpg", "jpeg", "png"];
+    const fileExtension = style_reference.name.split(".").pop().toLowerCase();
+
+    if (!validExtensions.includes(fileExtension)) {
+      document.getElementById("style_reference_err").innerHTML =
+        "Invalid file type. Please upload a JPG or PNG image.";
+      err_count++;
+    }
+  }
+  if (err_count > 0) {
+    return;
+  }
+
+  // Create FormData object
+  const formData = new FormData();
+  formData.append("prompt", prompt);
+  formData.append("number_of_images", number_of_images);
+  if (color_palette) {
+    const colorsArray = color_palette.split(",").map((color) => color.trim());
+    formData.append("color_palette", JSON.stringify(colorsArray));
+  }
+  if (base_image) {
+    formData.append("base_image", base_image);
+  }
+  if (style_reference) {
+    formData.append("style_reference", style_reference);
+  }
+
+  // Fetch API call to generate the first image
+  try {
+    const generateResponse = await fetch("https://ai-api.decoraition.org/generate-first-image", {
+      method: "POST",
+      body: formData,
+    });
+
+    if (!generateResponse.ok) {
+      document.getElementById("general_err").innerHTML = "Failed to queue task";
+      throw new Error("Failed to queue task");
+    }
+
+    const generateData = await generateResponse.json();
+    const taskId = generateData.task.task_id;
+    console.log(`Task ID: ${taskId}`);
+    let task = await checkTaskStatus(taskId);
+  } catch (error) {
+    console.error("Error:", error);
   }
 };

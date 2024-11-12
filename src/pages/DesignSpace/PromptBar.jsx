@@ -37,6 +37,7 @@ import {
 } from "../../components/RenameModal";
 import { set } from "lodash";
 import deepEqual from "deep-equal";
+import { generateFirstImage, generateNextImage } from "./backend/DesignActions";
 
 const theme = extendTheme({
   components: {
@@ -61,7 +62,6 @@ function PromptBar({
   prevHeight,
   setPrevHeight,
   selectedImage,
-  setSelectedImage,
   isNextGeneration,
   setIsNextGeneration,
   isSelectingMask,

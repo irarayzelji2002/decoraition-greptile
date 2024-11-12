@@ -48,7 +48,6 @@ function Design() {
   const [designVersionImages, setDesignVersionImages] = useState([]);
   const [isNextGeneration, setIsNextGeneration] = useState(false);
   const [selectedImage, setSelectedImage] = useState(null);
-  const [selectedImageData, setSelectedImageData] = useState(null);
   const [isSelectingMask, setIsSelectingMask] = useState(false);
   const [imageDescToEdit, setImageDescToEdit] = useState(null);
   const [infoVisible, setInfoVisible] = useState(false);
@@ -69,6 +68,11 @@ function Design() {
   const [isMobileLayout, setIsMobileLayout] = useState(window.innerWidth <= 600);
   const workingAreaRef = useRef(null);
   const imagesWorkSpaceChildRef = useRef(null);
+
+  // Generation
+  const [progress, setProgress] = useState(0);
+  const [timeRemaining, setTimeRemaining] = useState(0);
+  const [previewImage, setPreviewImage] = useState(null);
 
   const handleEdit = async (imageId, description) => {
     console.log("got imageId", imageId);
@@ -312,7 +316,6 @@ function Design() {
                     prevHeight={heightPromptBar}
                     setPrevHeight={setHeightPromptBar}
                     selectedImage={selectedImage}
-                    setSelectedImage={setSelectedImage}
                     isNextGeneration={isNextGeneration}
                     setIsNextGeneration={setIsNextGeneration}
                     isSelectingMask={isSelectingMask}
@@ -495,7 +498,7 @@ function Design() {
               </IconButton>
               {isSelectingMask ? (
                 <SelectMaskCanvas
-                  selectedImage={selectedImageData}
+                  selectedImage={selectedImage}
                   showPromptBar={showPromptBar}
                   showComments={showPromptBar}
                   controlWidthComments={showPromptBar}
@@ -526,14 +529,11 @@ function Design() {
                             className="image-frame-cont"
                             style={{
                               background:
-                                selectedImage === image.id
+                                selectedImage.id === image.id
                                   ? "var(--gradientButton)"
                                   : "transparent",
                             }}
-                            onClick={() => {
-                              setSelectedImage(image.id);
-                              setSelectedImageData(image);
-                            }}
+                            onClick={() => setSelectedImage(image)}
                           >
                             <div className="image-frame" key={image.id}>
                               {infoVisible ? (

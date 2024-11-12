@@ -762,113 +762,127 @@ export const applyMask = async (
 
 // Generate is clicked (first image) - TO FIX
 export const generateNextImage = async (
-  setStatusMessage,
+  prompt, // actual generation args
+  numberOfImages,
+  colorPalette, // string of hex colors sepaarted by ','
+  selectedImage,
+  samMaskMask,
+  styleReference,
+  maskPrompt,
+  combinedMask,
+  setGenerationErrors,
+  setStatusMessage, // checkTaskStatus args
   setProgress,
   setEta,
   setIsGenerating,
   setGeneratedImagesPreview,
-  setGeneratedImages
+  setGeneratedImages,
+  setErrors, // applyMask args
+  samDrawing,
+  setSamMaskMask,
+  color,
+  opacity,
+  setSamMaskImage,
+  setCombinedMask,
+  handleClearAllCanvas,
+  setPreviewMask,
+  samMaskImage,
+  base64ImageAdd,
+  base64ImageRemove,
+  selectedSamMask,
+  refineMaskOption,
+  showPreview
 ) => {
-  let err_count = 0;
-  const err_msgs = document.querySelectorAll(".err_msg");
-  for (let i = 0; i < err_msgs.length; i++) {
-    err_msgs[i].innerHTML = "";
-  }
-  // Get form elements
-  const prompt = document.getElementById("prompt").value.trim();
-  const number_of_images = document.getElementById("number_of_images").value.trim();
-  window.number_of_images = number_of_images;
-  const color_palette = document.getElementById("color_palette").value.trim();
-  const init_image = document.getElementById("init_image").files[0];
-  const combinedMaskImg = document.querySelector("#sam_canvas img");
-  let combined_masked_image = "";
-  let combined_mask = "";
-  const style_reference = document.getElementById("style_reference").files[0];
-  const mask_prompt = document.getElementById("mask_prompt").value.trim();
+  const initImage = selectedImage.link;
+  const combinedMaskImg = samMaskMask;
+  let combinedMaskBW = "";
+  let formErrors = {};
 
   // Validation
   // Combine mask
   const samCanvas = document.getElementById("sam_canvas");
   const selectedMaskRadio = document.querySelectorAll('input[name="selected_mask"]');
   if (samCanvas.innerHTML === "" && selectedMaskRadio.length === 0) {
-    if (!init_image && !mask_prompt) {
-      document.getElementById("general_err").innerHTML =
-        "Generate a mask first with the mask prompt and init image.";
+    if (!initImage && !maskPrompt) {
+      formErrors.general = "Generate a mask first with the mask prompt and init image";
       return;
-    } else if (!mask_prompt || !init_image) {
-      if (!mask_prompt) {
-        document.getElementById("mask_prompt_err").innerHTML =
-          "Mask prompt is required to generate a mask.";
+    } else if (!maskPrompt || !initImage) {
+      if (!maskPrompt) {
+        setErrors((prev) => ({
+          ...prev,
+          maskPrompt: "Mask prompt is required to generate a mask",
+        }));
       }
-      if (!init_image) {
-        document.getElementById("init_image_err").innerHTML =
-          "Init image is required to generate a mask.";
+      if (!initImage) {
+        setErrors((prev) => ({
+          ...prev,
+          initImage: "Initial image is required to generate a mask",
+        }));
       }
       return;
     } else {
-      document.getElementById("general_err").innerHTML = "Generate a mask first.";
+      formErrors.general = "Generate a mask first";
       return;
     }
   } else if (samCanvas.innerHTML === "") {
-    document.getElementById("general_err").innerHTML = "Generate a mask first.";
+    formErrors.general = "Generate a mask first";
   }
-  if (combinedMaskImg) {
-    combined_masked_image = combinedMaskImg.src; //path
-  }
-  if (combined_masked_image === "" || !combined_masked_image) {
-    if (combined_masked_image === "" && samCanvas.innerHTML === "") {
-      document.getElementById("general_err").innerHTML = "Generate a mask first.";
+  if (combinedMaskImg === "" || !combinedMaskImg) {
+    if (combinedMaskImg === "" && samCanvas.innerHTML === "") {
+      formErrors.general = "Generate a mask first";
     } else {
-      document.getElementById("general_err").innerHTML =
-        "Generate a mask first with the mask prompt and init image.";
+      formErrors.general = "Generate a mask first with the mask prompt and init image";
     }
     return;
   } else {
-    //combined_masked_image not empty
-    await applyMask();
-    const { mask, masked_image } = window.combined_mask;
-    combined_mask = mask;
-    // const addCanvas = document.getElementById("add_canvas");
-    // const removeCanvas = document.getElementById("remove_canvas");
-
-    // const isAddCanvasEmpty = window.isCanvasEmpty(addCanvas);
-    // const isRemoveCanvasEmpty = window.isCanvasEmpty(removeCanvas);
-
-    // // both canvas not empty, haven't applied mask
-    // if (!(isAddCanvasEmpty && isRemoveCanvasEmpty)) {
-    // 	document.getElementById("general_err").innerHTML = "Please apply the mask before generating.";
-    // 	err_count++;
-    // }
+    await applyMask(
+      setErrors,
+      samDrawing,
+      setSamMaskMask,
+      color,
+      opacity,
+      setSamMaskImage,
+      setCombinedMask,
+      handleClearAllCanvas,
+      setPreviewMask,
+      samMaskImage,
+      base64ImageAdd,
+      base64ImageRemove,
+      selectedSamMask,
+      refineMaskOption,
+      showPreview
+    );
+    const { mask, masked_image } = combinedMask;
+    combinedMaskBW = mask;
   }
   if (!prompt) {
-    document.getElementById("prompt_err").innerHTML = "Prompt is required.";
-    err_count++;
+    formErrors.prompt = "Prompt is required";
   }
-  if (!number_of_images || number_of_images < 1 || number_of_images > 4) {
-    document.getElementById("number_of_images_err").innerHTML =
-      "Please enter a valid number of images (1-4).";
-    err_count++;
+  if (!numberOfImages || numberOfImages < 1 || numberOfImages > 4) {
+    formErrors.numberOfImages = "Only 1 - 4 number of images allowed";
   }
 
-  if (err_count > 0) {
+  if (Object.keys(formErrors).length > 0) {
+    setGenerationErrors(formErrors);
     return;
   }
 
   // Create FormData object
   const formData = new FormData();
   formData.append("prompt", prompt);
-  formData.append("number_of_images", number_of_images);
-  if (color_palette) {
-    const colorsArray = color_palette.split(",").map((color) => color.trim());
+  formData.append("number_of_images", numberOfImages);
+  if (colorPalette) {
+    const colorsArray = colorPalette.split(",").map((color) => color.trim());
     formData.append("color_palette", JSON.stringify(colorsArray));
   }
-  formData.append("init_image", init_image);
-  formData.append("combined_mask", combined_mask);
-  if (style_reference) {
-    formData.append("style_reference", style_reference);
+  formData.append("init_image", initImage);
+  formData.append("combined_mask", combinedMaskBW);
+  if (styleReference) {
+    formData.append("style_reference", styleReference);
   }
   console.log("Form Data:");
   console.log(formData);
+  formErrors = {};
 
   // Fetch API call to generate the next image
   try {
@@ -878,7 +892,8 @@ export const generateNextImage = async (
     });
 
     if (!generateResponse.ok) {
-      document.getElementById("general_err").innerHTML = "Failed to queue task";
+      formErrors.general = "Failed to queue task";
+      setGenerationErrors(formErrors);
       throw new Error("Failed to queue task");
     }
 
@@ -900,68 +915,62 @@ export const generateNextImage = async (
 };
 
 // Generate is clicked (next image) - TO FIX
-export const generateFirstImage = async () => {
-  let err_count = 0;
-  const err_msgs = document.querySelectorAll(".err_msg");
-  for (let i = 0; i < err_msgs.length; i++) {
-    err_msgs[i].innerHTML = "";
-  }
-
-  // Get form elements
-  const prompt = document.getElementById("prompt").value.trim();
-  const number_of_images = document.getElementById("number_of_images").value.trim();
-  window.number_of_images = number_of_images;
-  const color_palette = document.getElementById("color_palette").value.trim();
-  const base_image = document.getElementById("base_image").files[0];
-  const style_reference = document.getElementById("style_reference").files[0];
-
+export const generateFirstImage = async (
+  prompt,
+  numberOfImages,
+  colorPalette,
+  baseImage,
+  styleReference,
+  setGenerationErrors,
+  setStatusMessage, // checkTaskStatus args
+  setProgress,
+  setEta,
+  setIsGenerating,
+  setGeneratedImagesPreview,
+  setGeneratedImages
+) => {
   // Validation
+  let formErrors = {};
   if (!prompt) {
-    document.getElementById("prompt_err").innerHTML = "Prompt is required.";
-    err_count++;
+    formErrors.prompt = "Prompt is required.";
   }
-  if (!number_of_images || number_of_images < 1 || number_of_images > 4) {
-    document.getElementById("number_of_images_err").innerHTML =
-      "Please enter a valid number of images (1-4).";
-    err_count++;
+  if (!numberOfImages || numberOfImages < 1 || numberOfImages > 4) {
+    formErrors.numberOfImages = "Only 1 - 4 number of images allowed.";
   }
-  if (base_image) {
+  if (baseImage) {
     const validExtensions = ["jpg", "jpeg", "png"];
-    const fileExtension = base_image.name.split(".").pop().toLowerCase();
+    const fileExtension = baseImage.name.split(".").pop().toLowerCase();
 
     if (!validExtensions.includes(fileExtension)) {
-      document.getElementById("base_image_err").innerHTML =
-        "Invalid file type. Please upload a JPG or PNG image.";
-      err_count++;
+      formErrors.baseImage = "Invalid file type. Please upload a JPG or PNG image.";
     }
   }
-  if (style_reference) {
+  if (styleReference) {
     const validExtensions = ["jpg", "jpeg", "png"];
-    const fileExtension = style_reference.name.split(".").pop().toLowerCase();
+    const fileExtension = styleReference.name.split(".").pop().toLowerCase();
 
     if (!validExtensions.includes(fileExtension)) {
-      document.getElementById("style_reference_err").innerHTML =
-        "Invalid file type. Please upload a JPG or PNG image.";
-      err_count++;
+      formErrors.styleReference = "Invalid file type. Please upload a JPG or PNG image.";
     }
   }
-  if (err_count > 0) {
+  if (Object.keys(formErrors).length > 0) {
+    setGenerationErrors(formErrors);
     return;
   }
 
   // Create FormData object
   const formData = new FormData();
   formData.append("prompt", prompt);
-  formData.append("number_of_images", number_of_images);
-  if (color_palette) {
-    const colorsArray = color_palette.split(",").map((color) => color.trim());
+  formData.append("number_of_images", numberOfImages);
+  if (colorPalette) {
+    const colorsArray = colorPalette.split(",").map((color) => color.trim());
     formData.append("color_palette", JSON.stringify(colorsArray));
   }
-  if (base_image) {
-    formData.append("base_image", base_image);
+  if (baseImage) {
+    formData.append("base_image", baseImage);
   }
-  if (style_reference) {
-    formData.append("style_reference", style_reference);
+  if (styleReference) {
+    formData.append("style_reference", styleReference);
   }
 
   // Fetch API call to generate the first image
@@ -972,14 +981,24 @@ export const generateFirstImage = async () => {
     });
 
     if (!generateResponse.ok) {
-      document.getElementById("general_err").innerHTML = "Failed to queue task";
+      let formErrors = {};
+      formErrors.general = "Failed to queue task";
+      setGenerationErrors(formErrors);
       throw new Error("Failed to queue task");
     }
 
     const generateData = await generateResponse.json();
     const taskId = generateData.task.task_id;
     console.log(`Task ID: ${taskId}`);
-    let task = await checkTaskStatus(taskId);
+    let task = await checkTaskStatus(
+      taskId,
+      setStatusMessage,
+      setProgress,
+      setEta,
+      setIsGenerating,
+      setGeneratedImagesPreview,
+      setGeneratedImages
+    );
   } catch (error) {
     console.error("Error:", error);
   }

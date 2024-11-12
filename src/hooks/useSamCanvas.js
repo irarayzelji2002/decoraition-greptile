@@ -10,15 +10,12 @@ export const useSamCanvas = (
   samMaskImage,
   setSamMaskMask
 ) => {
-  const applySAMMaskStyling = useCallback(
-    (color, opacity) => {
-      const samImage = canvasRef.querySelector("img");
-      if (samImage) {
-        samImage.style.filter = `drop-shadow(0px 1000px 0px rgba(${hexToRgb(color)}, ${opacity}))`;
-      }
-    },
-    [canvasRef]
-  );
+  const applySAMMaskStyling = useCallback(() => {
+    const samImage = canvasRef.querySelector("img");
+    if (samImage) {
+      samImage.style.filter = `drop-shadow(0px 1000px 0px rgba(${hexToRgb(color)}, ${opacity}))`;
+    }
+  }, [canvasRef]);
 
   // Hex to RGB conversion function
   const hexToRgb = (hex) => {
@@ -72,6 +69,7 @@ export const useSamCanvas = (
   );
 
   return {
+    applySAMMaskStyling,
     useSelectedMask,
     actualUseSelectedMask,
   };

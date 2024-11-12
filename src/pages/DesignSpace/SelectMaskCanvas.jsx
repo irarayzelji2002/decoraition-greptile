@@ -60,7 +60,7 @@ import {
   trackImageGenerationProgress,
   displayGeneratedImages,
   generateMask,
-  previewMask,
+  previewMask as previewMaskAction,
   applyMask,
 } from "./backend/DesignActions";
 
@@ -70,6 +70,36 @@ function SelectMaskCanvas({
   showComments,
   controlWidthComments,
   controlWidthPromptBar,
+  samMaskMask, // for canvas
+  setSamMaskMask,
+  maskPrompt,
+  setMaskPrompt,
+  combinedMask,
+  setCombinedMask,
+  errors,
+  setErrors,
+  samDrawing,
+  setSamDrawing,
+  pickedColorSam,
+  setPickedColorSam,
+  opacitySam,
+  setOpacitySam,
+  samMaskImage,
+  setSamMaskImage,
+  handleClearAllCanvas,
+  setHandleClearAllCanvas,
+  previewMask,
+  setPreviewMask,
+  base64ImageAdd,
+  setBase64ImageAdd,
+  base64ImageRemove,
+  setBase64ImageRemove,
+  selectedSamMask,
+  setSelectedSamMask,
+  refineMaskOption,
+  setRefineMaskOption,
+  showPreview,
+  setShowPreview,
 }) {
   // Canvas/Container refs
   const addCanvasRef = useRef(null);
@@ -96,21 +126,23 @@ function SelectMaskCanvas({
 
   // Mask Prompt & Preview
   const [maskPromptTooltipOpen, setMaskPromptTooltipOpen] = useState(false);
-  const [maskPrompt, setMaskPrompt] = useState("");
   const [samMasks, setSamMasks] = useState([]);
-  const [selectedSamMask, setSelectedSamMask] = useState(null);
-  const [samMaskImage, setSamMaskImage] = useState(null); // for generating
-  const [samMaskMask, setSamMaskMask] = useState(null); // for canvas
-  const [showPreview, setShowPreview] = useState(false);
-  const [previewMask, setPreviewMask] = useState(null);
-  const [base64ImageAdd, setBase64ImageAdd] = useState(null);
-  const [base64ImageRemove, setBase64ImageRemove] = useState(null);
-  const [combinedMask, setCombinedMask] = useState(null);
   const [statusMessage, setStatusMessage] = useState("");
+  // passed form parent:
+  // - maskPrompt, setMaskPrompt,
+  // - selectedSamMask, setSelectedSamMask,
+  // - showPreview, setShowPreview,
+  // - previewMask, setPreviewMask,
+  // - base64ImageAdd, setBase64ImageAdd,
+  // - base64ImageRemove, setBase64ImageRemove,
+  // - combinedMask, setCombinedMask,
+  // - samMaskMask, setSamMaskMask,
+  // - samMaskImage, setSamMaskImage
 
   // Mask Type
   const [canvasMode, setCanvasMode] = useState(true); // true for Add to Mask, false for Remove form Mask
-  const [refineMaskOption, setRefineMaskOption] = useState(true); // true for Add first then remove, false for Remove first then add
+  // passed from parent:
+  // - refineMaskOption, setRefineMaskOption
 
   // Canvas controls for add mask
   const [brushModeAdd, setBrushModeAdd] = useState(true); // true for Draw, false for Erase
@@ -119,7 +151,7 @@ function SelectMaskCanvas({
   const [brushSizeAdd, setBrushSizeAdd] = useState(40);
   const [opacityAdd, setOpacityAdd] = useState(0.5);
 
-  // Canvas controls for add mask
+  // Canvas controls for remove mask
   const [brushModeRemove, setBrushModeRemove] = useState(true);
   const [maskVisibilityRemove, setMaskVisibilityRemove] = useState(true);
   const [pickedColorRemove, setPickedColorRemove] = useState("var(--removeMask)");
@@ -127,8 +159,9 @@ function SelectMaskCanvas({
   const [opacityRemove, setOpacityRemove] = useState(0.5);
 
   // Canvas controls for sam mask
-  const [pickedColorSam, setPickedColorSam] = useState("var(--samMask)");
-  const [opacitySam, setOpacitySam] = useState(0.5);
+  // passed from parent:
+  // - pickedColorSam, setPickedColorSam
+  // - opacitySam, setOpacitySam
 
   // Drawing states
   const [isDrawing, setIsDrawing] = useState(false);
@@ -143,7 +176,7 @@ function SelectMaskCanvas({
     previewMask: "",
     applyMask: "",
   };
-  const [errors, setErrors] = useState(initErrors);
+  // passed from parent: errors, setErrors
 
   const adjustCss = useCallback(() => {
     console.log("containerRef", containerRef);
@@ -186,7 +219,10 @@ function SelectMaskCanvas({
     }
     if (width <= 1000) {
       console.log(`${width} <= 1000`);
-      container.querySelector(".canvasCont")?.classList.add("width-1000");
+      const conts = container.querySelectorAll(".canvasCont");
+      conts.forEach((element) => {
+        element.classList.add("width-1000");
+      });
       container.querySelector(".canvasAndPreviewContainer")?.classList.add("width-1000");
     }
     if (width <= 1038) {
@@ -205,7 +241,10 @@ function SelectMaskCanvas({
     }
     if (width <= 800) {
       console.log(`${width} <= 800`);
-      container.querySelector(".canvasCont")?.classList.add("width-800");
+      const conts = container.querySelectorAll(".canvasCont");
+      conts.forEach((element) => {
+        element.classList.add("width-800");
+      });
     }
     if (width <= 735) {
       console.log(`${width} <= 735`);
@@ -227,7 +266,10 @@ function SelectMaskCanvas({
         .querySelector(".maskPromptTextField .MuiOutlinedInput-root")
         ?.classList.add("width-600");
       container.querySelector(".generateMaskButton")?.classList.add("width-600");
-      container.querySelector(".canvasCont")?.classList.add("width-600");
+      const conts = container.querySelectorAll(".canvasCont");
+      conts.forEach((element) => {
+        element.classList.add("width-600");
+      });
       container.querySelector(".canvasAndPreviewContainer")?.classList.add("width-600");
     }
     if (width <= 510) {
@@ -245,10 +287,22 @@ function SelectMaskCanvas({
     }
     if (width <= 374) {
       console.log(`${width} <= 374`);
-      container.querySelector(".canvasCont")?.classList.add("width-374");
-      container.querySelector(".canvasTitleFlex")?.classList.add("width-374");
-      container.querySelector(".canvasTitle")?.classList.add("width-374");
-      container.querySelector(".actualCanvas")?.classList.add("width-374");
+      const canvasContFlexConts = container.querySelectorAll(".canvasCont");
+      canvasContFlexConts.forEach((element) => {
+        element.classList.add("width-374");
+      });
+      const canvasTitleFlexConts = container.querySelectorAll(".canvasTitleFlex");
+      canvasTitleFlexConts.forEach((element) => {
+        element.classList.add("width-374");
+      });
+      const canvasTitleConts = container.querySelectorAll(".canvasTitle");
+      canvasTitleConts.forEach((element) => {
+        element.classList.add("width-374");
+      });
+      const actualCanvasConts = container.querySelectorAll(".actualCanvas");
+      actualCanvasConts.forEach((element) => {
+        element.classList.add("width-374");
+      });
       container.querySelector(".canvasAndPreviewContainer")?.classList.add("width-374");
     }
   }, []);
@@ -377,7 +431,7 @@ function SelectMaskCanvas({
     brushModeRemove
   );
 
-  const samDrawing = useSamCanvas(
+  const initSamDrawing = useSamCanvas(
     samCanvasRef,
     pickedColorSam,
     opacitySam,
@@ -387,6 +441,10 @@ function SelectMaskCanvas({
     samMaskImage,
     setSamMaskMask
   );
+
+  useEffect(() => {
+    setSamDrawing(initSamDrawing);
+  }, [initSamDrawing]);
 
   // Initialize canvases
   useEffect(() => {
@@ -400,7 +458,13 @@ function SelectMaskCanvas({
   }, [selectedImage]);
 
   useEffect(() => {
-    if (!selectedImage || !canvasStackRef.current) return;
+    if (
+      !selectedImage ||
+      !canvasStackRef.current ||
+      !addCanvasRef.current ||
+      !removeCanvasRef.current
+    )
+      return;
 
     const updateCanvasSize = () => {
       const stack = canvasStackRef.current;
@@ -409,7 +473,7 @@ function SelectMaskCanvas({
       const size = Math.min(stackWidth, stackHeight);
 
       const scale = window.devicePixelRatio;
-      [addCanvasRef, removeCanvasRef, samCanvasRef].forEach((ref) => {
+      [addCanvasRef, removeCanvasRef].forEach((ref) => {
         if (!ref.current) return;
         ref.current.width = size * scale;
         ref.current.height = size * scale;
@@ -446,74 +510,14 @@ function SelectMaskCanvas({
 
   // Update SAM mask when image, color, or opacity changes
   useEffect(() => {
-    if (samMaskImage) {
+    if (samDrawing && selectedSamMask) {
       samDrawing.useSelectedMask(selectedSamMask);
     }
-  }, [samMaskImage]);
-  useEffect(() => {
-    if (samMaskImage) {
-      handleColorChange(pickedColorSam, "sam");
-    }
-  }, [pickedColorSam]);
-  useEffect(() => {
-    if (samMaskImage) {
-      handleOpacityChange(opacitySam, "sam");
-    }
-  }, [opacitySam]);
+  }, [selectedSamMask]);
 
   useEffect(() => {
-    if (!showPreview || !previewCanvasRef.current) return;
-
-    const previewCtx = previewCanvasRef.current.getContext("2d");
-    const width = previewCanvasRef.current.width;
-    const height = previewCanvasRef.current.height;
-
-    // Clear preview
-    previewCtx.clearRect(0, 0, width, height);
-
-    // Draw base image
-    if (initImageRef.current) {
-      previewCtx.globalAlpha = 1;
-      previewCtx.drawImage(initImageRef.current, 0, 0, width, height);
-    }
-
-    // Combine masks
-    const tempCanvas = document.createElement("canvas");
-    tempCanvas.width = width;
-    tempCanvas.height = height;
-    const tempCtx = tempCanvas.getContext("2d");
-
-    // Draw SAM mask
-    if (samMaskImage) {
-      tempCtx.drawImage(samCanvasRef.current, 0, 0);
-    }
-
-    // Draw add mask
-    if (maskVisibilityAdd) {
-      tempCtx.globalAlpha = 1;
-      tempCtx.drawImage(addCanvasRef.current, 0, 0);
-    }
-
-    // Draw remove mask
-    if (maskVisibilityRemove) {
-      tempCtx.globalCompositeOperation = "destination-out";
-      tempCtx.globalAlpha = 1;
-      tempCtx.drawImage(removeCanvasRef.current, 0, 0);
-      tempCtx.globalCompositeOperation = "source-over";
-    }
-
-    // Apply combined mask to preview
-    previewCtx.fillStyle = pickedColorSam;
-    previewCtx.globalAlpha = opacitySam;
-    previewCtx.drawImage(tempCanvas, 0, 0);
-  }, [
-    showPreview,
-    samMaskImage,
-    maskVisibilityAdd,
-    maskVisibilityRemove,
-    pickedColorSam,
-    opacitySam,
-  ]);
+    if (samDrawing) handleOpacityChange(opacitySam, "sam");
+  }, [pickedColorSam, opacitySam]);
 
   useEffect(() => {
     if (!maskVisibilityAdd) {
@@ -534,34 +538,21 @@ function SelectMaskCanvas({
   const debouncedRedraw = useMemo(() => {
     return {
       add: debounce((color, opacity) => {
-        if (!addCanvasRef.current) return;
+        if (!addCanvasRef.current || !addDrawing) return;
         addDrawing.redrawCanvas();
       }, 100),
 
       remove: debounce((color, opacity) => {
-        if (!removeCanvasRef.current) return;
+        if (!removeCanvasRef.current || !removeDrawing) return;
         removeDrawing.redrawCanvas();
       }, 100),
 
       sam: debounce((color, opacity) => {
-        if (!samCanvasRef.current) return;
-        samDrawing.useSelectedMask(selectedSamMask);
+        if (!samCanvasRef.current || !samDrawing || !selectedSamMask) return;
+        samDrawing.applySAMMaskStyling();
       }, 100),
     };
   }, [addDrawing, removeDrawing, samDrawing]);
-
-  const handleColorChange = (color, canvas) => {
-    if (canvas === "add") {
-      setPickedColorAdd(color);
-      debouncedRedraw.add(color, opacityAdd);
-    } else if (canvas === "remove") {
-      setPickedColorRemove(color);
-      debouncedRedraw.remove(color, opacityRemove);
-    } else if (canvas === "sam") {
-      setPickedColorSam(color);
-      debouncedRedraw.sam(color, opacitySam);
-    }
-  };
 
   const handleOpacityChange = (opacity, canvas) => {
     if (canvas === "add") {
@@ -616,10 +607,13 @@ function SelectMaskCanvas({
     setClearCanvasModalOpen(false);
   };
 
-  const handleClearAllCanvas = () => {
+  const initHandleClearAllCanvas = () => {
     addDrawing.clearCanvas();
     removeDrawing.clearCanvas();
   };
+  useEffect(() => {
+    setHandleClearAllCanvas(initHandleClearAllCanvas);
+  }, [initHandleClearAllCanvas]);
 
   const getUserMasks = async () => {
     const base64ImageAdd = await addDrawing.userMaskBase64BAW();
@@ -629,52 +623,70 @@ function SelectMaskCanvas({
   };
 
   const handleGenerateMask = async () => {
-    await generateMask(
-      maskPrompt,
-      selectedImage.link, // to fix
-      setErrors,
-      setStatusMessage,
-      setSamMasks,
-      selectedSamMask,
-      setSelectedSamMask,
-      setSamMaskImage, // mask images
-      setSamMaskMask, // masked image
-      samDrawing
-    );
+    try {
+      await generateMask(
+        maskPrompt,
+        selectedImage.link,
+        setErrors,
+        setStatusMessage,
+        setSamMasks,
+        selectedSamMask,
+        setSelectedSamMask,
+        setSamMaskImage,
+        setSamMaskMask,
+        samDrawing
+      );
+    } catch (error) {
+      setErrors((prev) => ({ ...prev, general: "Failed to generate mask" }));
+    }
   };
 
+  useEffect(() => {
+    if (errors && Object.keys(errors).length > 0)
+      if (errors.general) showToast("error", errors.general);
+  }, [errors]);
+
   const handlePreviewMask = async () => {
-    await getUserMasks();
-    await previewMask(
-      samMaskImage,
-      base64ImageAdd,
-      base64ImageRemove,
-      selectedSamMask,
-      setErrors,
-      refineMaskOption,
-      showPreview,
-      setPreviewMask
-    );
+    if (!showPreview || !previewCanvasRef.current) return;
+    try {
+      await getUserMasks();
+      await previewMaskAction(
+        samMaskImage,
+        base64ImageAdd,
+        base64ImageRemove,
+        selectedSamMask,
+        setErrors,
+        refineMaskOption,
+        showPreview,
+        setPreviewMask
+      );
+    } catch (error) {
+      setErrors((prev) => ({ ...prev, general: "Failed to preview mask" }));
+    }
   };
 
   const handleApplyMask = async () => {
-    await applyMask(
-      setErrors,
-      samDrawing,
-      setSamMaskMask,
-      pickedColorSam,
-      opacitySam,
-      setSamMaskImage,
-      setCombinedMask,
-      handleClearAllCanvas,
-      setPreviewMask,
-      samMaskImage,
-      base64ImageAdd,
-      base64ImageRemove,
-      selectedSamMask,
-      refineMaskOption,
-      showPreview
-    );
+    try {
+      await applyMask(
+        setErrors,
+        samDrawing,
+        setSamMaskMask,
+        pickedColorSam,
+        opacitySam,
+        setSamMaskImage,
+        setCombinedMask,
+        handleClearAllCanvas,
+        setPreviewMask,
+        samMaskImage,
+        base64ImageAdd,
+        base64ImageRemove,
+        selectedSamMask,
+        refineMaskOption,
+        showPreview
+      );
+    } catch (error) {
+      setErrors((prev) => ({ ...prev, general: "Failed to apply mask" }));
+    }
   };
 
   return (
@@ -1342,7 +1354,9 @@ function SelectMaskCanvas({
         <ConfirmSamMaskChangeModal
           isOpen={confirmSamMaskChangeModalOpen}
           onClose={() => setConfirmSamMaskChangeModalOpen(false)}
-          handleSelectedMask={() => samDrawing.actualUseSelectedMask(selectedSamMask)}
+          handleSelectedMask={() =>
+            samDrawing ? samDrawing.actualUseSelectedMask(selectedSamMask) : {}
+          }
         />
       )}
     </Box>

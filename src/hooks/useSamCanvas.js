@@ -2,20 +2,47 @@ import { useState, useCallback, useEffect } from "react";
 
 export const useSamCanvas = (
   canvasRef,
+  previewCanvasRef,
   color,
   opacity,
   setConfirmSamMaskChangeModalOpen,
   selectedSamMask,
   samMasks,
   samMaskImage,
-  setSamMaskMask
+  setSamMaskMask,
+  showPreview
 ) => {
+  console.log("useSamCanvas values:", { color, opacity, canvasRef, previewCanvasRef });
   const applySAMMaskStyling = useCallback(() => {
-    const samImage = canvasRef.querySelector("img");
-    if (samImage) {
-      samImage.style.filter = `drop-shadow(0px 1000px 0px rgba(${hexToRgb(color)}, ${opacity}))`;
+    console.log("Applying styling with:", { color, opacity });
+
+    let colorHex = color;
+    if (colorHex === "var(--samMask)") colorHex = "#7543ff";
+
+    // Handle main canvas
+    if (!canvasRef.current) {
+      console.log("No canvas ref");
+      return;
     }
-  }, [canvasRef]);
+    const samImage = canvasRef.current?.querySelector("img");
+    console.log("Sam Image:", samImage);
+    if (samImage) {
+      samImage.style.filter = `drop-shadow(0px 1000px 0px rgba(${hexToRgb(colorHex)}, ${opacity}))`;
+    }
+
+    // Handle preview canvas
+    if (!previewCanvasRef.current) {
+      console.log("No preview ref");
+      return;
+    }
+    const previewImage = previewCanvasRef.current?.querySelector("img");
+    if (showPreview && previewImage) {
+      console.log("Preview Image:", previewImage);
+      previewImage.style.filter = `drop-shadow(0px 1000px 0px rgba(${hexToRgb(
+        colorHex
+      )}, ${opacity}))`;
+    }
+  }, [canvasRef, previewCanvasRef, color, opacity, showPreview]);
 
   // Hex to RGB conversion function
   const hexToRgb = (hex) => {
@@ -33,8 +60,9 @@ export const useSamCanvas = (
   // update the mask path input and display the selected mask
   const actualUseSelectedMask = useCallback(
     (selectedSamMask) => {
-      const samMaskImage = selectedSamMask["mask"];
-      const maskSrc = selectedSamMask["masked_image"];
+      const samMaskImage = new Image();
+      samMaskImage.src = selectedSamMask["mask"];
+      const maskSrc = selectedSamMask["masked"];
       console.log("Selected Mask Source:", maskSrc);
       setSamMaskMask(maskSrc);
       samMaskImage.onload = function () {

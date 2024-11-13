@@ -451,8 +451,6 @@ export const trackImageGenerationProgress = async (
   const number_of_images = window.number_of_images || 1;
 
   // Create image tags in the image container
-  const imageContainer = document.getElementById("image_container");
-  imageContainer.innerHTML = "";
   for (let i = 0; i < number_of_images; i++) {
     setGeneratedImagesPreview((prev) => [...prev, { id: i, src: "" }]);
   }
@@ -589,7 +587,11 @@ export const generateMask = async (
   }
   if (Object.keys(formErrors).length > 0) {
     setErrors(formErrors);
-    return;
+    return {
+      success: false,
+      message: "Invalid inputs.",
+      formErrors: formErrors,
+    };
   }
 
   // Create FormData object
@@ -608,10 +610,14 @@ export const generateMask = async (
     if (!response.ok) {
       let formErrors = {};
       setStatusMessage("");
-      formErrors.general =
+      const errMessage =
         "Failed to generate mask. Make sure to type an object present in the image in the mask prompt.";
+      formErrors.general = errMessage;
       setErrors(formErrors);
-      throw new Error("Failed to generate SAM mask");
+      return {
+        success: false,
+        message: errMessage,
+      };
     }
 
     const data = await response.json();
@@ -641,8 +647,17 @@ export const generateMask = async (
       }
       samDrawing.useSelectedMask(selectedSamMask);
     });
+    return {
+      success: true,
+      message: "Masks generated successfully",
+    };
   } catch (error) {
     console.error("Error:", error);
+    const errMessage = error.message || "Failed to generate mask";
+    return {
+      success: false,
+      message: errMessage,
+    };
   }
 };
 
@@ -673,7 +688,11 @@ export const previewMask = async (
   }
   if (Object.keys(formErrors).length > 0) {
     setErrors((prev) => ({ ...prev, ...formErrors }));
-    return;
+    return {
+      success: false,
+      message: "Invalid inputs.",
+      formErrors: formErrors,
+    };
   }
   const refineOptionIndex = refineMaskOption ? 0 : 1;
 
@@ -694,8 +713,8 @@ export const previewMask = async (
     });
 
     if (!response.ok) {
-      document.getElementById("combine_mask_general_err").innerHTML = "Failed to combine masks";
-      throw new Error("Failed to combine masks");
+      const error = await response.json();
+      throw new Error(error.error || "Failed to combine masks");
     }
 
     const data = await response.json();
@@ -704,11 +723,22 @@ export const previewMask = async (
       const { mask, masked_image } = data;
       setPreviewMask(masked_image);
     }
-    return data;
+    return {
+      success: true,
+      message: "Masks combined successfully",
+      data: data,
+    };
   } catch (error) {
     console.error("Error:", error);
-    document.getElementById("combine_mask_general_err").innerHTML =
-      "An error occurred. Please try again.";
+    let formErrors = {};
+    const errorMessage = error.message || "Failed to combine masks";
+    formErrors.combinedMask = errorMessage;
+    setErrors(formErrors);
+    return {
+      success: false,
+      message: errorMessage,
+      data: null,
+    };
   }
 };
 
@@ -744,6 +774,11 @@ export const applyMask = async (
     let formErrors = {};
     formErrors.combinedMask = "An error occurred. Please try again.";
     setErrors((prev) => ({ ...prev, ...formErrors }));
+    return {
+      success: false,
+      message: "An error occurred. Please try again.",
+      formErrors: formErrors,
+    };
   }
   const { mask, masked_image } = data;
   setCombinedMask(data);
@@ -757,6 +792,10 @@ export const applyMask = async (
     samDrawing.applySAMMaskStyling(color, opacity);
     setSamMaskImage(mask);
     handleClearAllCanvas();
+  };
+  return {
+    success: true,
+    message: "Mask applied successfully",
   };
 };
 
@@ -800,40 +839,45 @@ export const generateNextImage = async (
 
   // Validation
   // Combine mask
-  const samCanvas = document.getElementById("sam_canvas");
-  const selectedMaskRadio = document.querySelectorAll('input[name="selected_mask"]');
-  if (samCanvas.innerHTML === "" && selectedMaskRadio.length === 0) {
+  let errMessage = "";
+  if (!selectedSamMask) {
     if (!initImage && !maskPrompt) {
       formErrors.general = "Generate a mask first with the mask prompt and init image";
-      return;
+      return {
+        success: false,
+        message: "Invalid inputs.",
+        formErrors: formErrors,
+      };
     } else if (!maskPrompt || !initImage) {
       if (!maskPrompt) {
-        setErrors((prev) => ({
-          ...prev,
-          maskPrompt: "Mask prompt is required to generate a mask",
-        }));
+        errMessage = "Mask prompt is required to generate a mask";
+        formErrors.maskPrompt = errMessage;
       }
       if (!initImage) {
-        setErrors((prev) => ({
-          ...prev,
-          initImage: "Initial image is required to generate a mask",
-        }));
+        errMessage = "Initial image is required to generate a mask";
+        formErrors.initImage = errMessage;
       }
-      return;
+      return {
+        success: false,
+        message: "Invalid inputs.",
+        formErrors: formErrors,
+      };
     } else {
-      formErrors.general = "Generate a mask first";
-      return;
+      errMessage = "Generate a mask first";
+      formErrors.general = errMessage;
+      return {
+        success: false,
+        message: errMessage,
+      };
     }
-  } else if (samCanvas.innerHTML === "") {
-    formErrors.general = "Generate a mask first";
   }
   if (combinedMaskImg === "" || !combinedMaskImg) {
-    if (combinedMaskImg === "" && samCanvas.innerHTML === "") {
-      formErrors.general = "Generate a mask first";
-    } else {
-      formErrors.general = "Generate a mask first with the mask prompt and init image";
-    }
-    return;
+    errMessage = "Generate a mask first with the mask prompt and init image";
+    formErrors.general = errMessage;
+    return {
+      success: false,
+      message: errMessage,
+    };
   } else {
     await applyMask(
       setErrors,
@@ -864,7 +908,10 @@ export const generateNextImage = async (
 
   if (Object.keys(formErrors).length > 0) {
     setGenerationErrors(formErrors);
-    return;
+    return {
+      success: false,
+      message: `Incorrect inputs. Please check the form for errors`,
+    };
   }
 
   // Create FormData object
@@ -892,9 +939,12 @@ export const generateNextImage = async (
     });
 
     if (!generateResponse.ok) {
-      formErrors.general = "Failed to queue task";
+      let formErrors = {};
+      const error = await generateResponse.json();
+      const errMessage = error.error || "Failed to queue task";
+      formErrors.general = errMessage;
       setGenerationErrors(formErrors);
-      throw new Error("Failed to queue task");
+      throw new Error(errMessage);
     }
 
     const generateData = await generateResponse.json();
@@ -909,8 +959,18 @@ export const generateNextImage = async (
       setGeneratedImagesPreview,
       setGeneratedImages
     );
+    return {
+      success: true,
+      message: "Images generated successfully",
+    };
   } catch (error) {
     console.error("Error:", error);
+    const errorMessage =
+      error.message || `Failed to generate image${numberOfImages > 1 ? "s" : ""}`;
+    return {
+      success: false,
+      message: errorMessage,
+    };
   }
 };
 
@@ -955,7 +1015,10 @@ export const generateFirstImage = async (
   }
   if (Object.keys(formErrors).length > 0) {
     setGenerationErrors(formErrors);
-    return;
+    return {
+      success: false,
+      message: `Incorrect inputs. Please check the form for errors`,
+    };
   }
 
   // Create FormData object
@@ -982,9 +1045,11 @@ export const generateFirstImage = async (
 
     if (!generateResponse.ok) {
       let formErrors = {};
-      formErrors.general = "Failed to queue task";
+      const error = await generateResponse.json();
+      const errMessage = error.error || "Failed to queue task";
+      formErrors.general = errMessage;
       setGenerationErrors(formErrors);
-      throw new Error("Failed to queue task");
+      throw new Error(errMessage);
     }
 
     const generateData = await generateResponse.json();
@@ -999,7 +1064,17 @@ export const generateFirstImage = async (
       setGeneratedImagesPreview,
       setGeneratedImages
     );
+    return {
+      success: true,
+      message: `Image${numberOfImages > 1 ? "s" : ""} generated successfully`,
+    };
   } catch (error) {
     console.error("Error:", error);
+    const errorMessage =
+      error.message || `Failed to generate image${numberOfImages > 1 ? "s" : ""}`;
+    return {
+      success: false,
+      message: errorMessage,
+    };
   }
 };

@@ -155,7 +155,7 @@ function SelectMaskCanvas({
   const [brushModeRemove, setBrushModeRemove] = useState(true);
   const [maskVisibilityRemove, setMaskVisibilityRemove] = useState(true);
   const [pickedColorRemove, setPickedColorRemove] = useState("var(--removeMask)");
-  const [brushSizeRemove, setBrushSizeRemove] = useState(20);
+  const [brushSizeRemove, setBrushSizeRemove] = useState(40);
   const [opacityRemove, setOpacityRemove] = useState(0.5);
 
   // Canvas controls for sam mask
@@ -179,11 +179,8 @@ function SelectMaskCanvas({
   // passed from parent: errors, setErrors
 
   const adjustCss = useCallback(() => {
-    console.log("containerRef", containerRef);
     const container = containerRef.current;
-    console.log("containerRef.current", container);
     if (!container) return;
-    console.log("entered", container);
     const width = container.offsetWidth;
 
     const elements = [
@@ -211,22 +208,14 @@ function SelectMaskCanvas({
     // Apply width-specific classes based on current container width
 
     if (width <= 1307) {
-      console.log(`${width} <= 1307`);
+      // console.log(`${width} <= 1307`);
       container.querySelector(".maskTypeAndControls")?.classList.add("width-1307");
       container.querySelector(".maskTypeOptions")?.classList.add("width-1307");
       container.querySelector(".maskTypeOptionsButtons")?.classList.add("width-1307");
       container.querySelector(".optionsHeader.generalOptions.open")?.classList.add("width-1307");
     }
-    if (width <= 1000) {
-      console.log(`${width} <= 1000`);
-      const conts = container.querySelectorAll(".canvasCont");
-      conts.forEach((element) => {
-        element.classList.add("width-1000");
-      });
-      container.querySelector(".canvasAndPreviewContainer")?.classList.add("width-1000");
-    }
     if (width <= 1038) {
-      console.log(`${width} <= 1038`);
+      // console.log(`${width} <= 1038`);
       container.querySelector(".canvasControls")?.classList.add("width-1038");
       container.querySelector(".canvasControlsCont")?.classList.add("width-1038");
       container.querySelector(".samMaskControls")?.classList.add("width-1038");
@@ -235,24 +224,32 @@ function SelectMaskCanvas({
       container.querySelector(".maskTypeOptions")?.classList.add("width-1038");
       container.querySelector(".maskTypeOptionsButtons")?.classList.add("width-1038");
     }
+    if (width <= 1000) {
+      // console.log(`${width} <= 1000`);
+      const conts = container.querySelectorAll(".canvasCont");
+      conts.forEach((element) => {
+        element.classList.add("width-1000");
+      });
+      container.querySelector(".canvasAndPreviewContainer")?.classList.add("width-1000");
+    }
     if (width <= 877) {
-      console.log(`${width} <= 877`);
+      // console.log(`${width} <= 877`);
       container.querySelector(".selectingMaskHiddenHeaders")?.classList.add("width-877");
     }
     if (width <= 800) {
-      console.log(`${width} <= 800`);
+      // console.log(`${width} <= 800`);
       const conts = container.querySelectorAll(".canvasCont");
       conts.forEach((element) => {
         element.classList.add("width-800");
       });
     }
     if (width <= 735) {
-      console.log(`${width} <= 735`);
+      // console.log(`${width} <= 735`);
       container.querySelector(".canvasModeAndVisibility")?.classList.add("width-735");
       container.querySelector(".maskTypeOptionsButtons")?.classList.add("width-735");
     }
     if (width <= 600) {
-      console.log(`${width} <= 600`);
+      // console.log(`${width} <= 600`);
       container.querySelector(".maskPromptCont")?.classList.add("width-600");
       if (window.innerWidth <= 600) {
         container.querySelector(".topMaskActions")?.classList.add("browser");
@@ -273,12 +270,12 @@ function SelectMaskCanvas({
       container.querySelector(".canvasAndPreviewContainer")?.classList.add("width-600");
     }
     if (width <= 510) {
-      console.log(`${width} <= 510`);
+      // console.log(`${width} <= 510`);
       container.querySelector(".maskTypeOptions")?.classList.add("width-510");
       container.querySelector(".generateMaskButton")?.classList.add("width-510");
     }
     if (width <= 500) {
-      console.log(`${width} <= 500`);
+      // console.log(`${width} <= 500`);
       container.querySelector(".canvasSliders")?.classList.add("width-500");
       container.querySelector(".maskTypeOptionsButtons")?.classList.add("width-500");
       container.querySelector(".canvasModeAndVisibility")?.classList.add("width-500");
@@ -286,7 +283,7 @@ function SelectMaskCanvas({
       container.querySelector(".samMaskControls")?.classList.add("width-500");
     }
     if (width <= 374) {
-      console.log(`${width} <= 374`);
+      // console.log(`${width} <= 374`);
       const canvasContFlexConts = container.querySelectorAll(".canvasCont");
       canvasContFlexConts.forEach((element) => {
         element.classList.add("width-374");
@@ -323,16 +320,7 @@ function SelectMaskCanvas({
   useEffect(() => {
     if (!containerRef.current) return;
     adjustCss();
-  }, [showPromptBar, showComments, controlWidthComments, controlWidthPromptBar]);
-
-  useEffect(() => {
-    if (canvasMode) {
-      console.log("add", canvasMode);
-    } else {
-      console.log("remove", canvasMode);
-    }
-    // console.log("Canvas mode changed:", canvasMode);
-  }, [canvasMode]);
+  }, [showPromptBar, showComments, controlWidthComments, controlWidthPromptBar, showPreview]);
 
   const getInitColor = (canvas, pickedColor) => {
     const initColor = pickedColor;
@@ -433,18 +421,20 @@ function SelectMaskCanvas({
 
   const initSamDrawing = useSamCanvas(
     samCanvasRef,
+    previewCanvasRef,
     pickedColorSam,
     opacitySam,
     setConfirmSamMaskChangeModalOpen,
     selectedSamMask,
     samMasks,
     samMaskImage,
-    setSamMaskMask
+    setSamMaskMask,
+    showPreview
   );
 
   useEffect(() => {
     setSamDrawing(initSamDrawing);
-  }, [initSamDrawing]);
+  }, []);
 
   // Initialize canvases
   useEffect(() => {
@@ -454,7 +444,7 @@ function SelectMaskCanvas({
       canvas.current.width = selectedImage.width;
       canvas.current.height = selectedImage.height;
     };
-    [addCanvasRef, removeCanvasRef, samCanvasRef, previewCanvasRef].forEach(initCanvas);
+    [addCanvasRef, removeCanvasRef].forEach(initCanvas);
   }, [selectedImage]);
 
   useEffect(() => {
@@ -516,10 +506,6 @@ function SelectMaskCanvas({
   }, [selectedSamMask]);
 
   useEffect(() => {
-    if (samDrawing) handleOpacityChange(opacitySam, "sam");
-  }, [pickedColorSam, opacitySam]);
-
-  useEffect(() => {
     if (!maskVisibilityAdd) {
       addDrawing.redrawCanvasVisibility(false);
     } else {
@@ -563,9 +549,20 @@ function SelectMaskCanvas({
       debouncedRedraw.remove(pickedColorRemove, opacity);
     } else if (canvas === "sam") {
       setOpacitySam(opacity);
-      debouncedRedraw.sam(pickedColorSam, opacity);
+      if (samDrawing && samDrawing.applySAMMaskStyling) samDrawing.applySAMMaskStyling();
     }
   };
+
+  useEffect(() => {
+    console.log("Effect triggered:", { samDrawing, opacitySam, showPreview });
+
+    if (samDrawing?.applySAMMaskStyling) {
+      samDrawing.applySAMMaskStyling();
+    } else {
+      console.log("samDrawing or applySAMMaskStyling not available");
+    }
+    // if (samDrawing && samDrawing.applySAMMaskStyling) handleOpacityChange(opacitySam, "sam");
+  }, [samDrawing, opacitySam, pickedColorSam, showPreview]);
 
   useEffect(() => {
     return () => {
@@ -613,7 +610,7 @@ function SelectMaskCanvas({
   };
   useEffect(() => {
     setHandleClearAllCanvas(initHandleClearAllCanvas);
-  }, [initHandleClearAllCanvas]);
+  }, []);
 
   const getUserMasks = async () => {
     const base64ImageAdd = await addDrawing.userMaskBase64BAW();
@@ -623,8 +620,22 @@ function SelectMaskCanvas({
   };
 
   const handleGenerateMask = async () => {
+    setErrors((prev) => ({ ...prev, maskPrompt: "", initImage: "" }));
+    if (dummySamMasks) {
+      setSamMasks(dummySamMasks);
+      const dummySamMask = dummySamMasks[0];
+      setSelectedSamMask({
+        id: 1,
+        blended: dummySamMask.blended,
+        mask: dummySamMask.mask,
+        masked: dummySamMask.masked,
+      });
+      setSamMaskImage(dummySamMask.mask);
+      setSamMaskMask(dummySamMask.masked);
+      return;
+    }
     try {
-      await generateMask(
+      const result = await generateMask(
         maskPrompt,
         selectedImage.link,
         setErrors,
@@ -636,21 +647,30 @@ function SelectMaskCanvas({
         setSamMaskMask,
         samDrawing
       );
+      if (!result.success) {
+        console.log(result.message);
+        if (result.message !== "Invalid inputs.") showToast("error", result.message);
+      }
     } catch (error) {
       setErrors((prev) => ({ ...prev, general: "Failed to generate mask" }));
     }
   };
 
-  useEffect(() => {
-    if (errors && Object.keys(errors).length > 0)
-      if (errors.general) showToast("error", errors.general);
-  }, [errors]);
-
   const handlePreviewMask = async () => {
-    if (!showPreview || !previewCanvasRef.current) return;
+    const isAddCanvasEmpty = addDrawing.isCanvasEmpty();
+    const isRemoveCanvasEmpty = removeDrawing.isCanvasEmpty();
+    if (isAddCanvasEmpty && isRemoveCanvasEmpty) {
+      console.log("Both canvases are empty");
+      setPreviewMask(samMaskMask);
+      return;
+    }
     try {
+      console.log("combining masks");
       await getUserMasks();
-      await previewMaskAction(
+      console.log(`sam mask path: ${samMaskImage ? "true" : "false"}`);
+      console.log(`user mask add: ${base64ImageAdd ? "true" : "false"}`);
+      console.log(`user mask remove: ${base64ImageRemove ? "true" : "false"}`);
+      const result = await previewMaskAction(
         samMaskImage,
         base64ImageAdd,
         base64ImageRemove,
@@ -660,12 +680,25 @@ function SelectMaskCanvas({
         showPreview,
         setPreviewMask
       );
+      if (!result.success) {
+        console.log(result.message);
+        if (result.message !== "Invalid inputs.") showToast("error", result.message);
+      }
     } catch (error) {
+      console.log("Error previewing masks: ", error);
       setErrors((prev) => ({ ...prev, general: "Failed to preview mask" }));
     }
   };
 
   const handleApplyMask = async () => {
+    const isAddCanvasEmpty = addDrawing.isCanvasEmpty();
+    const isRemoveCanvasEmpty = removeDrawing.isCanvasEmpty();
+    if (isAddCanvasEmpty && isRemoveCanvasEmpty) {
+      setCombinedMask({ samMaskImage, samMaskMask });
+      setPreviewMask(null);
+      handleClearAllCanvas();
+      return;
+    }
     try {
       await applyMask(
         setErrors,
@@ -731,6 +764,7 @@ function SelectMaskCanvas({
                 height: "42.6px",
                 borderRadius: "0px 8px 8px 0px",
                 marginLeft: "-145px !important",
+                marginTop: "2.5px !important",
               }}
               className="generateMaskButton"
             >
@@ -1218,7 +1252,10 @@ function SelectMaskCanvas({
               </Typography>
               <Button
                 variant="contained"
-                onClick={handlePreviewMask}
+                onClick={() => {
+                  setShowPreview(true);
+                  handlePreviewMask();
+                }}
                 sx={{
                   ...gradientButtonStyles,
                   width: "125px",
@@ -1236,7 +1273,9 @@ function SelectMaskCanvas({
             ref={canvasStackRef}
           >
             <img ref={initImageRef} src={selectedImage.link} style={styles.baseImage} alt="" />
-            <img ref={samCanvasRef} src={samMaskMask} style={styles.samCanvas} alt="" />
+            <div ref={samCanvasRef} style={styles.samCanvas}>
+              <img src={samMaskMask} alt="" style={styles.samMaskImage} />
+            </div>
             <canvas
               ref={removeCanvasRef}
               style={{
@@ -1304,15 +1343,9 @@ function SelectMaskCanvas({
               }}
               className="actualCanvas"
             >
-              <img src={selectedImage.link} style={styles.previewBaseImage} alt="Preview Base" />
-              <div style={styles.previewMask}>
-                {selectedImage.link && (
-                  <img
-                    src={selectedImage.link}
-                    style={styles.previewMaskImage}
-                    alt="Preview Mask"
-                  />
-                )}
+              <img src={selectedImage.link} style={styles.previewBaseImage} alt="" />
+              <div ref={previewCanvasRef} style={styles.previewMask}>
+                <img src={previewMask ?? ""} style={styles.previewMaskImage} alt="" />
               </div>
             </Box>
           </div>
@@ -2148,7 +2181,7 @@ const styles = {
   previewMaskImage: {
     width: "100%",
     height: "100%",
-    filter: "drop-shadow(0px 1000px 0px rgba(117, 67, 255, 0.5))",
+    // filter: "drop-shadow(0px 1000px 0px rgba(117, 67, 255, 0.5))",
     transform: "translateY(-1000px)",
   },
   dialogContent: {
@@ -2171,3 +2204,24 @@ const styles = {
     },
   },
 };
+
+const dummySamMasks = [
+  {
+    id: 0,
+    blended: "../../test-img/masks/d3b1d166-1d13-4541-8ad0-f81ab9b6e7c7.png",
+    mask: "../../test-img/masks/20f7c60f-e94c-45f7-9473-f4bb98902864.png",
+    masked: "../../test-img/masks/f1627810-d96a-4b04-94e7-29931ee8184c.png",
+  },
+  {
+    id: 1,
+    blended: "../../test-img/masks/abd4bbe6-4e46-415c-bc3e-8550b7209808.png",
+    mask: "../../test-img/masks/7e5417fa-f706-4aac-9e33-d0e0fa819949.png",
+    masked: "../../test-img/masks/3931fca2-3b27-40c1-9f78-e49274274900.png",
+  },
+  {
+    id: 2,
+    blended: "../../test-img/masks/44b2a203-644f-4650-9dc1-16fe22638fb6.png",
+    mask: "../../test-img/masks/7a3ac909-7b91-45a2-9d1d-a6f43a7c3ba0.png",
+    masked: "../../test-img/masks/187dd26a-f865-42af-9baa-41972ad32e4c.png",
+  },
+];

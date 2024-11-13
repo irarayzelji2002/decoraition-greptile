@@ -1593,11 +1593,12 @@ textarea {
 .maskPromptCont {
   display: flex;
   flex-direction: row;
-  align-items: center;
+  align-items: start;
   justify-content: center;
   height: 100%;
   gap: 10px;
   flex-grow: 1;
+  position: relative;
 }
 
 .topMaskActionsCont {
@@ -1738,7 +1739,7 @@ textarea {
   margin-top: -5px;
 }
 
-/* 1287px width */
+/* 1037px width */
 .maskTypeAndControls.width-1307 {
   flex-direction: column;
   gap: 20px;
@@ -1810,6 +1811,7 @@ textarea {
   flex-direction: column;
   width: 100%;
   gap: 13px;
+  align-items: center;
 }
 .topMaskActions.browser.width-600 {
   flex-direction: column;
@@ -1841,6 +1843,7 @@ textarea {
   border-radius: 35px !important;
   /* margin-left: 0px !important; */
   margin-left: -225px !important;
+  margin-top: 0px !important;
   height: 46.6px !important;
   width: 210.8px !important;
 }

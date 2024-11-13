@@ -10,7 +10,7 @@
 }
 .calendar-head {
   width: 100%;
-  max-width: 600px;
+  max-width: 768px;
   background-color: var(--nav-card-modal);
   justify-content: space-between;
   padding: 24px;
@@ -18,13 +18,12 @@
   align-items: center;
   margin-bottom: 200px;
 }
-
 .reminder-display {
   display: flex;
   justify-content: space-between;
   align-items: center;
   width: 100%;
-  max-width: 600px;
+  max-width: 768px;
   background-color: var(--nav-card-modal);
   padding: 24px;
   border-radius: 16px;
@@ -49,7 +48,7 @@
 .calendar-section {
   margin-bottom: 20px;
   width: 100%;
-  max-width: 600px;
+  max-width: 768px;
   display: flex;
   justify-content: center;
 }
@@ -64,7 +63,7 @@
 }
 .custom-calendar .react-calendar__tile--active {
   background-image: var(--gradientButton);
-  color: white;
+  color: white !important;
 }
 /* Hover effect on calendar tiles */
 .custom-calendar .react-calendar__tile:hover {
@@ -86,14 +85,15 @@
 
 .custom-calendar .react-calendar__tile {
   color: var(--color-white);
-  border-radius: 5px;
+  border-radius: 50%;
   transition: background-color 0.3s ease;
+  aspect-ratio: 1 / 1; /* Ensures the tile is always a perfect circle */
 }
 
 /* Task list */
 .task-list {
   width: 100%;
-  max-width: 600px;
+  max-width: 768px;
 }
 .add-event-button {
   display: flex;
@@ -153,6 +153,28 @@
 
 .svg-icon:hover {
   color: var(--gradientButtonHover);
+}
+
+.date-navigation {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+.date-navigation h2 {
+  font-size: var(--font-size-h6);
+  width: 150px;
+  text-align: center;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.label-item {
+  opacity: 0.5;
+  font-size: var(--font-size-tiny);
+}
+
+.task-date {
+  color: var(--uib-color) !important;
 }
 
 @media (max-width: 768px) {

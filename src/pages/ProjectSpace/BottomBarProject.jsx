@@ -77,7 +77,9 @@ function BottomBarDesign({
             </svg>
           )}
 
-          <span style={{ color: Design ? "#ff8344" : "var(--color-white)" }}>Design</span>
+          <span className="capitalize" style={{ color: Design ? "#ff8344" : "var(--color-white)" }}>
+            Design
+          </span>
         </div>
       </Button>
       <Button
@@ -141,7 +143,12 @@ function BottomBarDesign({
             </svg>
           )}
 
-          <span style={{ color: Timeline ? "#ff8344" : "var(--color-white)" }}>Timeline</span>
+          <span
+            className="capitalize"
+            style={{ color: Timeline ? "#ff8344" : "var(--color-white)" }}
+          >
+            Timeline
+          </span>
         </div>
       </Button>
       <Button
@@ -249,13 +256,18 @@ function BottomBarDesign({
             </svg>
           )}
 
-          <span style={{ color: PlanMap ? "#ff8344" : "var(--color-white)" }}>Plan Map</span>
+          <span
+            className="capitalize"
+            style={{ color: PlanMap ? "#ff8344" : "var(--color-white)" }}
+          >
+            Plan Map
+          </span>
         </div>
       </Button>
       <Button
         size="md"
         component={Link}
-        to={`/projBudget/${projId}`}
+        to={`/projectBudget/${projId}`}
         sx={{
           ":hover": {
             backgroundColor: "var(--iconBg)",
@@ -337,7 +349,9 @@ function BottomBarDesign({
             </svg>
           )}
 
-          <span style={{ color: Budget ? "#ff8344" : "var(--color-white)" }}>Budget</span>
+          <span className="capitalize" style={{ color: Budget ? "#ff8344" : "var(--color-white)" }}>
+            Budget
+          </span>
         </div>
       </Button>
     </div>

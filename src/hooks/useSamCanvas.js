@@ -8,16 +8,32 @@ export const useSamCanvas = (
   setConfirmSamMaskChangeModalOpen,
   selectedSamMask,
   samMasks,
+  setSamMaskImage,
   samMaskImage,
   setSamMaskMask,
   showPreview
 ) => {
-  console.log("useSamCanvas values:", { color, opacity, canvasRef, previewCanvasRef });
+  const [needsRedraw, setNeedsRedraw] = useState(false);
+
+  // Hex to RGB conversion function
+  const hexToRgb = useCallback((hex) => {
+    let shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
+    hex = hex.replace(shorthandRegex, function (m, r, g, b) {
+      return r + r + g + g + b + b;
+    });
+    let bigint = parseInt(hex.slice(1), 16);
+    let r = (bigint >> 16) & 255;
+    let g = (bigint >> 8) & 255;
+    let b = bigint & 255;
+    return `${r},${g},${b}`;
+  }, []);
+
   const applySAMMaskStyling = useCallback(() => {
     console.log("Applying styling with:", { color, opacity });
 
     let colorHex = color;
     if (colorHex === "var(--samMask)") colorHex = "#7543ff";
+    console.log("Color Hex:", colorHex);
 
     // Handle main canvas
     if (!canvasRef.current) {
@@ -25,7 +41,6 @@ export const useSamCanvas = (
       return;
     }
     const samImage = canvasRef.current?.querySelector("img");
-    console.log("Sam Image:", samImage);
     if (samImage) {
       samImage.style.filter = `drop-shadow(0px 1000px 0px rgba(${hexToRgb(colorHex)}, ${opacity}))`;
     }
@@ -37,39 +52,34 @@ export const useSamCanvas = (
     }
     const previewImage = previewCanvasRef.current?.querySelector("img");
     if (showPreview && previewImage) {
-      console.log("Preview Image:", previewImage);
       previewImage.style.filter = `drop-shadow(0px 1000px 0px rgba(${hexToRgb(
         colorHex
       )}, ${opacity}))`;
     }
-  }, [canvasRef, previewCanvasRef, color, opacity, showPreview]);
+  }, [color, opacity, canvasRef, previewCanvasRef, showPreview, hexToRgb]);
 
-  // Hex to RGB conversion function
-  const hexToRgb = (hex) => {
-    let shorthandRegex = /^#?([a-f\d])([a-f\d])([a-f\d])$/i;
-    hex = hex.replace(shorthandRegex, function (m, r, g, b) {
-      return r + r + g + g + b + b;
-    });
-    let bigint = parseInt(hex.slice(1), 16);
-    let r = (bigint >> 16) & 255;
-    let g = (bigint >> 8) & 255;
-    let b = bigint & 255;
-    return `${r},${g},${b}`;
-  };
+  useEffect(() => {
+    if (needsRedraw) {
+      applySAMMaskStyling();
+    }
+  }, [needsRedraw, applySAMMaskStyling]);
+
+  useEffect(() => {
+    setNeedsRedraw(true);
+  }, [color, opacity, showPreview]);
+
+  const redrawCanvas = useCallback(() => {
+    applySAMMaskStyling();
+  }, [applySAMMaskStyling]);
 
   // update the mask path input and display the selected mask
   const actualUseSelectedMask = useCallback(
     (selectedSamMask) => {
-      const samMaskImage = new Image();
-      samMaskImage.src = selectedSamMask["mask"];
-      const maskSrc = selectedSamMask["masked"];
-      console.log("Selected Mask Source:", maskSrc);
-      setSamMaskMask(maskSrc);
-      samMaskImage.onload = function () {
-        applySAMMaskStyling(); // Apply color and opacity styling
-      };
+      setSamMaskImage(selectedSamMask["mask"]);
+      setSamMaskMask(selectedSamMask["masked"]);
+      setNeedsRedraw(true);
     },
-    [applySAMMaskStyling, setSamMaskMask]
+    [setSamMaskMask]
   );
 
   const useSelectedMask = useCallback(
@@ -81,6 +91,9 @@ export const useSamCanvas = (
         if (samMaskImage) {
           // Check if the value does not match any mask in the masks array
           const isValueInMasks = masks.includes(samMaskImage);
+          console.log("Masks:", masks);
+          console.log("samMaskImage:", samMaskImage);
+          console.log("Is Value in Masks:", isValueInMasks);
 
           // If the current value is not in masks, show confirmation dialog
           if (!isValueInMasks) {
@@ -100,5 +113,6 @@ export const useSamCanvas = (
     applySAMMaskStyling,
     useSelectedMask,
     actualUseSelectedMask,
+    setNeedsRedraw,
   };
 };

@@ -42,6 +42,7 @@ function HomepageOptions({
   object,
   onOpen,
   isTable = false,
+  isDrawer = false,
   optionsState = {},
   setOptionsState = () => {},
   clickedId = "",
@@ -292,6 +293,7 @@ function HomepageOptions({
     document.addEventListener("mousedown", handleClickOutside);
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      console.log("is it a table" + isTable);
     };
   }, []);
 
@@ -325,11 +327,12 @@ function HomepageOptions({
           ) : (
             <div
               ref={optionsRef}
-              className="dropdown-menu"
+              className={`dropdown-menu ${isTable ? "table" : ""} ${isDrawer ? "drawer" : ""}`}
               style={{
-                marginRight: isTable ? "-50px" : !isTable ? "-10px" : "",
-                marginTop: isTable ? "6px" : !isTable ? "10px" : "",
-                top: !isTable ? "100%" : "",
+                position: "absolute",
+
+                top: isTable ? "0" : "0",
+                marginTop: isTable ? "0" : "10px",
               }}
             >
               <div className="dropdown-item" onClick={onOpen}>

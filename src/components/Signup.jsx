@@ -1,9 +1,7 @@
 import React, { useState } from "react";
+import axios from "axios";
 import { useNavigate } from "react-router-dom";
-import { createUserWithEmailAndPassword } from "firebase/auth";
-import { auth, db } from "../firebase";
-import { doc, setDoc } from "firebase/firestore";
-
+import { showToast } from "../functions/utils";
 import Button from "@mui/material/Button";
 import CssBaseline from "@mui/material/CssBaseline";
 import TextField from "@mui/material/TextField";
@@ -19,30 +17,37 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import IconButton from "@mui/material/IconButton";
 import Visibility from "@mui/icons-material/Visibility";
 import VisibilityOff from "@mui/icons-material/VisibilityOff";
+import { textFieldInputProps } from "../pages/DesignSpace/DesignSettings";
+import { CheckboxIcon, CheckboxCheckedIcon } from "./svg/SharedIcons";
 
 const defaultTheme = createTheme();
 
-const commonInputStyles = {
+export const commonInputStyles = {
   marginTop: "10px",
   marginBottom: "10px",
-  backgroundColor: "var(--inputBg)",
   input: { color: "var(--color-white)" },
+  borderRadius: "10px",
+  "& .MuiOutlinedInput-notchedOutline": {
+    borderWidth: 2, // border thickness
+  },
   "& .MuiOutlinedInput-root": {
+    borderColor: "var(--borderInput)",
+    borderRadius: "10px",
+    backgroundColor: "var(--nav-card-modal)",
     "& fieldset": {
       borderColor: "var(--borderInput)", // Border color when not focused
-      borderWidth: "2px", // Adjust the border thickness here
+      borderRadius: "10px",
     },
     "&:hover fieldset": {
       borderColor: "var(--borderInput)", // Border color on hover
-      borderWidth: "2px", // Maintain the thickness on hover
     },
     "&.Mui-focused fieldset": {
       borderColor: "var(--borderInputBrighter)", // Border color when focused
-      borderWidth: "2px", // Maintain the thickness on focus
     },
   },
   "& .MuiFormHelperText-root": {
-    color: "var(--color-white)",
+    color: "var(--color-quaternary)",
+    marginLeft: 0,
   },
 };
 
@@ -104,28 +109,31 @@ const Signup = () => {
     }
 
     try {
-      const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-      const user = userCredential.user;
-
-      await setDoc(doc(db, "users", user.uid), {
+      const response = await axios.post("/api/register", {
         firstName,
         lastName,
         username,
         email,
+        password,
       });
-
-      console.log(user);
-      await auth.signOut();
-      navigate("/login");
+      if (response.status === 200) {
+        showToast("success", "Registration successful!");
+        navigate("/login");
+      } else {
+        showToast("error", "Registration failed. Please try again.");
+      }
     } catch (error) {
-      const errorCode = error.code;
-      const errorMessage = error.message;
-      console.log(errorCode, errorMessage);
-
-      setErrors({
-        email: errorCode === "auth/email-already-in-use" ? "Email already in use" : "",
-        password: errorCode === "auth/weak-password" ? "Password is too weak" : "",
-      });
+      console.error("Registration error:", error);
+      const errMessage = error.response?.data?.message;
+      if (errMessage === "Username already in use") {
+        formErrors.username = "Username already in use";
+        setErrors(formErrors);
+      } else if (errMessage === "Email already in use") {
+        formErrors.email = "Email already in use";
+        setErrors(formErrors);
+      } else {
+        showToast("error", errMessage || "An error occurred during registration");
+      }
     }
   };
 
@@ -143,7 +151,7 @@ const Signup = () => {
         >
           <Box component="form" onSubmit={onSubmit} noValidate sx={{ mt: 1 }}>
             <span className="formLabels">
-              First Name
+              First name
               <span style={{ color: "var(--color-quaternary)" }}> *</span>
             </span>
             <TextField
@@ -155,10 +163,11 @@ const Signup = () => {
               onChange={(e) => setFirstName(e.target.value)}
               error={!!errors.firstName}
               helperText={errors.firstName}
-              sx={commonInputStyles}
+              sx={{ ...commonInputStyles, marginBottom: "20px" }}
+              inputProps={textFieldInputProps}
             />
             <span className="formLabels">
-              Last Name
+              Last name
               <span style={{ color: "var(--color-quaternary)" }}> *</span>
             </span>
             <TextField
@@ -170,7 +179,8 @@ const Signup = () => {
               onChange={(e) => setLastName(e.target.value)}
               error={!!errors.lastName}
               helperText={errors.lastName}
-              sx={commonInputStyles}
+              sx={{ ...commonInputStyles, marginBottom: "20px" }}
+              inputProps={textFieldInputProps}
             />
             <span className="formLabels">
               Username
@@ -185,10 +195,11 @@ const Signup = () => {
               onChange={(e) => setUsername(e.target.value)}
               error={!!errors.username}
               helperText={errors.username}
-              sx={commonInputStyles}
+              sx={{ ...commonInputStyles, marginBottom: "20px" }}
+              inputProps={textFieldInputProps}
             />
             <span className="formLabels">
-              Email Address
+              Email address
               <span style={{ color: "var(--color-quaternary)" }}> *</span>
             </span>
             <TextField
@@ -200,15 +211,17 @@ const Signup = () => {
               onChange={(e) => setEmail(e.target.value)}
               error={!!errors.email}
               helperText={errors.email}
-              sx={commonInputStyles}
+              sx={{ ...commonInputStyles, marginBottom: "20px" }}
+              inputProps={textFieldInputProps}
             />
-            <p style={{ color: "gray", fontSize: "12px" }}>
-              At least 6 characters long, with 1 special character
-            </p>
+
             <span className="formLabels">
               Password
               <span style={{ color: "var(--color-quaternary)" }}> *</span>
             </span>
+            <p style={{ color: "gray", fontSize: "12px", margin: 0 }}>
+              At least 6 characters long, with 1 special character
+            </p>
             <TextField
               required
               fullWidth
@@ -221,6 +234,7 @@ const Signup = () => {
               error={!!errors.password}
               helperText={errors.password}
               InputProps={{
+                style: { color: "var(--color-white)" },
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
@@ -229,7 +243,8 @@ const Signup = () => {
                       onMouseDown={handleMouseDownPassword}
                       edge="end"
                       sx={{
-                        color: "var(--color-white)",
+                        color: "var(--color-grey)",
+                        marginRight: "-9px",
                       }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
@@ -237,10 +252,10 @@ const Signup = () => {
                   </InputAdornment>
                 ),
               }}
-              sx={commonInputStyles}
+              sx={{ ...commonInputStyles, marginBottom: "20px" }}
             />
             <span className="formLabels">
-              Confirm Password
+              Confirm password
               <span style={{ color: "var(--color-quaternary)" }}> *</span>
             </span>
             <TextField
@@ -255,6 +270,7 @@ const Signup = () => {
               error={!!errors.confirmPassword} // Updated error reference
               helperText={errors.confirmPassword} // Updated helper text reference
               InputProps={{
+                style: { color: "var(--color-white)" },
                 endAdornment: (
                   <InputAdornment position="end">
                     <IconButton
@@ -263,7 +279,8 @@ const Signup = () => {
                       onMouseDown={handleMouseDownPassword}
                       edge="end"
                       sx={{
-                        color: "var(--color-white)",
+                        color: "var(--color-grey)",
+                        marginRight: "-9px",
                       }}
                     >
                       {showPassword ? <VisibilityOff /> : <Visibility />}
@@ -271,7 +288,7 @@ const Signup = () => {
                   </InputAdornment>
                 ),
               }}
-              sx={commonInputStyles}
+              sx={{ ...commonInputStyles, marginBottom: "20px" }}
             />
             <TermsCheckbox isChecked={isChecked} setIsChecked={setIsChecked} errors={errors} />
             <Button
@@ -325,11 +342,19 @@ const TermsCheckbox = ({ isChecked, setIsChecked, errors }) => {
               "&.Mui-checked": {
                 color: "var(--brightFont)",
               },
-              borderRadius: "4px",
+              borderRadius: "50%",
               "& .MuiSvgIcon-root": {
                 fontSize: 28,
               },
+              "&:hover": {
+                backgroundColor: "var(--iconButtonHover)",
+              },
+              "&:active": {
+                backgroundColor: "var(--iconButtonActive)",
+              },
             }}
+            icon={<CheckboxIcon />}
+            checkedIcon={<CheckboxCheckedIcon />}
           />
         }
         label={
@@ -345,6 +370,12 @@ const TermsCheckbox = ({ isChecked, setIsChecked, errors }) => {
             .
           </label>
         }
+        sx={{
+          color: "var(--color-white)",
+          "& .MuiTypography-root": {
+            marginLeft: "5px",
+          },
+        }}
       />
       {errors?.terms && <p className="error-text">{errors.terms}</p>}
     </div>

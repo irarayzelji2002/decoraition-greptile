@@ -7,6 +7,14 @@ body {
 html {
   overflow-x: hidden;
 }
+
+span {
+  font-family: "Inter", sans-serif !important;
+}
+
+.capitalize {
+  text-transform: capitalize;
+}
 .headTitle {
   font-size: 1.125em;
   font-weight: bold;
@@ -134,6 +142,13 @@ select:-webkit-autofill {
   flex-direction: column;
   width: auto;
 }
+.push-me-right {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  flex-direction: row;
+  width: auto;
+}
 
 .error-text {
   color: var(--errorText);
@@ -165,8 +180,31 @@ select:-webkit-autofill {
   font-family: "Inter", sans-serif !important;
 }
 
+.shorten-text {
+  width: auto;
+}
+
+.bottom-filler {
+  height: 150px;
+}
+
+.MuiDrawer-paper {
+  min-width: 320px !important;
+}
+
+@media (max-width: 480px) {
+  .shorten-text {
+    width: 45px;
+  }
+  .smaller-image {
+    height: 60px !important;
+  }
+}
+
 :root {
   --bg-header: url("../public/img/bg-login.png");
+  --bg-decor: url("../public/img/decorbg.png");
+  --bg-full: url("../public/img/fullbg.png");
   --bg-image: #1f1e22;
   --color-primary: #faa653;
   --color-secondary: #f04f59;
@@ -176,12 +214,14 @@ select:-webkit-autofill {
   --color-grey2: #c1c0ce;
   --bright-grey: #6c6c6c;
   --color-quaternary: #ef4f56;
+  --color-quaternary-hover: #df3941;
   --errorText: #ef4f56;
   --color-white: #fafafa;
   --color-white-hover: #e6e6e6;
   --color-blue: #0866ff;
   --color-blue-hover: #0050d1;
   --color-black: #080808;
+  --color-info-grey: #9a9a9a;
   --logo: #8f5e5e;
   --nav-card-modal: #27262c;
   --bgcolor: #1f1e22;
@@ -200,6 +240,7 @@ select:-webkit-autofill {
   --inputBg: #3e3c47;
   --inputBgBrighter: #4a4853;
   --iconBg: #302f37;
+  --iconBgHover: #3f3e46;
   --brightFont: #ff8344;
   --brightFontHover: #ff9058;
   --borderInput: #515151;
@@ -209,7 +250,9 @@ select:-webkit-autofill {
   --gradientCircleHover: linear-gradient(20deg, #ff894d, #ec2073);
   --gradientButton: linear-gradient(90deg, #f89a47, #f15f3e, #ec2073);
   --gradientButtonHover: linear-gradient(90deg, #ec2073, #f15f3e, #f89a47);
-  --gradientFont: linear-gradient(20deg, #f89a47, #f15f3e, #ec2073);
+  --gradientFont: linear-gradient(120deg, #faa652 0%, #f36b24 30%, #ea1179 100%);
+  --gradientFontLessYellow: linear-gradient(120deg, #faa652 0%, #f36b24 20%, #ea1179 100%);
+  --gradientFontLessYellowHover: linear-gradient(120deg, #faa652 0%, #f36b24 10%, #ea1179 100%);
   --darkGradient: linear-gradient(#1e1e1e, #1e1e1e);
   --lightGradient: linear-gradient(#27262c, #27262c);
   --gradientIcon: linear-gradient(180deg, #f9a754, #f26b27, #ef4e59);
@@ -343,4 +386,13 @@ select:-webkit-autofill {
   --budgetCard: #e0e0e0;
   --lightGradient: linear-gradient(#e0e0e0, #e0e0e0); /* Light version of #27262c */
   --bgMain: #dbdae2;
+}
+
+@keyframes moveBackground {
+  from {
+    background-position: top;
+  }
+  to {
+    background-position: bottom;
+  }
 }

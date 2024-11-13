@@ -84,6 +84,7 @@ function ProjBudget() {
 
   return (
     <>
+      <ToastContainer />
       <ProjectHead />
       <div className="budgetHolder">
         <span
@@ -148,7 +149,7 @@ function ProjBudget() {
                       </div>
                     ))}
                   </div>
-                  <div style={{ height: "100%" }}>
+                  <div style={{ height: "100%", marginLeft: "10px" }}>
                     <div
                       onClick={() =>
                         navigate(`/budget/${design.id}`, {
@@ -171,6 +172,7 @@ function ProjBudget() {
           )}
         </div>
       </div>
+      <div className="bottom-filler" />
 
       <BottomBarDesign Budget={true} projId={projectId} />
     </>

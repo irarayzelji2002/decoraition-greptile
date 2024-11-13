@@ -169,7 +169,7 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
         zIndex: "13001",
         "& .MuiDrawer-paper": {
           width: { xs: "90%", sm: "50%", md: "35%", lg: "25%" },
-          minWidth: "400px",
+          minWidth: "350px",
           backgroundColor: darkMode ? "var(--bgMain)" : "var(--nav-card-modal )",
           color: darkMode ? "white" : "black",
           padding: "20px 0px 20px 0px",
@@ -325,6 +325,7 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
                   <HomepageOptions
                     isDesign={true}
                     isTable={true}
+                    isDrawer={true}
                     id={design.id}
                     onOpen={() =>
                       navigate(`/design/${design.id}`, {
@@ -388,6 +389,7 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
                   <HomepageOptions
                     isDesign={false}
                     isTable={true}
+                    isDrawer={true}
                     id={project.id}
                     onOpen={() =>
                       navigate(`/project/${project.id}`, {

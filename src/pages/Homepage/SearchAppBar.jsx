@@ -28,7 +28,6 @@ const SearchAppBar = ({ onMenuClick, onSearchChange, searchQuery }) => {
   const [isFocused, setIsFocused] = useState(false);
   const [isDrawerOpen, setIsDrawerOpen] = useState(false);
   const [isNotifOpen, setIsNotifOpen] = useState(false);
-  const [accountTooltipOpen, setAccountTooltipOpen] = useState(false);
 
   useEffect(() => {
     if (location.pathname.startsWith("/homepage")) {
@@ -161,7 +160,7 @@ const SearchAppBar = ({ onMenuClick, onSearchChange, searchQuery }) => {
                 whiteSpace: "nowrap",
                 textOverflow: "ellipsis",
                 maxWidth: "150px",
-                "@media (max-width: 600px)": {
+                "@media (max-width: 768px)": {
                   display: "none",
                 },
               }}
@@ -169,12 +168,7 @@ const SearchAppBar = ({ onMenuClick, onSearchChange, searchQuery }) => {
               {userDoc?.username || "Guest"}
             </Box>
             <IconButton onClick={() => navigate("/settings")} sx={{ p: 0 }}>
-              <DelayedTooltip
-                title="Account"
-                delay={1000}
-                open={accountTooltipOpen}
-                setOpen={setAccountTooltipOpen}
-              >
+              <DelayedTooltip title="Account" delay={1000}>
                 <Box
                   sx={{
                     width: 42,

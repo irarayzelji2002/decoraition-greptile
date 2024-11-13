@@ -29,6 +29,8 @@ import { Typography } from "@mui/material";
 import { ListIcon } from "./svg/ExportIcon";
 import ItemList from "./ItemList";
 import DesignSvg from "../Homepage/svg/DesignSvg";
+import LoadingPage from "../../components/LoadingPage";
+import { iconButtonStyles } from "../Homepage/DrawerComponent";
 
 function Project() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -121,7 +123,7 @@ function Project() {
   if (!projectData) {
     return (
       <>
-        <Loading />
+        <LoadingPage />
       </>
     );
   }
@@ -209,16 +211,19 @@ function Project() {
                 Designs
               </span>
               <div className="button-container" style={{ display: "flex", marginLeft: "auto" }}>
-                <Button
-                  className="gradient-from-none"
+                <IconButton
                   style={{ marginRight: "10px" }}
                   onClick={handleHorizontalClick}
+                  sx={{ ...iconButtonStyles, padding: "15px", margin: "0px 5px" }}
                 >
                   <HorizontalIcon />
-                </Button>
-                <Button className="gradient-from-none" onClick={handleVerticalClick}>
+                </IconButton>
+                <IconButton
+                  sx={{ ...iconButtonStyles, padding: "15px", margin: "0px 5px" }}
+                  onClick={handleVerticalClick}
+                >
                   <ListIcon />
-                </Button>
+                </IconButton>
               </div>
             </div>
             {isVertical && (
@@ -247,7 +252,10 @@ function Project() {
             )}
           </div>
 
-          <div className={`layout ${isVertical ? "vertical" : ""}`} style={{ width: "90%" }}>
+          <div
+            className={`layout ${isVertical ? "vertical" : ""}`}
+            style={{ width: "100%", display: "flex", justifyContent: "center" }}
+          >
             {isVertical
               ? designs.length > 0 &&
                 designs.slice(0, 6).map((design) => (

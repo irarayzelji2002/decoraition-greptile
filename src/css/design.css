@@ -59,15 +59,17 @@
   margin-right: 12px;
   display: block;
   font-size: var(--font-size-h6);
-
+  display: flex;
+  align-items: center;
+  justify-content: center;
   font-weight: bold !important;
   text-decoration-color: var(--brightFont) !important;
-
+  text-decoration: none;
   transition: 0.3s ease;
 }
 
 .seeAll:hover {
-  opacity: 0.7;
+  color: var(--brightFontHover) !important;
 }
 
 .workspace {
@@ -318,6 +320,17 @@ h6 {
   cursor: pointer;
 }
 
+.image-frame-other {
+  width: 100%;
+  max-width: 600px;
+  /* calc(100vh - 189px) 56.25%*/
+  height: auto;
+  border-radius: 15px;
+  background-color: var(--lighterDarkBg);
+  cursor: pointer;
+  position: relative;
+}
+
 .image-frame:hover {
   background-color: var(--table-rows-hover);
 }
@@ -451,6 +464,14 @@ h6 {
   object-fit: contain;
   position: absolute;
 }
+
+.image-preview-other {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
+  position: relative;
+}
+
 .image-grid-design {
   display: flex;
   justify-content: center;
@@ -1147,10 +1168,10 @@ textarea {
     font-size: var(--font-size-h6);
   }
 }
-@media (max-width: 600px) {
-  .workspace {
+@media (max-width: 768px) {
+  /* .workspace {
     flex-direction: column-reverse;
-  }
+  } */
   .promptBar,
   .comment-section {
     width: auto;
@@ -1538,7 +1559,7 @@ textarea {
   margin: 2px;
 }
 
-@media screen and (max-width: 600px) {
+@media screen and (max-width: 768px) {
   .noDesignVersionsCont {
     position: absolute;
     top: -50px;
@@ -1610,7 +1631,8 @@ textarea {
   align-items: center;
   justify-content: center;
   gap: 10px;
-  padding: 16px 60px 0px 60px;
+  /* padding: 16px 60px 0px 60px; */
+  padding: 16px 16px 0px 60px;
   width: 100%;
 }
 
@@ -1703,7 +1725,7 @@ textarea {
 }
 
 .canvasControls.sam {
-  width: auto;
+  width: 50%;
 }
 
 .canvasModeAndVisibility {
@@ -1762,16 +1784,16 @@ textarea {
 }
 
 /* 1038px width */
-.canvasControls.width-1038 {
+.canvasControls.width-1155 {
   width: calc(100% - 60px);
 }
-.canvasControlsCont.width-1038 {
+.canvasControlsCont.width-1155 {
   flex-direction: column;
   gap: 20px;
 }
 .samMaskControls.width-1038 {
   display: flex;
-  flex-direction: row;
+  flex-direction: column;
   gap: 10px;
   justify-content: center;
   align-items: center;
@@ -1779,7 +1801,7 @@ textarea {
 .samMaskControls .sliderCont.width-1038 {
   margin-top: 0px;
 }
-.canvasControls.sam.width-1038 {
+.canvasControls.sam.width-1155 {
   width: calc(100% - 60px);
 }
 .maskTypeOptions.width-1038 {
@@ -1797,16 +1819,16 @@ textarea {
   flex-wrap: wrap;
 }
 
-/* 735px width */
-.canvasModeAndVisibility.width-735 {
+/* 763 width */
+.canvasModeAndVisibility.width-763 {
   flex-wrap: wrap;
 }
-.maskTypeOptionsButtons.width-735 {
+.maskTypeOptionsButtons.width-763 {
   flex-wrap: wrap;
   justify-content: center;
 }
 
-/* 600px width */
+/* 768px width */
 .maskPromptCont.width-600 {
   flex-direction: column;
   width: 100%;
@@ -1847,6 +1869,15 @@ textarea {
   height: 46.6px !important;
   width: 210.8px !important;
 }
+.maskTypeOptionsButton.width-600 {
+  width: 222.8px !important;
+}
+.canvasModeAndVisibilityButton.width-600 {
+  width: 162.5px !important;
+}
+.samMaskControlsButton.width-600 {
+  width: 47% !important;
+}
 
 /* 510px width */
 .maskTypeOptions.width-510 {
@@ -1857,6 +1888,15 @@ textarea {
 }
 .generateMaskButton.width-510 {
   margin-left: 0px !important;
+  width: 100% !important;
+}
+.maskTypeOptionsButton.width-510 {
+  width: 100% !important;
+}
+.canvasModeAndVisibilityButton.width-510 {
+  width: 100% !important;
+}
+.samMaskControlsButton.width-510 {
   width: 100% !important;
 }
 
@@ -1870,8 +1910,9 @@ textarea {
 }
 .canvasModeAndVisibility.width-500 {
   flex-direction: column;
+  align-items: center;
 }
-.showPreviewButton.width-500 {
+.showPreviewButton.width-510 {
   width: 100%;
   margin-left: 0px;
   margin-top: 0px;
@@ -1879,6 +1920,9 @@ textarea {
 .samMaskControls.width-500 {
   flex-direction: column;
   gap: 10px;
+}
+.samMaskControlsButton.width-500 {
+  min-width: 162.5px !important;
 }
 
 /* CANVAS AND PREVIEW */
@@ -1940,3 +1984,12 @@ textarea {
 .canvasAndPreviewContainer.width-374 {
   padding: 20px 0px 147px 0px !important;
 }
+
+/* ...existing code... */
+.pin {
+  position: absolute;
+  transform: translate(-50%, -100%);
+  cursor: pointer;
+  z-index: 10;
+}
+/* ...existing code... */

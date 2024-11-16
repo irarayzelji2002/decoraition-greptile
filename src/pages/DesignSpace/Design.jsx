@@ -425,6 +425,7 @@ function Design() {
                     design={design}
                     designVersion={designVersion}
                     designVersionImages={designVersionImages}
+                    showPromptBar={showPromptBar}
                   />
                 </div>
               )}

@@ -581,13 +581,8 @@ textarea {
 
 .comment-section textarea {
   width: 100%;
-  height: 100px;
-  margin-top: 10px;
-  padding: 10px;
-  background-color: #444;
   color: var(--color-white);
   border: none;
-  border-radius: 4px;
 }
 
 .commentTabsContainer {
@@ -744,7 +739,7 @@ textarea {
 
 /* Text to the left of the circular buttons */
 .small-button-text {
-  color: var(--color-white);
+  color: var(--always-white);
   font-size: var(--font-size-small);
   font-weight: bold;
 }
@@ -896,7 +891,6 @@ textarea {
 
 .profile-status {
   margin-right: -5px;
-  min-width: 96.2px;
   justify-content: flex-end;
   display: flex;
   position: relative;
@@ -981,6 +975,7 @@ textarea {
   background: var(--gradientFont);
   border-radius: 50%;
   margin: 4px 10px;
+  aspect-ratio: 1/1;
 }
 
 .reply-input:focus-within {
@@ -1138,7 +1133,7 @@ textarea {
 .confirm-button {
   background: var(--gradientButton) !important;
   border-radius: 20px !important;
-  color: var(--color-white) !important;
+  color: var(--always-white) !important;
   font-weight: bold !important;
   text-transform: none !important;
 }

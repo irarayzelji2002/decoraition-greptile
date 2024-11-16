@@ -25,6 +25,7 @@ function CommentTabs({
   design,
   designVersion,
   designVersionImages,
+  showPromptBar,
 }) {
   const { user, userDoc, userComments, userReplies, userDesignComments } = useSharedProps();
   const [commentForTab, setCommentForTab] = useState(true); // true for All Comments, false for For You
@@ -33,6 +34,7 @@ function CommentTabs({
   const [designComments, setDesignComments] = useState([]);
   const [userOwnedComments, setUserOwnedComments] = useState([]);
   const [userOwnedReplies, setUserOwnedReplies] = useState([]);
+  const [filteredAndSortedComments, setFilteredAndSortedComments] = useState([]);
 
   const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
   const [selectedId, setSelectedId] = useState("");
@@ -190,14 +192,12 @@ function CommentTabs({
 
     if (window.innerWidth <= 600) {
       promptBar.style.width = "auto";
+      promptBar.style.height = `${prevHeight ?? height}`;
+      setIsLess600(true);
     } else {
       promptBar.style.width = `${prevWidth ?? width}`;
-    }
-
-    if (window.innerWidth <= 600) {
-      promptBar.style.height = `${prevHeight ?? height}`;
-    } else {
       promptBar.style.height = "100%";
+      setIsLess600(false);
     }
   }, [showComments]);
 
@@ -220,7 +220,7 @@ function CommentTabs({
   const [isWrapped, setIsWrapped] = useState(false);
   const adjustPillStyle = () => {
     const commentTabsHeader = document.querySelector(".pairTabs");
-    setIsWrapped(commentTabsHeader?.offsetWidth < 220);
+    setIsWrapped(commentTabsHeader?.offsetWidth <= 219.99);
   };
 
   useEffect(() => {
@@ -230,6 +230,10 @@ function CommentTabs({
       window.removeEventListener("resize", adjustPillStyle);
     };
   }, [width]);
+
+  useEffect(() => {
+    adjustPillStyle();
+  }, [showPromptBar]);
 
   useEffect(() => {
     if (
@@ -269,6 +273,90 @@ function CommentTabs({
       setUserOwnedReplies(userRepliesInDesign);
     }
   }, [designVersion, userComments, userReplies, userDesignComments]);
+
+  useEffect(() => {
+    if (commentForTab) {
+      // All Comments tab
+      const filteredAndSortedComments = designComments
+        .filter((comment) => (commentTypeTab ? !comment.status : comment.status))
+        .sort((a, b) => {
+          const aImageIndex = designVersion?.images?.findIndex(
+            (img) => img.imageId === a.designVersionImageId
+          );
+          const bImageIndex = designVersion?.images?.findIndex(
+            (img) => img.imageId === b.designVersionImageId
+          );
+          if (aImageIndex !== bImageIndex) return aImageIndex - bImageIndex;
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+
+      // Set selectedId to first comment's id if available
+      if (filteredAndSortedComments.length > 0) {
+        setSelectedId(filteredAndSortedComments[0].id);
+        setFilteredAndSortedComments(filteredAndSortedComments);
+      }
+    } else {
+      // For You tab (user's comments, replies, and mentions)
+      // Create a Set to track unique comment IDs
+      const uniqueCommentIds = new Set();
+      const allUserRelatedComments = [];
+
+      // Add user's own comments
+      userOwnedComments.forEach((comment) => {
+        if (!uniqueCommentIds.has(comment.id)) {
+          uniqueCommentIds.add(comment.id);
+          allUserRelatedComments.push(comment);
+        }
+      });
+
+      // Add user's replies (as parent comments)
+      userOwnedReplies.forEach((reply) => {
+        const parentComment = designComments.find((c) => c.id === reply.commentId);
+        if (parentComment && !uniqueCommentIds.has(parentComment.id)) {
+          uniqueCommentIds.add(parentComment.id);
+          allUserRelatedComments.push(parentComment);
+        }
+      });
+
+      // Add comments where user is mentioned
+      designComments.forEach((comment) => {
+        const isUserMentioned =
+          comment.mentions?.includes(user?.uid) ||
+          comment.replies?.some((reply) => reply.mentions?.includes(user?.uid));
+        if (isUserMentioned && !uniqueCommentIds.has(comment.id)) {
+          uniqueCommentIds.add(comment.id);
+          allUserRelatedComments.push(comment);
+        }
+      });
+
+      const filteredAndSortedComments = allUserRelatedComments
+        .filter((item) => (commentTypeTab ? !item.status : item.status))
+        .sort((a, b) => {
+          const aImageIndex = designVersion?.images?.findIndex(
+            (img) => img.imageId === a.designVersionImageId
+          );
+          const bImageIndex = designVersion?.images?.findIndex(
+            (img) => img.imageId === b.designVersionImageId
+          );
+          if (aImageIndex !== bImageIndex) return aImageIndex - bImageIndex;
+          return new Date(b.createdAt) - new Date(a.createdAt);
+        });
+
+      // Set selectedId to first comment's id if available
+      if (filteredAndSortedComments.length > 0) {
+        setSelectedId(filteredAndSortedComments[0].id);
+        setFilteredAndSortedComments(filteredAndSortedComments);
+      }
+    }
+  }, [
+    commentForTab,
+    commentTypeTab,
+    designComments,
+    designVersion,
+    user,
+    userOwnedComments,
+    userOwnedReplies,
+  ]);
 
   return (
     <div className="comment-section" ref={commentSectionRef}>
@@ -371,99 +459,27 @@ function CommentTabs({
         {/* Comments container */}
         {commentForTab
           ? // All Comments tab
-            (() => {
-              const filteredAndSortedComments = designComments
-                .filter((comment) => (commentTypeTab ? !comment.status : comment.status))
-                .sort((a, b) => {
-                  const aImageIndex = designVersion?.images?.findIndex(
-                    (img) => img.imageId === a.designVersionImageId
-                  );
-                  const bImageIndex = designVersion?.images?.findIndex(
-                    (img) => img.imageId === b.designVersionImageId
-                  );
-                  if (aImageIndex !== bImageIndex) return aImageIndex - bImageIndex;
-                  return new Date(b.createdAt) - new Date(a.createdAt);
-                });
-
-              // Set selectedId to first comment's id if available
-              if (filteredAndSortedComments.length > 0) {
-                setSelectedId(filteredAndSortedComments[0].id);
-              }
-
-              return filteredAndSortedComments.map((comment) => (
-                <CommentContainer
-                  key={comment.id}
-                  comment={comment}
-                  optionsState={optionsState}
-                  setOptionsState={setOptionsState}
-                  selectedId={selectedId}
-                  setSelectedId={setSelectedId}
-                />
-              ));
-            })()
+            filteredAndSortedComments.map((comment) => (
+              <CommentContainer
+                key={comment.id}
+                comment={comment}
+                optionsState={optionsState}
+                setOptionsState={setOptionsState}
+                selectedId={selectedId}
+                setSelectedId={setSelectedId}
+              />
+            ))
           : // For You tab (user's comments, replies, and mentions)
-            (() => {
-              // Create a Set to track unique comment IDs
-              const uniqueCommentIds = new Set();
-              const allUserRelatedComments = [];
-
-              // Add user's own comments
-              userOwnedComments.forEach((comment) => {
-                if (!uniqueCommentIds.has(comment.id)) {
-                  uniqueCommentIds.add(comment.id);
-                  allUserRelatedComments.push(comment);
-                }
-              });
-
-              // Add user's replies (as parent comments)
-              userOwnedReplies.forEach((reply) => {
-                const parentComment = designComments.find((c) => c.id === reply.commentId);
-                if (parentComment && !uniqueCommentIds.has(parentComment.id)) {
-                  uniqueCommentIds.add(parentComment.id);
-                  allUserRelatedComments.push(parentComment);
-                }
-              });
-
-              // Add comments where user is mentioned
-              designComments.forEach((comment) => {
-                const isUserMentioned =
-                  comment.mentions?.includes(user?.uid) ||
-                  comment.replies?.some((reply) => reply.mentions?.includes(user?.uid));
-                if (isUserMentioned && !uniqueCommentIds.has(comment.id)) {
-                  uniqueCommentIds.add(comment.id);
-                  allUserRelatedComments.push(comment);
-                }
-              });
-
-              const filteredAndSortedComments = allUserRelatedComments
-                .filter((item) => (commentTypeTab ? !item.status : item.status))
-                .sort((a, b) => {
-                  const aImageIndex = designVersion?.images?.findIndex(
-                    (img) => img.imageId === a.designVersionImageId
-                  );
-                  const bImageIndex = designVersion?.images?.findIndex(
-                    (img) => img.imageId === b.designVersionImageId
-                  );
-                  if (aImageIndex !== bImageIndex) return aImageIndex - bImageIndex;
-                  return new Date(b.createdAt) - new Date(a.createdAt);
-                });
-
-              // Set selectedId to first comment's id if available
-              if (filteredAndSortedComments.length > 0) {
-                setSelectedId(filteredAndSortedComments[0].id);
-              }
-
-              return filteredAndSortedComments.map((comment) => (
-                <CommentContainer
-                  key={comment.id}
-                  comment={comment}
-                  optionsState={optionsState}
-                  setOptionsState={setOptionsState}
-                  selectedId={selectedId}
-                  setSelectedId={setSelectedId}
-                />
-              ));
-            })()}
+            filteredAndSortedComments.map((comment) => (
+              <CommentContainer
+                key={comment.id}
+                comment={comment}
+                optionsState={optionsState}
+                setOptionsState={setOptionsState}
+                selectedId={selectedId}
+                setSelectedId={setSelectedId}
+              />
+            ))}
       </Box>
 
       {/* Add a comment button */}
@@ -525,9 +541,9 @@ const getPillTabStyle = (isWrapped, selectedTab, index) => {
   };
 };
 
-const dummyUserId1 = "ub9S8LqLBXRFKPJCUQL8xGgCMkH2"; // current user
-const dummyUserId2 = "qZjAWQkR1ShNfWhG6BQJkElEkQy1";
-const dummyUserId3 = "VJbdZCvYn4hxiEpiT2d6pIzQq2P2";
+const dummyUser1 = { id: "ub9S8LqLBXRFKPJCUQL8xGgCMkH2", username: "irarayzelji" }; // current user
+const dummyUser2 = { id: "qZjAWQkR1ShNfWhG6BQJkElEkQy1", username: "EmanuelRegister" };
+const dummyUser3 = { id: "VJbdZCvYn4hxiEpiT2d6pIzQq2P2", username: "irarayzelji2" };
 
 const createDummyDate = (stringDate) => {
   const date = new Date(stringDate); // ex: "2024-11-15T10:00:00Z"
@@ -543,25 +559,25 @@ const dummyUserDesignComments = [
   {
     id: "comment1",
     designVersionImageId: "image123",
-    userId: dummyUserId1,
-    message: "This is the first comment.",
-    mentions: [dummyUserId2, dummyUserId3],
+    userId: dummyUser1.id,
+    message: `This is the first comment. @${dummyUser2.username} This is the first comment.This is the first comment.This is the first comment.This is the first comment.This is the first comment.This is the first comment. @${dummyUser3.username} This is the first comment.This is the first comment.`,
+    mentions: [dummyUser2.id, dummyUser3.id],
     status: false,
     createdAt: createDummyDate("2024-10-01T10:00:00Z"),
     modifiedAt: createDummyDate("2024-10-01T12:00:00Z"),
     replies: [
       {
         replyId: "reply1_1",
-        userId: dummyUserId2,
-        message: "This is a reply to the first comment.",
-        mentions: [dummyUserId1],
+        userId: dummyUser2.id,
+        message: `@${dummyUser1.username} mention in fornt. This is a reply to the first comment.`,
+        mentions: [dummyUser1.id],
         createdAt: createDummyDate("2024-10-01T11:00:00Z"),
         modifiedAt: createDummyDate("2024-10-01T11:30:00Z"),
         replies: ["reply1_1_1"],
       },
       {
         replyId: "reply1_2",
-        userId: dummyUserId3,
+        userId: dummyUser3.id,
         message: "Another reply to the first comment.",
         mentions: [],
         createdAt: createDummyDate("2024-10-01T11:15:00Z"),
@@ -573,7 +589,7 @@ const dummyUserDesignComments = [
   {
     id: "comment2",
     designVersionImageId: "image456",
-    userId: dummyUserId2,
+    userId: dummyUser2.id,
     message: "This is the second comment.",
     mentions: [],
     status: true,
@@ -582,9 +598,9 @@ const dummyUserDesignComments = [
     replies: [
       {
         replyId: "reply2_1",
-        userId: dummyUserId1,
-        message: "Replying to the second comment.",
-        mentions: [dummyUserId2],
+        userId: dummyUser1.id,
+        message: `Replying to the second comment. @${dummyUser2.username} message after mention.`,
+        mentions: [dummyUser2.id],
         createdAt: createDummyDate("2024-10-02T10:00:00Z"),
         modifiedAt: createDummyDate("2024-10-02T10:20:00Z"),
         replies: ["reply2_1_1"],
@@ -594,9 +610,9 @@ const dummyUserDesignComments = [
   {
     id: "comment3",
     designVersionImageId: "image789",
-    userId: dummyUserId3,
-    message: "This is the third comment.",
-    mentions: [dummyUserId1],
+    userId: dummyUser3.id,
+    message: `This is the third comment. @${dummyUser1.username}`,
+    mentions: [dummyUser1.id],
     status: false,
     createdAt: createDummyDate("2024-10-03T14:00:00Z"),
     modifiedAt: createDummyDate("2024-10-03T14:30:00Z"),
@@ -605,7 +621,7 @@ const dummyUserDesignComments = [
   {
     id: "comment4",
     designVersionImageId: "image789",
-    userId: dummyUserId1,
+    userId: dummyUser1.id,
     message: "This is the fourth comment.",
     mentions: [],
     status: false,
@@ -615,15 +631,15 @@ const dummyUserDesignComments = [
   },
 ];
 
-// User's own comments (assuming current user is dummyUserId1)
+// User's own comments (assuming current user is dummyUser1.id)
 const dummyUserComments = dummyUserDesignComments.filter(
-  (comment) => comment.userId === dummyUserId1
+  (comment) => comment.userId === dummyUser1.id
 );
 
-// User's own replies (assuming current user is dummyUserId1)
+// User's own replies (assuming current user is dummyUser1.id)
 const dummyUserOwnedReplies = dummyUserDesignComments.flatMap((comment) =>
   comment.replies
-    .filter((reply) => reply.userId === dummyUserId1)
+    .filter((reply) => reply.userId === dummyUser1.id)
     .map((reply) => ({
       id: reply.replyId,
       commentId: comment.id,

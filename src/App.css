@@ -257,6 +257,7 @@ select:-webkit-autofill {
   --brightFontHover: #ff9058;
   --borderInput: #515151;
   --borderInputBrighter: #646464;
+  --borderInputBrighter2: #707070;
   --gradientCircle: linear-gradient(20deg, #ec2073, #ff894d);
   --gradientCircleDisabled: linear-gradient(20deg, #db3074, #e78655);
   --gradientCircleHover: linear-gradient(20deg, #ff894d, #ec2073);
@@ -371,7 +372,7 @@ select:-webkit-autofill {
 
 .light-mode {
   --bg-header: url("../public/img/bg-white.png");
-  --bg-decor: url("../public/img/decorbg.png");
+  /* --bg-decor: url("../public/img/decorbglight.png"); */
   --bg-full: url("../public/img/fullbg.png");
   --bg-image: #ffffff;
   --color-primary: #faa653;
@@ -416,6 +417,7 @@ select:-webkit-autofill {
   --brightFontHover: #f36b25;
   --borderInput: #515151;
   --borderInputBrighter: #646464;
+  --borderInputBrighter2: #707070;
   --gradientCircle: linear-gradient(20deg, #ec2073, #ff894d);
   --gradientCircleDisabled: linear-gradient(20deg, #db3074, #e78655);
   --gradientCircleHover: linear-gradient(20deg, #ff894d, #ec2073);

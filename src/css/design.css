@@ -887,9 +887,19 @@ textarea {
   background-color: var(--iconBg2);
 }
 
+.comment-container.active {
+  background-color: var(--iconBgHover);
+}
+.comment-container.active:hover {
+  background-color: var(--iconBgHover2);
+}
+
 .profile-status {
   margin-right: -5px;
-  min-width: 72.8px;
+  min-width: 96.2px;
+  justify-content: flex-end;
+  display: flex;
+  position: relative;
 }
 
 .profile-section {

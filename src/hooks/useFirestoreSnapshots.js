@@ -98,6 +98,7 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
       "userDesignVersions",
       "userDesignsComments",
       "userComments",
+      "userReplies",
       "userNotifications",
       "userProjectBudgets",
       "userBudgets",
@@ -114,6 +115,7 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
       userDesignVersions: "designVersions",
       userDesignsComments: "comments",
       userComments: "comments",
+      userReplies: "comments",
       userNotifications: "notifications",
       userProjectBudgets: "projectBudgets",
       userBudgets: "budgets",
@@ -142,6 +144,7 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
       userDesignsComments: (designVersionsSnapshot) =>
         fetchUserDesignsComments(designVersionsSnapshot),
       userComments: (user) => fetchUserComments(user),
+      userReplies: (user) => fetchUserReplies(user),
       userNotifications: (user) => fetchUserNotifications(user),
       userProjectBudgets: (projectsSnapshot) => fetchUserProjectBudgets(projectsSnapshot),
       userBudgets: (projectBudgetsSnapshot, designsSnapshot) =>
@@ -279,6 +282,10 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
         stateSetterFunctions.userComments(userCommentsData);
         setupListener("userComments", () => fetchUserComments(user));
 
+        const { data: userRepliesData } = await fetchUserReplies(user);
+        stateSetterFunctions.userReplies(userRepliesData);
+        setupListener("userReplies", () => fetchUserReplies(user));
+
         const { data: notificationsData } = await fetchUserNotifications(user);
         stateSetterFunctions.userNotifications(notificationsData);
         setupListener("userNotifications", () => fetchUserNotifications(user));
@@ -341,6 +348,43 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
   };
 };
 
+// Helper function to batch arrays into chunks of 30
+const batchIntoChunks = (array, chunkSize = 30) => {
+  const chunks = [];
+  for (let i = 0; i < array.length; i += chunkSize) {
+    chunks.push(array.slice(i, i + chunkSize));
+  }
+  return chunks;
+};
+
+// Combine all snapshots divided from chunks into one
+const combineSnapshots = (snapshots) => {
+  if (!snapshots || snapshots.length === 0) return null;
+  const allDocs = snapshots.flatMap((snapshot) => snapshot.docs || []);
+  const mockSnapshot = {
+    // Essential properties
+    docs: allDocs,
+    empty: allDocs.length === 0,
+    size: allDocs.length,
+
+    // Essential methods
+    forEach: (callback) => allDocs.forEach(callback),
+    map: (callback) => allDocs.map(callback),
+    flatMap: (callback) => allDocs.flatMap(callback),
+    filter: (callback) => allDocs.filter(callback),
+
+    // Additional QuerySnapshot methods if needed
+    docChanges: () => [],
+    metadata: snapshots[0]?.metadata || {},
+    query: snapshots[0]?.query || {},
+
+    // Helper method to check if snapshot exists
+    exists: () => allDocs.length > 0,
+  };
+
+  return mockSnapshot;
+};
+
 //get user's document
 const fetchUserDoc = async (user) => {
   if (!user) {
@@ -359,16 +403,22 @@ const fetchUserProjects = async (user) => {
     return { snapshot: null, data: [] };
   }
   const userDoc = await getDoc(doc(db, "users", user.uid));
+  if (!userDoc.exists()) return { snapshots: [], data: [] };
   const userData = userDoc.data();
   const projectIds = userData?.projects?.map((p) => p.projectId) || [];
   if (projectIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const projectsSnapshot = await getDocs(
-    query(collection(db, "projects"), where(documentId(), "in", projectIds))
+  const batches = batchIntoChunks(projectIds);
+  const projectsSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "projects"), where(documentId(), "in", batch)))
+    )
   );
-  const data = projectsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = projectsSnapshot;
+  const data = projectsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(projectsSnapshots);
   return { snapshot, data };
 };
 
@@ -377,17 +427,23 @@ const fetchUserDesigns = async (user) => {
   if (!user) {
     return { snapshot: null, data: [] };
   }
-  const userDocDesigns = await getDoc(doc(db, "users", user.uid));
-  const userData = userDocDesigns.data();
+  const userDoc = await getDoc(doc(db, "users", user.uid));
+  if (!userDoc.exists()) return { snapshots: [], data: [] };
+  const userData = userDoc.data();
   const designIds = userData?.designs?.map((d) => d.designId) || [];
   if (designIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const designsSnapshot = await getDocs(
-    query(collection(db, "designs"), where(documentId(), "in", designIds))
+  const batches = batchIntoChunks(designIds);
+  const designsSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "designs"), where(documentId(), "in", batch)))
+    )
   );
-  const data = designsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = designsSnapshot;
+  const data = designsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(designsSnapshots);
   return { snapshot, data };
 };
 
@@ -400,11 +456,16 @@ const fetchUserDesignVersions = async (designsSnapshot) => {
   if (designVersionIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const designVersionsSnapshot = await getDocs(
-    query(collection(db, "designVersions"), where(documentId(), "in", designVersionIds))
+  const batches = batchIntoChunks(designVersionIds);
+  const designVersionsSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "designVersions"), where(documentId(), "in", batch)))
+    )
   );
-  const data = designVersionsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = designVersionsSnapshot;
+  const data = designVersionsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(designVersionsSnapshots);
   return { snapshot, data };
 };
 
@@ -419,11 +480,16 @@ const fetchUserDesignsComments = async (designVersionsSnapshot) => {
   if (imageIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const commentsSnapshot = await getDocs(
-    query(collection(db, "comments"), where("designVersionImageId", "in", imageIds))
+  const batches = batchIntoChunks(imageIds);
+  const commentsSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "comments"), where(documentId(), "in", batch)))
+    )
   );
-  const data = commentsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = commentsSnapshot;
+  const data = commentsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(commentsSnapshots);
   return { snapshot, data };
 };
 
@@ -437,6 +503,30 @@ const fetchUserComments = async (user) => {
   );
   const data = userCommentsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
   const snapshot = userCommentsSnapshot;
+  return { snapshot, data };
+};
+
+//get all user's replies in comments collection where userId is in replies field
+const fetchUserReplies = async (user) => {
+  if (!user) {
+    return { snapshot: null, data: [] };
+  }
+  const commentsSnapshot = await getDocs(collection(db, "comments"));
+  const data = [];
+  commentsSnapshot.docs.forEach((doc) => {
+    const comment = doc.data();
+    if (comment.replies) {
+      const userReplies = comment.replies.filter((reply) => reply.userId === user.uid);
+      userReplies.forEach((reply) => {
+        data.push({
+          id: reply.replyId,
+          commentId: doc.id,
+          ...reply,
+        });
+      });
+    }
+  });
+  const snapshot = commentsSnapshot;
   return { snapshot, data };
 };
 
@@ -464,11 +554,16 @@ const fetchUserProjectBudgets = async (projectsSnapshot) => {
   if (projectBudgetIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const projectBudgetsSnapshot = await getDocs(
-    query(collection(db, "projectBudgets"), where(documentId(), "in", projectBudgetIds))
+  const batches = batchIntoChunks(projectBudgetIds);
+  const projectBudgetsSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "projectBudgets"), where(documentId(), "in", batch)))
+    )
   );
-  const data = projectBudgetsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = projectBudgetsSnapshot;
+  const data = projectBudgetsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(projectBudgetsSnapshots);
   return { snapshot, data };
 };
 
@@ -488,11 +583,16 @@ const fetchUserBudgets = async (projectBudgetsSnapshot, designsSnapshot) => {
   if (allBudgetIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const budgetsSnapshot = await getDocs(
-    query(collection(db, "budgets"), where(documentId(), "in", allBudgetIds))
+  const batches = batchIntoChunks(allBudgetIds);
+  const budgetsSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "budgets"), where(documentId(), "in", batch)))
+    )
   );
-  const data = budgetsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = budgetsSnapshot;
+  const data = budgetsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(budgetsSnapshots);
   return { snapshot, data };
 };
 
@@ -505,11 +605,16 @@ const fetchUserItems = async (budgetsSnapshot) => {
   if (itemIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const itemsSnapshot = await getDocs(
-    query(collection(db, "items"), where(documentId(), "in", itemIds))
+  const batches = batchIntoChunks(itemIds);
+  const itemsSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "items"), where(documentId(), "in", batch)))
+    )
   );
-  const data = itemsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = itemsSnapshot;
+  const data = itemsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(itemsSnapshots);
   return { snapshot, data };
 };
 
@@ -522,11 +627,16 @@ const fetchUserPlanMaps = async (projectsSnapshot) => {
   if (planMapIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const planMapsSnapshot = await getDocs(
-    query(collection(db, "planMaps"), where(documentId(), "in", planMapIds))
+  const batches = batchIntoChunks(planMapIds);
+  const planMapsSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "planMaps"), where(documentId(), "in", batch)))
+    )
   );
-  const data = planMapsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = planMapsSnapshot;
+  const data = planMapsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(planMapsSnapshots);
   return { snapshot, data };
 };
 
@@ -539,11 +649,14 @@ const fetchUserPins = async (planMapsSnapshot) => {
   if (pinIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const pinsSnapshot = await getDocs(
-    query(collection(db, "pins"), where(documentId(), "in", pinIds))
+  const batches = batchIntoChunks(pinIds);
+  const pinsSnapshots = await Promise.all(
+    batches.map((batch) => getDocs(query(collection(db, "pins"), where(documentId(), "in", batch))))
   );
-  const data = pinsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = pinsSnapshot;
+  const data = pinsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(pinsSnapshots);
   return { snapshot, data };
 };
 
@@ -556,11 +669,16 @@ const fetchUserTimelines = async (projectsSnapshot) => {
   if (timelineIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const timelinesSnapshot = await getDocs(
-    query(collection(db, "timelines"), where(documentId(), "in", timelineIds))
+  const batches = batchIntoChunks(timelineIds);
+  const timelinesSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "timelines"), where(documentId(), "in", batch)))
+    )
   );
-  const data = timelinesSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = timelinesSnapshot;
+  const data = timelinesSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(timelinesSnapshots);
   return { snapshot, data };
 };
 
@@ -573,11 +691,16 @@ const fetchUserEvents = async (timelinesSnapshot) => {
   if (eventIds.length === 0) {
     return { snapshot: null, data: [] };
   }
-  const eventsSnapshot = await getDocs(
-    query(collection(db, "events"), where(documentId(), "in", eventIds))
+  const batches = batchIntoChunks(eventIds);
+  const eventsSnapshots = await Promise.all(
+    batches.map((batch) =>
+      getDocs(query(collection(db, "events"), where(documentId(), "in", batch)))
+    )
   );
-  const data = eventsSnapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }));
-  const snapshot = eventsSnapshot;
+  const data = eventsSnapshots.flatMap((snapshot) =>
+    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+  );
+  const snapshot = combineSnapshots(eventsSnapshots);
   return { snapshot, data };
 };
 

@@ -1,43 +1,55 @@
 /* Root container */
 .settings-container {
-  display: flex;
-  justify-content: center;
+  margin: 0px auto;
+  padding-bottom: 100px;
+  max-width: 800px;
   padding: 20px;
-  background-color: var(--bgcolor);
-  color: var(--color-white);
-  height: 100vh;
+  min-height: calc(100vh - 203px);
+}
+.settings-container.notification {
+  padding: 20px;
 }
 .inputLabel {
   margin-right: 10px;
-
-  width: 100px;
-  color: var(--color-grey);
+  color: var(--greyText);
+  min-width: 115px;
 }
 .inputField {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
-  height: 3em;
-  min-width: 100%;
-  border-bottom: var(--color-grey) 1px solid;
+  /* margin-bottom: 10px; */
+  height: fit-content;
+  width: 100%;
+  max-width: 768px;
+  border-bottom: var(--table-stroke) 2px solid;
 }
 .inputFieldThree {
   display: flex;
   align-items: center;
-  margin-bottom: 10px;
-  height: 20em;
-  min-width: 100%;
-  border-bottom: var(--color-grey) 1px solid;
+  /* margin-bottom: 10px; */
+  height: auto;
+  width: 100%;
+  max-width: 768px;
+  border-bottom: var(--table-stroke) 2px solid;
+}
+.inputFieldThree.top {
+  border-top: var(--table-stroke) 2px solid;
 }
 .inputFieldImportant {
   display: flex;
   align-items: center;
-
-  border: var(--color-grey) 1px solid;
+  border: var(--table-stroke) 2px solid;
   padding: 6px;
   padding-left: 24px;
   height: 3em;
-  min-width: auto;
+  width: 100%;
+  max-width: 768px;
+}
+.settingsLabelAndInput {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  margin: 15px 0px;
 }
 
 /* AppBar styling */
@@ -63,15 +75,23 @@
 .avatar-container {
   display: flex;
   align-items: center;
-  border-bottom: var(--color-grey) 1px solid;
-  padding-bottom: 20px;
-  margin-bottom: 10px;
+  margin: 30px 0px 50px 0px;
+  gap: 10px;
   width: 100%;
+  max-width: 768px;
+}
+
+.avatarButtonCont {
+  display: flex;
+  flex-direction: column;
+  margin-left: auto;
+  margin-right: 17px;
+  padding-left: 17px;
+  gap: 12px;
 }
 
 /* Profile buttons */
 .avatar-container .MuiButton-root {
-  margin-bottom: 10px;
   color: var(--color-white);
 }
 
@@ -85,12 +105,6 @@
 }
 
 /* Form fields styling */
-.MuiTextField-root {
-  margin-bottom: 16px;
-  background-color: tra;
-  border-radius: 4px;
-}
-
 .MuiInputBase-input {
   color: var(--color-white);
 }
@@ -107,11 +121,6 @@
 
 .MuiOutlinedInput-root:hover fieldset {
   border-color: #fc3d69;
-}
-
-/* Icon button styling */
-.MuiIconButton-root {
-  color: #fc3d69;
 }
 
 /* Notification Tab styling */
@@ -179,4 +188,43 @@
 
 .inactivityTextField {
   /* Add any additional styles if needed */
+}
+.settingsTitle {
+  font-size: var(--font-size-h6) !important;
+  font-weight: bold !important;
+  margin-bottom: 1rem !important;
+  margin-top: 2rem !important;
+  color: var(--color-white) !important;
+}
+
+@media (max-width: 560px) {
+  .settingsLabelAndInput {
+    flex-wrap: wrap;
+  }
+  .inputLabel.editing {
+    margin-bottom: 10px;
+  }
+  .settingsPassLabelAndInput {
+    flex-wrap: wrap;
+  }
+  .inputFieldThree.password {
+    flex-wrap: wrap;
+  }
+  .inputFieldThree.password label {
+    margin-top: 10px;
+  }
+  .settings-container {
+    padding-bottom: 30px;
+  }
+}
+
+@media (max-width: 400px) {
+  .avatar-container {
+    flex-wrap: wrap;
+    flex-direction: column;
+  }
+  .avatarButtonCont {
+    margin-right: auto;
+    padding: 17px 17px 0px 17px;
+  }
 }

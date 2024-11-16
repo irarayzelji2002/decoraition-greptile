@@ -1,4 +1,5 @@
 import React, { useState } from "react";
+import { useParams, useLocation } from "react-router-dom";
 import { IconButton, Menu, TextField } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { toast } from "react-toastify";
@@ -25,15 +26,18 @@ import { db, auth } from "../../firebase.js";
 import DrawerComponent from "../Homepage/DrawerComponent.jsx";
 import { useNavigate } from "react-router-dom";
 import { useHandleNameChange, useProjectDetails } from "./backend/ProjectDetails";
-import { useParams } from "react-router-dom";
 import { showToast } from "../../functions/utils.js";
 import { handleDeleteProject } from "../Homepage/backend/HomepageActions.jsx";
 import { useSharedProps } from "../../contexts/SharedPropsContext.js";
 import { handleNameChange } from "./backend/ProjectDetails";
+import { useNetworkStatus } from "../../hooks/useNetworkStatus.js";
 
 function ProjectHead({ project }) {
-  const { user, userDoc, handleLogout } = useSharedProps();
+  const location = useLocation();
+  const navigateFrom = location.pathname;
 
+  const { user, userDoc, handleLogout } = useSharedProps();
+  const isOnline = useNetworkStatus();
   const [anchorEl, setAnchorEl] = useState(null);
   const [isShareMenuOpen, setIsShareMenuOpen] = useState(false);
   const [isChangeModeMenuOpen, setIsChangeModeMenuOpen] = useState(false);
@@ -47,7 +51,7 @@ function ProjectHead({ project }) {
   const [isDownloadModalOpen, setIsDownloadModalOpen] = useState(false);
 
   const [isRenameModalOpen, setIsRenameModalOpen] = useState(false);
-  const [newName, setNewName] = useState(project?.projectName ?? "Untitled Project");
+  const [newName, setNewName] = useState("");
   const [isEditingName, setIsEditingName] = useState(false);
 
   const [isRestoreModalOpen, setIsRestoreModalOpen] = useState(false);
@@ -86,6 +90,8 @@ function ProjectHead({ project }) {
       return;
     }
     setIsViewCollab(true);
+
+    setNewName(project?.projectName ?? "Untitled Project");
   }, [project, user, userDoc]);
 
   const handleEditNameToggle = () => {
@@ -189,7 +195,9 @@ function ProjectHead({ project }) {
 
   const handleOpenInfoModal = () => {
     handleClose();
-    navigate(`/details/project/${projectId}`);
+    navigate(`/details/project/${projectId}`, {
+      state: { navigateFrom: navigateFrom },
+    });
   };
 
   const handleCloseInfoModal = () => {
@@ -200,11 +208,18 @@ function ProjectHead({ project }) {
     handleEditNameToggle();
   };
 
-  const handleBlur = () => {
+  const handleBlur = async () => {
     // Save the name when the user clicks away from the input field
-    if (isEditingName) {
-      handleNameChange();
+    if (!isEditingName) {
+      return;
     }
+    if (project.projectName === newName.trim()) {
+      setIsEditingName(false);
+      return;
+    }
+    const result = await handleNameChange(project.id, newName, user, userDoc, setIsEditingName);
+    if (!result.success) showToast("error", result.message);
+    else showToast("success", result.message);
   };
 
   const toggleDarkMode = () => {
@@ -212,15 +227,17 @@ function ProjectHead({ project }) {
     document.body.classList.toggle("dark-mode", !darkMode);
   };
   const handleSettings = () => {
-    navigate(`/settings/project/${projectId}`);
+    navigate(`/settings/project/${projectId}`, {
+      state: { navigateFrom: navigateFrom },
+    });
   };
 
   // Rename Modal Action
-  const handleRename = (newName) => {
+  const handleRename = async (newName) => {
     if (project.projectName === newName.trim()) {
       return { success: false, message: "Name is the same as the current name." };
     }
-    const result = handleNameChange(projectId, newName, user, setIsEditingName);
+    const result = await handleNameChange(projectId, newName, user, userDoc, setIsEditingName);
     if (result.success) {
       handleClose();
       handleCloseRenameModal();
@@ -269,19 +286,19 @@ function ProjectHead({ project }) {
         <div className="design-name-section">
           {isEditingName ? (
             <TextField
-              placeholder="Design Name"
+              placeholder="Project Name"
               value={newName}
               onChange={(e) => setNewName(e.target.value)}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
-                  handleBlur();
+                  e.preventDefault();
                   e.target.blur();
                 }
               }}
               autoFocus
               onBlur={handleBlur}
               variant="outlined"
-              className="headTitleInput"
+              className="headTitleInput headTitle"
               fullWidth
               sx={{
                 backgroundColor: "transparent",
@@ -310,7 +327,7 @@ function ProjectHead({ project }) {
             />
           ) : (
             <span onClick={handleInputClick} className="headTitleInput" style={{ height: "20px" }}>
-              {projectData?.name || "Untitled"}
+              {project?.projectName || "Untitled Project"}
             </span>
           )}
         </div>
@@ -343,6 +360,9 @@ function ProjectHead({ project }) {
         >
           <MoreVertIcon />
         </IconButton>
+        {!isOnline && (
+          <div className="offline-bar">You are offline. Please check your internet connection.</div>
+        )}
         <Menu
           anchorEl={anchorEl}
           open={Boolean(anchorEl)}

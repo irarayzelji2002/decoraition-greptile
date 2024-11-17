@@ -35,6 +35,7 @@ function CommentTabs({
   const [userOwnedComments, setUserOwnedComments] = useState([]);
   const [userOwnedReplies, setUserOwnedReplies] = useState([]);
   const [filteredAndSortedComments, setFilteredAndSortedComments] = useState([]);
+  const [expandedComments, setExpandedComments] = useState(new Set());
 
   const [isAddCommentOpen, setIsAddCommentOpen] = useState(false);
   // For option select
@@ -54,6 +55,24 @@ function CommentTabs({
 
   const handleCommentTypeTabChange = () => {
     setCommentTypeTab(!commentTypeTab);
+  };
+
+  const handleToggleExpand = (commentId) => {
+    setExpandedComments((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(commentId)) {
+        // When collapsing, also collapse all nested replies
+        const comment = designComments.find((c) => c.id === commentId);
+        if (comment?.replies) {
+          comment.replies.forEach((reply) => newSet.delete(reply.replyId));
+        }
+        newSet.delete(commentId);
+      } else {
+        // When expanding, only expand direct replies
+        newSet.add(commentId);
+      }
+      return newSet;
+    });
   };
 
   const [height, setHeight] = useState("100%");
@@ -461,37 +480,22 @@ function CommentTabs({
         </div>
 
         {/* Comments container */}
-        {commentForTab
-          ? // All Comments tab
-            filteredAndSortedComments.map((comment) => (
-              <CommentContainer
-                key={comment.id}
-                commentId={comment.id}
-                comment={comment}
-                design={design}
-                optionsState={optionsState}
-                setOptionsState={setOptionsState}
-                selectedId={selectedId}
-                setSelectedId={setSelectedId}
-                activeComment={activeComment}
-                setActiveComment={setActiveComment}
-              />
-            ))
-          : // For You tab (user's comments, replies, and mentions)
-            filteredAndSortedComments.map((comment) => (
-              <CommentContainer
-                key={comment.id}
-                commentId={comment.id}
-                comment={comment}
-                design={design}
-                optionsState={optionsState}
-                setOptionsState={setOptionsState}
-                selectedId={selectedId}
-                setSelectedId={setSelectedId}
-                activeComment={activeComment}
-                setActiveComment={setActiveComment}
-              />
-            ))}
+        {filteredAndSortedComments.map((comment) => (
+          <CommentContainer
+            key={comment.id}
+            commentId={comment.id}
+            comment={comment}
+            design={design}
+            optionsState={optionsState}
+            setOptionsState={setOptionsState}
+            selectedId={selectedId}
+            setSelectedId={setSelectedId}
+            activeComment={activeComment}
+            setActiveComment={setActiveComment}
+            isExpanded={expandedComments.has(comment.id)}
+            onToggleExpand={handleToggleExpand}
+          />
+        ))}
       </Box>
 
       {/* Add a comment button */}

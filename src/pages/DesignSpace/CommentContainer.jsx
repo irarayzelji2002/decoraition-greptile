@@ -78,6 +78,9 @@ const CommentContainer = ({
   replyTo,
   setReplyTo,
   isReplyToReply = false,
+  rootComment = null,
+  isExpanded = false,
+  onToggleExpand = () => {},
 }) => {
   const { designId } = useParams();
   const { user, users, userDoc } = useSharedProps();
@@ -89,7 +92,7 @@ const CommentContainer = ({
   const [commentContent, setCommentContent] = useState("");
   const [mentions, setMentions] = useState([]);
   const [profilePic, setProfilePic] = useState("");
-  const [isExpanded, setIsExpanded] = useState(false);
+  const [expandedReplies, setExpandedReplies] = useState(new Set());
   const [replyCount, setReplyCount] = useState(0);
   const [replyLatestDate, setReplyLatestDate] = useState("");
 
@@ -111,6 +114,7 @@ const CommentContainer = ({
   const [replyContent, setReplyContent] = useState("");
   const [replyMentions, setReplyMentions] = useState([]);
   const [replyToRoot, setReplyToRoot] = useState(null);
+  const [rootCommentRoot, setRootCommentRoot] = useState(null);
 
   // errors.addComment for adding comment
   // errors.editComment for editing comment
@@ -163,20 +167,43 @@ const CommentContainer = ({
     setUpdatedMentions(comment.mentions);
     setDate(formatDateDetail(comment.createdAt));
     setReplyCount(comment.replies?.length || 0);
+    if (!isReply) setRootCommentRoot(comment);
 
-    // Modified logic to handle flat reply structure
+    // Calculate latest reply date
     if (comment.replies?.length > 0) {
-      const directReplies = comment.replies.filter((reply) => reply.replyId);
-      if (directReplies.length > 0) {
-        const latestDate = directReplies.reduce((latest, reply) => {
-          const replyTime = reply.createdAt.seconds * 1000 + reply.createdAt.nanoseconds / 1e6;
-          const latestTime = latest.seconds * 1000 + latest.nanoseconds / 1e6;
-          return replyTime > latestTime ? reply.createdAt : latest;
-        }, directReplies[0].createdAt);
-        setReplyLatestDate(formatDateDetail(latestDate));
-      } else setReplyLatestDate("");
-    } else setReplyLatestDate("");
-  }, [comment]);
+      if (isReply && rootComment) {
+        // For replies, find referenced replies from root comment
+        const referencedReplies = comment.replies
+          .map((replyId) => rootComment.replies.find((r) => r.replyId === replyId))
+          .filter(Boolean);
+
+        if (referencedReplies.length > 0) {
+          const latestDate = referencedReplies.reduce((latest, reply) => {
+            const replyTime = reply.createdAt.seconds * 1000 + reply.createdAt.nanoseconds / 1e6;
+            const latestTime = latest.seconds * 1000 + latest.nanoseconds / 1e6;
+            return replyTime > latestTime ? reply.createdAt : latest;
+          }, referencedReplies[0].createdAt);
+          setReplyLatestDate(formatDateDetail(latestDate));
+        }
+      } else {
+        // For root comments, only consider direct replies
+        const directReplies = comment.replies.filter(
+          (reply) => !comment.replies.some((r) => r.replies?.includes(reply.replyId))
+        );
+
+        if (directReplies.length > 0) {
+          const latestDate = directReplies.reduce((latest, reply) => {
+            const replyTime = reply.createdAt.seconds * 1000 + reply.createdAt.nanoseconds / 1e6;
+            const latestTime = latest.seconds * 1000 + latest.nanoseconds / 1e6;
+            return replyTime > latestTime ? reply.createdAt : latest;
+          }, directReplies[0].createdAt);
+          setReplyLatestDate(formatDateDetail(latestDate));
+        }
+      }
+    } else {
+      setReplyLatestDate("");
+    }
+  }, [comment, rootComment]);
 
   const getUserRole = (userId, design) => {
     // console.log(`userId: ${userId}`);
@@ -398,7 +425,19 @@ const CommentContainer = ({
 
   const handleExpandClick = (e) => {
     e.stopPropagation();
-    setIsExpanded(!isExpanded);
+
+    if (!isReply) {
+      // For root comments
+      const directReplies = comment.replies.filter(
+        (reply) => !comment.replies.some((r) => r.replies?.includes(reply.replyId))
+      );
+      if (!isExpanded) {
+        setExpandedReplies(new Set(directReplies.map((r) => r.replyId))); // Only expand direct replies
+      } else {
+        setExpandedReplies(new Set()); // Collapse all replies
+      }
+    }
+    onToggleExpand(commentId);
   };
 
   const setEditingState = () => {
@@ -472,9 +511,9 @@ const CommentContainer = ({
     <>
       <div
         className={`comment-container 
-          ${activeComment === commentId && "active"}
-          ${isReply && "reply"}
-          ${isReplyToReply && "reply-to-reply"}`}
+          ${activeComment === commentId ? "active" : ""}
+          ${isReply ? "reply" : ""}
+          ${isReplyToReply ? "reply-to-reply" : ""}`}
         onClick={() => setActiveComment(commentId)}
       >
         <div className="profile-section">
@@ -567,7 +606,7 @@ const CommentContainer = ({
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleExpandClick();
+                  handleExpandClick(e);
                 }}
               >
                 {!isExpanded ? (
@@ -595,7 +634,7 @@ const CommentContainer = ({
                   sx={{ ...iconButtonStylesBrighter, padding: 0, height: "38px", width: "38px" }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    toggleOptions(commentId);
+                    toggleOptions(isReply ? comment.replyId : commentId);
                   }}
                 >
                   <MoreVertIcon
@@ -606,48 +645,38 @@ const CommentContainer = ({
                     }}
                   />
                 </IconButton>
-                {optionsState.showOptions && optionsState.selectedId === comment.id && (
-                  <div
-                    ref={dropdownRef}
-                    className="dropdown-menu comment"
-                    style={{
-                      position: "absolute",
-                      top: "0",
-                      marginTop: "10px",
-                    }}
-                    onClick={() => toggleOptions(commentId)}
-                  >
-                    <CustomMenuItem
-                      className="dropdown-item"
+                {optionsState.showOptions &&
+                  optionsState.selectedId === (isReply ? comment.replyId : commentId) && (
+                    <div
+                      ref={dropdownRef}
+                      className="dropdown-menu comment"
+                      style={{
+                        position: "absolute",
+                        top: "0",
+                        marginTop: "10px",
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        setEditingState();
+                        toggleOptions(commentId);
                       }}
                     >
-                      <ListItemIcon>
-                        <EditIcon className="icon" />
-                      </ListItemIcon>
-                      <ListItemText primary="Edit" sx={{ color: "var(--color-white)" }} />
-                    </CustomMenuItem>
-                    <CustomMenuItem
-                      className="dropdown-item"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        openDeleteModal();
-                      }}
-                    >
-                      <ListItemIcon>
-                        <DeleteIcon className="icon" />
-                      </ListItemIcon>
-                      <ListItemText primary="Delete" sx={{ color: "var(--color-white)" }} />
-                    </CustomMenuItem>
-                    {/* false for open, true for resolved */}
-                    {!isReply && comment.status && (
                       <CustomMenuItem
                         className="dropdown-item"
                         onClick={(e) => {
                           e.stopPropagation();
-                          handleReopenComment();
+                          setEditingState();
+                        }}
+                      >
+                        <ListItemIcon>
+                          <EditIcon className="icon" />
+                        </ListItemIcon>
+                        <ListItemText primary="Edit" sx={{ color: "var(--color-white)" }} />
+                      </CustomMenuItem>
+                      <CustomMenuItem
+                        className="dropdown-item"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openDeleteModal();
                         }}
                       >
                         <ListItemIcon>
@@ -655,9 +684,23 @@ const CommentContainer = ({
                         </ListItemIcon>
                         <ListItemText primary="Delete" sx={{ color: "var(--color-white)" }} />
                       </CustomMenuItem>
-                    )}
-                  </div>
-                )}
+                      {/* false for open, true for resolved */}
+                      {!isReply && comment.status && (
+                        <CustomMenuItem
+                          className="dropdown-item"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            handleReopenComment();
+                          }}
+                        >
+                          <ListItemIcon>
+                            <DeleteIcon className="icon" />
+                          </ListItemIcon>
+                          <ListItemText primary="Delete" sx={{ color: "var(--color-white)" }} />
+                        </CustomMenuItem>
+                      )}
+                    </div>
+                  )}
               </>
             )}
           </div>
@@ -925,66 +968,67 @@ const CommentContainer = ({
             </span>
           </div>
         ) : (
-          <div style={{ position: "relative" }}>
-            {/* Display existing replies */}
-            {comment.replies
-              ?.filter((reply) => {
-                const nestedReplyIds = comment.replies.flatMap((r) => r.replies || []);
-                return !nestedReplyIds.includes(reply.replyId);
-              })
-              .map((reply) => (
-                <div className="replies-container">
-                  <CommentContainer
-                    comment={{
-                      ...reply,
-                      id: reply?.replyId,
-                    }}
-                    commentId={comment.id}
-                    design={design}
-                    optionsState={optionsState}
-                    setOptionsState={setOptionsState}
-                    selectedId={selectedId}
-                    setSelectedId={setSelectedId}
-                    activeComment={activeComment}
-                    setActiveComment={setActiveComment}
-                    isReply={true}
-                    replyTo={replyToRoot}
-                    setReplyTo={setReplyToRoot}
-                  />
-                </div>
-              ))}
+          <div className={`replies-container ${isReplyToReply ? "nested" : ""}`}>
+            {comment.replies?.map((replyId) => {
+              // For root comments, only show direct replies
+              if (!isReply) {
+                const replyObj = comment.replies.find((r) => r.replyId === replyId);
+                const isDirectReply = !comment.replies.some((r) =>
+                  r.replies?.includes(replyObj?.replyId)
+                );
 
-            {/* Display nested replies */}
-            {comment.replies?.map((parentReply) =>
-              parentReply.replies?.map((nestedReplyId) => {
-                const nestedReply = comment.replies.find((r) => r.replyId === nestedReplyId);
                 return (
-                  nestedReply && (
-                    <div key={nestedReply.replyId} className="replies-container nested">
-                      <CommentContainer
-                        key={nestedReply.replyId}
-                        commentId={comment.id}
-                        comment={{
-                          ...nestedReply,
-                          id: nestedReply?.replyId,
-                        }}
-                        design={design}
-                        optionsState={optionsState}
-                        setOptionsState={setOptionsState}
-                        selectedId={selectedId}
-                        setSelectedId={setSelectedId}
-                        activeComment={activeComment}
-                        setActiveComment={setActiveComment}
-                        isReply={true}
-                        isReplyToReply={true}
-                        replyTo={replyTo}
-                        setReplyTo={setReplyTo}
-                      />
-                    </div>
+                  isDirectReply &&
+                  replyObj && (
+                    <CommentContainer
+                      key={replyObj.replyId}
+                      commentId={rootCommentRoot.id}
+                      comment={replyObj}
+                      isReply={true}
+                      isReplyToReply={false}
+                      design={design}
+                      optionsState={optionsState}
+                      setOptionsState={setOptionsState}
+                      selectedId={selectedId}
+                      setSelectedId={setSelectedId}
+                      activeComment={activeComment}
+                      setActiveComment={setActiveComment}
+                      replyTo={replyToRoot}
+                      setReplyTo={setReplyToRoot}
+                      rootComment={rootCommentRoot}
+                      isExpanded={expandedReplies.has(replyObj.replyId)}
+                      onToggleExpand={onToggleExpand}
+                    />
                   )
                 );
-              })
-            )}
+              } else {
+                // For replies, show referenced replies from root comment
+                const replyObj = rootComment.replies.find((r) => r.replyId === replyId);
+                return (
+                  replyObj && (
+                    <CommentContainer
+                      key={replyObj.replyId}
+                      commentId={rootCommentRoot.id}
+                      comment={replyObj}
+                      isReply={true}
+                      isReplyToReply={true}
+                      design={design}
+                      optionsState={optionsState}
+                      setOptionsState={setOptionsState}
+                      selectedId={selectedId}
+                      setSelectedId={setSelectedId}
+                      activeComment={activeComment}
+                      setActiveComment={setActiveComment}
+                      replyTo={replyToRoot}
+                      setReplyTo={setReplyToRoot}
+                      rootComment={rootCommentRoot}
+                      isExpanded={expandedReplies.has(replyObj.replyId)}
+                      onToggleExpand={onToggleExpand}
+                    />
+                  )
+                );
+              }
+            })}
           </div>
         )}
         {/* Reply input field */}

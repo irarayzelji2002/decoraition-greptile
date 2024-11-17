@@ -895,27 +895,38 @@ textarea {
   border-left: 2px solid var(--borderInputBrighter);
   border-radius: 0;
   margin: 0;
+  padding-left: 20px;
 }
 
 .comment-container.reply-to-reply {
   margin-left: 15px;
+  border-left: 2px solid var(--borderInputBrighter);
 }
 
 .replies-container {
   margin-left: 0;
+  position: relative;
 }
 
 .replies-container.nested {
   margin-left: 0;
 }
 
-.replies-container.nested:before {
+.comment-container.reply-to-reply:before {
   content: " ";
   position: absolute;
   left: 0;
   border-left: 2px solid var(--borderInputBrighter);
   top: 0;
   bottom: 0;
+}
+
+.comment-container.reply-to-reply .comment-container.reply-to-reply {
+  margin-left: 20px;
+}
+
+.comment-container.reply-to-reply .replies-container {
+  margin-left: 20px;
 }
 
 .profile-status {

@@ -25,6 +25,7 @@ import {
   UnfoldLessRounded as UnfoldLessRoundedIcon,
   ReplyRounded as ReplyRoundedIcon,
   CloseRounded as CloseRoundedIcon,
+  SettingsBackupRestoreRounded as ReopenIcon,
 } from "@mui/icons-material";
 import { showToast, stringAvatarColor, stringAvatarInitials } from "../../functions/utils.js";
 import { useSharedProps } from "../../contexts/SharedPropsContext.js";
@@ -33,6 +34,7 @@ import { formatDateDetail, getUser } from "../Homepage/backend/HomepageActions.j
 import {
   addComment,
   editComment,
+  changeCommentStatus,
   deleteComment,
   addReply,
   editReply,
@@ -76,7 +78,8 @@ const CommentContainer = ({
   setActiveComment = () => {},
   isReply = false,
   isReplyToReply = false,
-  setReplyTo = () => {},
+  replyTo,
+  setReplyTo,
   rootComment = null,
 }) => {
   const { designId } = useParams();
@@ -88,8 +91,8 @@ const CommentContainer = ({
   const [date, setDate] = useState("");
   const [commentContent, setCommentContent] = useState("");
   const [mentions, setMentions] = useState([]);
+  const [status, setStatus] = useState(false);
   const [profilePic, setProfilePic] = useState("");
-  const [expandedReplies, setExpandedReplies] = useState(new Set());
   const [replyCount, setReplyCount] = useState(0);
   const [replyLatestDate, setReplyLatestDate] = useState("");
   const [isRepliesExpanded, setIsRepliesExpanded] = useState(false);
@@ -102,16 +105,15 @@ const CommentContainer = ({
   const mentionOptionsRef = useRef(null);
   const mentionOptionsReplyRef = useRef(null);
 
-  // Editing comment states
+  // Editing comment/reply states
   const [isEditingComment, setIsEditingComment] = useState(false);
   const [updatedCommentContent, setUpdatedCommentContent] = useState("");
   const [updatedMentions, setUpdatedMentions] = useState([]);
 
-  // Reply states
+  // Add Reply states
   const [isAddingReply, setIsAddingReply] = useState(false);
   const [replyContent, setReplyContent] = useState("");
   const [replyMentions, setReplyMentions] = useState([]);
-  const [replyToRoot, setReplyToRoot] = useState(null);
   const [rootCommentRoot, setRootCommentRoot] = useState(null);
 
   // errors.addComment for adding comment
@@ -162,6 +164,7 @@ const CommentContainer = ({
     setCommentContent(comment.message);
     setUpdatedCommentContent(comment.message);
     setMentions(comment.mentions);
+    setStatus(comment.status);
     setUpdatedMentions(comment.mentions);
     setDate(formatDateDetail(comment.createdAt));
     setReplyCount(comment.replies?.length || 0);
@@ -231,7 +234,7 @@ const CommentContainer = ({
   };
 
   useEffect(() => {
-    const handleMentionOptionClick = (content, setContent, user, ref) => {
+    const handleMentionOptionClick = (content, setContent, mentions, setMentions, user, ref) => {
       if (!ref?.current) {
         console.error("TextField ref not found");
         return;
@@ -267,15 +270,15 @@ const CommentContainer = ({
         const newContent = `${beforeMention}${spaceBefore}@${user.username}${spaceAfter}${afterMention}`;
         setContent(newContent);
 
-        if (!updatedMentions.includes(user.id)) {
-          setUpdatedMentions([...updatedMentions, user.id]);
+        if (!mentions.includes(user.id)) {
+          setMentions([...mentions, user.id]);
         }
       }
       setOpenMentionOptions(false);
       setMentionOptionClicked(null);
     };
 
-    let content, setContent, user, ref;
+    let content, setContent, mentions, setMentions, user, ref;
     console.log("inside useeffect");
     if (!mentionOptionClicked) return;
     else user = mentionOptionClicked;
@@ -284,13 +287,17 @@ const CommentContainer = ({
     if (textFieldInputRef.current && isEditingComment) {
       content = updatedCommentContent;
       setContent = setUpdatedCommentContent;
+      mentions = updatedMentions;
+      setMentions = setUpdatedMentions;
       ref = textFieldInputRef;
-      handleMentionOptionClick(content, setContent, user, ref);
+      handleMentionOptionClick(content, setContent, mentions, setMentions, user, ref);
     } else if (textFieldReplyInputRef.current && isAddingReply) {
       content = replyContent;
       setContent = setReplyContent;
+      mentions = replyMentions;
+      setMentions = setReplyMentions;
       ref = textFieldReplyInputRef;
-      handleMentionOptionClick(content, setContent, user, ref);
+      handleMentionOptionClick(content, setContent, mentions, setMentions, user, ref);
     }
   }, [mentionOptionClicked]);
 
@@ -417,10 +424,6 @@ const CommentContainer = ({
     console.log("reply mentions:", replyMentions);
   }, [replyMentions]);
 
-  useEffect(() => {
-    console.log("reply to rooot:", replyToRoot);
-  }, [replyToRoot]);
-
   const toggleOptions = (id) => {
     setOptionsState((prev) => ({
       showOptions: prev.selectedId !== id || !prev.showOptions,
@@ -450,11 +453,6 @@ const CommentContainer = ({
     setOpenMentionOptions(false);
   };
 
-  const handleReplyClick = (replyDetails) => {
-    setReplyToRoot(replyDetails);
-    setIsRepliesExpanded(true);
-  };
-
   useEffect(() => {
     if (!isEditingComment) return;
     if (textFieldInputRef?.current && document.activeElement !== textFieldInputRef.current)
@@ -468,9 +466,45 @@ const CommentContainer = ({
     handleCancelEditComment();
   }, [isAddingReply]);
 
+  const validateMentions = (mentions) => {
+    let nonExistentUsers = [];
+    if (mentions.length > 0) {
+      mentions.forEach((mention) => {
+        const user = users.find((user) => user.id === mention);
+        if (!user) nonExistentUsers.push(mention);
+      });
+    }
+    return nonExistentUsers;
+  };
+
+  // to change location
   const handleAddComment = async () => {};
 
+  // Comment database functions
+  const handleChangeCommentStatus = async () => {
+    // Call changeCommentStatus
+    const result = await changeCommentStatus(designId, commentId, status, user, userDoc);
+    if (!result.success) {
+      showToast("error", result.message);
+      setStatus((prev) => !prev);
+      return;
+    }
+    showToast("success", result.message);
+  };
+
   const handleEditComment = async () => {
+    // Validation
+    const nonExistentUsers = validateMentions(updatedMentions);
+    if (nonExistentUsers.length > 0) {
+      setErrors((prev) => ({
+        ...prev,
+        editComment: `${nonExistentUsers.length} mentioned user not found`,
+      }));
+    } else if (!updatedCommentContent && updatedMentions.length === 0) {
+      setErrors((prev) => ({ ...prev, editComment: "Commment is required" }));
+    }
+
+    // Call editComment
     const result = await editComment(
       designId,
       commentId,
@@ -480,30 +514,108 @@ const CommentContainer = ({
       userDoc
     );
     if (!result.success) {
-      if (
-        result.message === "Comment is required" ||
-        result.message === "Mentioned user not found" ||
-        result.message === "Mentioned users not found"
-      )
-        setErrors((prev) => ({ ...prev, editComment: result.message }));
-      else showToast("error", result.message);
+      showToast("error", result.message);
       return;
     }
     setIsEditingComment(false);
     showToast("success", result.message);
   };
 
-  const handleDeleteComment = async () => {};
+  const handleDeleteComment = async () => {
+    // Call deleteComment
+    const result = await deleteComment(
+      designId,
+      commentId, // parent commentId
+      user,
+      userDoc
+    );
+    if (!result.success) {
+      showToast("error", result.message);
+      return;
+    }
+    setIsDeleteModalOpen(false);
+    showToast("success", result.message);
+  };
 
-  const handleResolveComment = async () => {};
+  // Reply database functions
+  const handleAddReply = async () => {
+    // Validation
+    const nonExistentUsers = validateMentions(replyMentions);
+    if (nonExistentUsers.length > 0) {
+      setErrors((prev) => ({
+        ...prev,
+        editReply: `${nonExistentUsers.length} mentioned user not found`,
+      }));
+    } else if (!replyContent && replyMentions.length === 0) {
+      setErrors((prev) => ({ ...prev, editReply: "Reply is required" }));
+    }
 
-  const handleReopenComment = async () => {};
+    // Call addReply
+    const result = await addReply(
+      designId,
+      isReplyToReply,
+      commentId, // parent commentId
+      comment.id, // replyId
+      replyContent,
+      replyMentions,
+      user,
+      userDoc
+    );
+    if (!result.success) {
+      showToast("error", result.message);
+      return;
+    }
+    setIsEditingComment(false);
+    showToast("success", result.message);
+  };
 
-  const handleAddReply = async () => {};
+  const handleEditReply = async () => {
+    // Validation
+    const nonExistentUsers = validateMentions(updatedMentions);
+    if (nonExistentUsers.length > 0) {
+      setErrors((prev) => ({
+        ...prev,
+        editReply: `${nonExistentUsers.length} mentioned user not found`,
+      }));
+    } else if (!updatedCommentContent && updatedMentions.length === 0) {
+      setErrors((prev) => ({ ...prev, editReply: "Reply is required" }));
+    }
 
-  const handleEditReply = async () => {};
+    // Call editReply
+    const result = await editReply(
+      designId,
+      isReplyToReply,
+      commentId, // parent commentId
+      comment.id, // replyId
+      updatedCommentContent,
+      updatedMentions,
+      user,
+      userDoc
+    );
+    if (!result.success) {
+      showToast("error", result.message);
+      return;
+    }
+    setIsEditingComment(false);
+    showToast("success", result.message);
+  };
 
-  const handleDeleteReply = async () => {};
+  const handleDeleteReply = async () => {
+    // Call deleteReply
+    const result = await deleteReply(
+      designId,
+      commentId, // parent commentId
+      comment.id, // replyId
+      user,
+      userDoc
+    );
+    if (!result.success) {
+      showToast("error", result.message);
+      return;
+    }
+    setIsDeleteModalOpen(false);
+    showToast("success", result.message);
+  };
 
   return (
     <>
@@ -559,7 +671,7 @@ const CommentContainer = ({
             </div>
           </div>
           <div className="profile-status">
-            {!isReply && !comment?.status && (
+            {!isReply && !status && (
               <IconButton
                 sx={{
                   ...iconButtonStylesBrighter,
@@ -569,7 +681,8 @@ const CommentContainer = ({
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  handleResolveComment();
+                  setStatus((prev) => !prev);
+                  handleChangeCommentStatus();
                 }}
               >
                 <CheckIconSmallGradient />
@@ -626,8 +739,8 @@ const CommentContainer = ({
                 )}
               </IconButton>
             )}
-            {commenterUserId === userDoc.id && (
-              <>
+            {(commenterUserId === userDoc.id || (!isReply && status)) && (
+              <div>
                 <IconButton
                   sx={{ ...iconButtonStylesBrighter, padding: 0, height: "38px", width: "38px" }}
                   onClick={(e) => {
@@ -658,48 +771,53 @@ const CommentContainer = ({
                         toggleOptions(commentId);
                       }}
                     >
-                      <CustomMenuItem
-                        className="dropdown-item"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setEditingState();
-                        }}
-                      >
-                        <ListItemIcon>
-                          <EditIcon className="icon" />
-                        </ListItemIcon>
-                        <ListItemText primary="Edit" sx={{ color: "var(--color-white)" }} />
-                      </CustomMenuItem>
-                      <CustomMenuItem
-                        className="dropdown-item"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openDeleteModal();
-                        }}
-                      >
-                        <ListItemIcon>
-                          <DeleteIcon className="icon" />
-                        </ListItemIcon>
-                        <ListItemText primary="Delete" sx={{ color: "var(--color-white)" }} />
-                      </CustomMenuItem>
+                      {commenterUserId === userDoc.id && (
+                        <>
+                          <CustomMenuItem
+                            className="dropdown-item"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setEditingState();
+                            }}
+                          >
+                            <ListItemIcon>
+                              <EditIcon className="icon" />
+                            </ListItemIcon>
+                            <ListItemText primary="Edit" sx={{ color: "var(--color-white)" }} />
+                          </CustomMenuItem>
+                          <CustomMenuItem
+                            className="dropdown-item"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              openDeleteModal();
+                            }}
+                          >
+                            <ListItemIcon>
+                              <DeleteIcon className="icon" />
+                            </ListItemIcon>
+                            <ListItemText primary="Delete" sx={{ color: "var(--color-white)" }} />
+                          </CustomMenuItem>
+                        </>
+                      )}
                       {/* false for open, true for resolved */}
-                      {!isReply && comment.status && (
+                      {!isReply && status && (
                         <CustomMenuItem
                           className="dropdown-item"
                           onClick={(e) => {
                             e.stopPropagation();
-                            handleReopenComment();
+                            setStatus((prev) => !prev);
+                            handleChangeCommentStatus();
                           }}
                         >
                           <ListItemIcon>
-                            <DeleteIcon className="icon" />
+                            <ReopenIcon className="icon" sx={{ color: "var(--color-white)" }} />
                           </ListItemIcon>
-                          <ListItemText primary="Delete" sx={{ color: "var(--color-white)" }} />
+                          <ListItemText primary="Reopen" sx={{ color: "var(--color-white)" }} />
                         </CustomMenuItem>
                       )}
                     </div>
                   )}
-              </>
+              </div>
             )}
           </div>
         </div>
@@ -746,187 +864,213 @@ const CommentContainer = ({
               })}
             </div>
           ) : (
-            <TextField
-              label=""
-              type="text"
-              multiline
-              ref={textFieldRef}
-              inputRef={textFieldInputRef}
-              placeholder="Comment or mention someone"
-              value={updatedCommentContent}
-              onChange={(e) => {
-                const newValue = e.target.value;
-                const cursorPosition = e.target.selectionStart;
-                setUpdatedCommentContent(newValue);
+            <>
+              <TextField
+                label=""
+                type="text"
+                multiline
+                ref={textFieldRef}
+                inputRef={textFieldInputRef}
+                placeholder="Comment or mention someone"
+                value={updatedCommentContent}
+                onChange={(e) => {
+                  const newValue = e.target.value;
+                  const cursorPosition = e.target.selectionStart;
+                  setUpdatedCommentContent(newValue);
 
-                // Get text before cursor and find the last @ before cursor
-                const textBeforeCursor = newValue.substring(0, cursorPosition);
-                const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+                  // Get text before cursor and find the last @ before cursor
+                  const textBeforeCursor = newValue.substring(0, cursorPosition);
+                  const lastAtIndex = textBeforeCursor.lastIndexOf("@");
 
-                if (lastAtIndex !== -1) {
-                  // Get text between @ and cursor
-                  const textBetweenAtAndCursor = textBeforeCursor.slice(lastAtIndex + 1);
-                  // Check if there's a space between @ and cursor
-                  if (textBetweenAtAndCursor.startsWith(" ")) {
-                    setOpenMentionOptions(false);
-                    return;
-                  }
+                  if (lastAtIndex !== -1) {
+                    // Get text between @ and cursor
+                    const textBetweenAtAndCursor = textBeforeCursor.slice(lastAtIndex + 1);
+                    // Check if there's a space between @ and cursor
+                    if (textBetweenAtAndCursor.startsWith(" ")) {
+                      setOpenMentionOptions(false);
+                      return;
+                    }
 
-                  // Get text after @ until next space or cursor
-                  const searchText = textBetweenAtAndCursor.split(/\s/)[0];
+                    // Get text after @ until next space or cursor
+                    const searchText = textBetweenAtAndCursor.split(/\s/)[0];
 
-                  // Check if there's any text between @ and next space/cursor
-                  if (searchText) {
-                    const filtered = mentionOptions
-                      .map((user) => ({
-                        ...user,
-                        score: calculateMatchScore(user, searchText),
-                      }))
-                      .filter((user) => user.score > 0)
-                      .sort((a, b) => b.score - a.score);
-                    setOpenMentionOptions(filtered.length > 0);
-                    setMentionOptions(filtered);
+                    // Check if there's any text between @ and next space/cursor
+                    if (searchText) {
+                      const filtered = mentionOptions
+                        .map((user) => ({
+                          ...user,
+                          score: calculateMatchScore(user, searchText),
+                        }))
+                        .filter((user) => user.score > 0)
+                        .sort((a, b) => b.score - a.score);
+                      setOpenMentionOptions(filtered.length > 0);
+                      setMentionOptions(filtered);
+                    } else {
+                      setOpenMentionOptions(true);
+                      setMentionOptions(originalMentionOptions);
+                    }
                   } else {
+                    setOpenMentionOptions(false);
+                  }
+                }}
+                onKeyDown={(e) => {
+                  if (e.key === "@") {
                     setOpenMentionOptions(true);
                     setMentionOptions(originalMentionOptions);
-                  }
-                } else {
-                  setOpenMentionOptions(false);
-                }
-              }}
-              onKeyDown={(e) => {
-                if (e.key === "@") {
-                  setOpenMentionOptions(true);
-                  setMentionOptions(originalMentionOptions);
-                } else if (e.key === "Backspace") {
-                  const cursorPosition = e.target.selectionStart;
-                  const textBeforeCursor = updatedCommentContent.substring(0, cursorPosition);
-                  const mentionMatch = textBeforeCursor.match(/@(\w+)$/);
+                  } else if (e.key === "Backspace") {
+                    const cursorPosition = e.target.selectionStart;
+                    const textBeforeCursor = updatedCommentContent.substring(0, cursorPosition);
+                    const mentionMatch = textBeforeCursor.match(/@(\w+)$/);
 
-                  if (mentionMatch) {
-                    const username = mentionMatch[1];
-                    const userId = users.find((opt) => opt.username === username)?.id;
-                    if (userId && updatedMentions.includes(userId)) {
-                      setUpdatedMentions((prev) => prev.filter((id) => id !== userId));
-                      setOpenMentionOptions(true);
+                    if (mentionMatch) {
+                      const username = mentionMatch[1];
+                      const userId = users.find((opt) => opt.username === username)?.id;
+                      if (userId && updatedMentions.includes(userId)) {
+                        setUpdatedMentions((prev) => prev.filter((id) => id !== userId));
+                        setOpenMentionOptions(true);
+                      }
                     }
                   }
-                }
-              }}
-              disabled={!isEditingComment}
-              fullWidth
-              margin="normal"
-              helperText={isReply ? errors?.editComment : errors?.editReply}
-              minRows={1}
-              sx={{
-                ...textFieldStyles,
-                margin: 0,
-                backgroundColor: "transparent",
-                "& .MuiOutlinedInput-root": {
-                  ...textFieldStyles["& .MuiOutlinedInput-root"],
+                }}
+                disabled={!isEditingComment}
+                fullWidth
+                margin="normal"
+                helperText={isReply ? errors?.editComment : errors?.editReply}
+                minRows={1}
+                sx={{
+                  ...textFieldStyles,
+                  margin: 0,
                   backgroundColor: "transparent",
-                  padding: "15px",
-                  paddingBottom: isSingleLine ? "15px" : "45px",
-                  paddingRight: isSingleLine ? "125px" : "15px",
-                  "& textarea": {
-                    scrollbarWidth: "thin",
-                    color: "var(--color-white)",
-                    minHeight: "0px",
-                    "& .mention": {
-                      color: "var(--brightFont)",
-                      fontWeight: "bold",
+                  "& .MuiOutlinedInput-root": {
+                    ...textFieldStyles["& .MuiOutlinedInput-root"],
+                    backgroundColor: "transparent",
+                    padding: "15px",
+                    paddingBottom: isSingleLine ? "15px" : "45px",
+                    paddingRight: isSingleLine ? "125px" : "15px",
+                    "& textarea": {
+                      scrollbarWidth: "thin",
+                      color: "var(--color-white)",
+                      minHeight: "0px",
+                      "& .mention": {
+                        color: "var(--brightFont)",
+                        fontWeight: "bold",
+                      },
+                      "&::-webkit-scrollbar": {
+                        width: "8px",
+                      },
                     },
-                    "&::-webkit-scrollbar": {
-                      width: "8px",
+                    "& fieldset": {
+                      borderColor: `${
+                        selectedId === commentId
+                          ? "var(--borderInputBrighter)"
+                          : "var(--borderInput)"
+                      }`,
+                      borderWidth: "2px",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: `${
+                        selectedId === commentId
+                          ? "var(--borderInputBrighter)"
+                          : "var(--borderInput)"
+                      }`,
+                      borderWidth: "2px",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: `${
+                        selectedId === commentId
+                          ? "var(--borderInputBrighter2)"
+                          : "var(--borderInputBrighter)"
+                      }`,
+                      borderWidth: "2px",
                     },
                   },
-                  "& fieldset": {
-                    borderColor: `${
-                      selectedId === commentId ? "var(--borderInputBrighter)" : "var(--borderInput)"
-                    }`,
-                    borderWidth: "2px",
-                  },
-                  "&:hover fieldset": {
-                    borderColor: `${
-                      selectedId === commentId ? "var(--borderInputBrighter)" : "var(--borderInput)"
-                    }`,
-                    borderWidth: "2px",
-                  },
-                  "&.Mui-focused fieldset": {
-                    borderColor: `${
-                      selectedId === commentId
-                        ? "var(--borderInputBrighter2)"
-                        : "var(--borderInputBrighter)"
-                    }`,
-                    borderWidth: "2px",
-                  },
-                },
-                "& input": {
-                  color: "var(--color-white)",
-                  padding: "15px",
-                },
-                "& .MuiFormHelperText-root": {
-                  color: "var(--color-quaternary)",
-                  marginLeft: 0,
-                },
-                "& .Mui-disabled": {
-                  WebkitTextFillColor: "inherit !important",
-                  opacity: 1,
-                },
-                "& .MuiInputAdornment-root": {
-                  alignSelf: "flex-end",
-                  marginBottom: "8px",
-                },
-                "@media (max-width: 560px)": {
                   "& input": {
+                    color: "var(--color-white)",
                     padding: "15px",
                   },
-                },
-              }}
-              InputProps={{
-                endAdornment: (
-                  <InputAdornment
-                    position="end"
-                    sx={{
-                      position: "absolute",
-                      bottom: isSingleLine ? "18px" : "15px",
-                      right: "5px",
-                    }}
-                  >
-                    {isEditingComment && (
-                      <>
-                        <IconButton
-                          onClick={() => {
-                            openCollaboratorsSelect(
-                              updatedCommentContent,
-                              setUpdatedCommentContent
-                            );
-                            textFieldInputRef?.current?.focus();
-                          }}
-                          sx={{ ...iconButtonStylesBrighter, padding: "10.5px" }}
-                        >
-                          <MentionIconSmallGradient />
-                        </IconButton>
-                        {isEditingComment && (
+                  "& .MuiFormHelperText-root": {
+                    color: "var(--color-quaternary)",
+                    marginLeft: 0,
+                  },
+                  "& .Mui-disabled": {
+                    WebkitTextFillColor: "inherit !important",
+                    opacity: 1,
+                  },
+                  "& .MuiInputAdornment-root": {
+                    alignSelf: "flex-end",
+                    marginBottom: "8px",
+                  },
+                  "@media (max-width: 560px)": {
+                    "& input": {
+                      padding: "15px",
+                    },
+                  },
+                }}
+                InputProps={{
+                  endAdornment: (
+                    <InputAdornment
+                      position="end"
+                      sx={{
+                        position: "absolute",
+                        bottom: isSingleLine ? "18px" : "15px",
+                        right: "5px",
+                      }}
+                    >
+                      {isEditingComment && (
+                        <>
                           <IconButton
-                            onClick={handleCancelEditComment}
+                            onClick={() => {
+                              openCollaboratorsSelect(
+                                updatedCommentContent,
+                                setUpdatedCommentContent
+                              );
+                              textFieldInputRef?.current?.focus();
+                            }}
                             sx={{ ...iconButtonStylesBrighter, padding: "10.5px" }}
                           >
-                            <CancelIconSmallGradient />
+                            <MentionIconSmallGradient />
                           </IconButton>
-                        )}
-                        <IconButton
-                          onClick={!isReply ? handleEditComment : handleEditReply}
-                          sx={{ ...iconButtonStylesBrighter, padding: "9.5px" }}
-                        >
-                          <SaveIconSmallGradient sx={{ color: "#FF894D" }} />
-                        </IconButton>
-                      </>
-                    )}
-                  </InputAdornment>
-                ),
-              }}
-            />
+                          {isEditingComment && (
+                            <IconButton
+                              onClick={handleCancelEditComment}
+                              sx={{ ...iconButtonStylesBrighter, padding: "10.5px" }}
+                            >
+                              <CancelIconSmallGradient />
+                            </IconButton>
+                          )}
+                          <IconButton
+                            onClick={!isReply ? handleEditComment : handleEditReply}
+                            sx={{ ...iconButtonStylesBrighter, padding: "9.5px" }}
+                          >
+                            <SaveIconSmallGradient sx={{ color: "#FF894D" }} />
+                          </IconButton>
+                        </>
+                      )}
+                    </InputAdornment>
+                  ),
+                }}
+              />
+              {updatedMentions.length > 0 && (
+                <div className="editingMentionsCont">
+                  <span className="editingMentionsText">Mentions:</span>
+                  {updatedMentions.map((mention, index) => {
+                    const userId = mention;
+                    const username = users.find((user) => user.id === userId)?.username;
+                    return (
+                      <CustomTooltip
+                        key={index}
+                        title={
+                          <UserInfoTooltip username={username} {...getUserDetails(username)} />
+                        }
+                        arrow
+                      >
+                        <span className="editingMentionsUsername">@{username}</span>
+                      </CustomTooltip>
+                    );
+                  })}
+                </div>
+              )}
+            </>
           )}
           {openMentionOptions && mentionOptions.length > 0 && isEditingComment && (
             <Paper
@@ -991,7 +1135,8 @@ const CommentContainer = ({
                       setSelectedId={setSelectedId}
                       activeComment={activeComment}
                       setActiveComment={setActiveComment}
-                      setReplyTo={handleReplyClick}
+                      replyTo={replyTo}
+                      setReplyTo={setReplyTo}
                       rootComment={rootCommentRoot}
                     />
                   )
@@ -1014,8 +1159,8 @@ const CommentContainer = ({
                       setSelectedId={setSelectedId}
                       activeComment={activeComment}
                       setActiveComment={setActiveComment}
-                      replyTo={replyToRoot}
-                      setReplyTo={handleReplyClick}
+                      replyTo={replyTo}
+                      setReplyTo={setReplyTo}
                       rootComment={rootCommentRoot}
                     />
                   )
@@ -1028,12 +1173,11 @@ const CommentContainer = ({
         {isRepliesExpanded && !isReply && (
           <>
             <div style={{ marginTop: "10px" }}>
-              {replyToRoot && (
+              {replyTo && (
                 <div>
                   <span style={{ color: "var(--greyText)", fontSize: "0.875rem" }}>
-                    Replying to {replyToRoot.username}'s reply{" "}
-                    {replyToRoot.date.includes("at") && "at"}{" "}
-                    {replyToRoot.date.replace(" at ", ", ")}
+                    Replying to {replyTo.username}'s reply {replyTo.date.includes("at") && "at"}{" "}
+                    {replyTo.date.replace(" at ", ", ")}
                   </span>
                   <IconButton
                     size="small"
@@ -1044,7 +1188,7 @@ const CommentContainer = ({
                     }}
                     onClick={(e) => {
                       e.stopPropagation();
-                      setReplyToRoot(null);
+                      setReplyTo(null);
                     }}
                   >
                     <CloseRoundedIcon
@@ -1223,6 +1367,26 @@ const CommentContainer = ({
                   ),
                 }}
               />
+              {replyMentions.length > 0 && (
+                <div className="editingMentionsCont">
+                  <span className="editingMentionsText">Mentions:</span>
+                  {replyMentions.map((mention, index) => {
+                    const userId = mention;
+                    const username = users.find((user) => user.id === userId)?.username;
+                    return (
+                      <CustomTooltip
+                        key={index}
+                        title={
+                          <UserInfoTooltip username={username} {...getUserDetails(username)} />
+                        }
+                        arrow
+                      >
+                        <span className="editingMentionsUsername">@{username}</span>
+                      </CustomTooltip>
+                    );
+                  })}
+                </div>
+              )}
             </div>
             {openMentionOptions && mentionOptions.length > 0 && isAddingReply && (
               <Paper

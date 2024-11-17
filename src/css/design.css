@@ -912,6 +912,31 @@ textarea {
   margin-left: 0;
 }
 
+.editingMentionsCont {
+  display: flex;
+  width: 100%;
+  padding-top: 5px;
+}
+
+.editingMentionsText {
+  color: var(--greyText);
+  font-size: 0.875rem;
+  margin-right: 10px;
+  padding: 5px 0px;
+}
+
+.editingMentionsUsername {
+  color: var(--brightFont);
+  font-weight: bold;
+  margin-right: 10px;
+  font-size: 0.875rem;
+  padding: 5px 0px;
+}
+
+.editingMentionsUsername:hover {
+  color: var(--brightFontHover);
+}
+
 /* .comment-container.reply-to-reply:before {
   content: " ";
   position: absolute;

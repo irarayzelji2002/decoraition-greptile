@@ -475,7 +475,7 @@ function CommentTabs({
 
         {/* Comments container */}
         {filteredAndSortedComments.map((comment) => (
-          <CommentContainer
+          <RootCommentContainer
             key={comment.id}
             commentId={comment.id}
             comment={comment}
@@ -547,6 +547,16 @@ const getPillTabStyle = (isWrapped, selectedTab, index) => {
     minHeight: "40px",
     width: "110px", // Ensures tabs are the same size
   };
+};
+
+const RootCommentContainer = ({ ...props }) => {
+  const [replyTo, setReplyTo] = useState(null);
+
+  useEffect(() => {
+    console.log("reply to:", replyTo);
+  }, [replyTo]);
+
+  return <CommentContainer {...props} replyTo={replyTo} setReplyTo={setReplyTo} />;
 };
 
 const dummyUser1 = { id: "ub9S8LqLBXRFKPJCUQL8xGgCMkH2", username: "irarayzelji" }; // current user

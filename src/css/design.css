@@ -897,6 +897,27 @@ textarea {
   margin: 0;
 }
 
+.comment-container.reply-to-reply {
+  margin-left: 15px;
+}
+
+.replies-container {
+  margin-left: 0;
+}
+
+.replies-container.nested {
+  margin-left: 0;
+}
+
+.replies-container.nested:before {
+  content: " ";
+  position: absolute;
+  left: 0;
+  border-left: 2px solid var(--borderInputBrighter);
+  top: 0;
+  bottom: 0;
+}
+
 .profile-status {
   margin-right: -5px;
   justify-content: flex-end;

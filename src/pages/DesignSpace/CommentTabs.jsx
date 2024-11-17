@@ -617,6 +617,15 @@ const dummyUserDesignComments = [
         modifiedAt: createDummyDate("2024-10-02T10:20:00Z"),
         replies: ["reply2_1_1"],
       },
+      {
+        replyId: "reply2_1_1",
+        userId: dummyUser1.id,
+        message: `Replying to the second comment's reply. @${dummyUser1.username} message after mention.`,
+        mentions: [dummyUser1.id],
+        createdAt: createDummyDate("2024-10-03T10:00:00Z"),
+        modifiedAt: createDummyDate("2024-10-03T10:20:00Z"),
+        replies: [],
+      },
     ],
   },
   {

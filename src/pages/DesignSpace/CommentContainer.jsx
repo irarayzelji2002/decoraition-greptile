@@ -424,11 +424,20 @@ const CommentContainer = ({
     console.log("reply mentions:", replyMentions);
   }, [replyMentions]);
 
+  useEffect(() => {
+    console.log("optionsState:", optionsState);
+  }, [optionsState]);
+
   const toggleOptions = (id) => {
-    setOptionsState((prev) => ({
-      showOptions: prev.selectedId !== id || !prev.showOptions,
-      selectedId: prev.selectedId !== id || !prev.showOptions ? id : null,
-    }));
+    setOptionsState((prev) => {
+      if (prev.selectedId === id) {
+        // If clicking same comment, just close the menu
+        return { showOptions: false, selectedId: null };
+      } else {
+        // If clicking different comment, open menu for new comment
+        return { showOptions: true, selectedId: id };
+      }
+    });
   };
 
   const handleExpandClick = (e) => {
@@ -438,12 +447,14 @@ const CommentContainer = ({
 
   const setEditingState = () => {
     setIsEditingComment(true);
-    toggleOptions(commentId);
+    if (!isReply) toggleOptions(commentId);
+    else toggleOptions(comment.replyId);
   };
 
   const openDeleteModal = () => {
     setIsDeleteModalOpen(true);
-    toggleOptions(commentId);
+    if (!isReply) toggleOptions(commentId);
+    else toggleOptions(comment.replyId);
   };
 
   const handleCancelEditComment = () => {
@@ -765,10 +776,6 @@ const CommentContainer = ({
                         position: "absolute",
                         top: "0",
                         marginTop: "10px",
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleOptions(commentId);
                       }}
                     >
                       {commenterUserId === userDoc.id && (

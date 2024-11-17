@@ -1137,7 +1137,7 @@ export const addReply = async (
   userDoc
 ) => {
   try {
-    const response = await axios.post(
+    const response = await axios.put(
       `/api/design/${designId}/comment/${commentId}/add-reply`,
       { userId: userDoc.id, isReplyToReply, commentId, replyId, message, mentions },
       {

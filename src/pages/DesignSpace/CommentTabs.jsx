@@ -57,18 +57,6 @@ function CommentTabs({
     setCommentTypeTab(!commentTypeTab);
   };
 
-  const handleToggleExpand = (commentId) => {
-    setExpandedComments((prev) => {
-      const newSet = new Set(prev);
-      if (newSet.has(commentId)) {
-        newSet.delete(commentId);
-      } else {
-        newSet.add(commentId);
-      }
-      return newSet;
-    });
-  };
-
   const [height, setHeight] = useState("100%");
   const [applyMinHeight, setApplyMinHeight] = useState(true);
   const resizeFactor = 2;

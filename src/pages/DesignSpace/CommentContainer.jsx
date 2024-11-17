@@ -79,8 +79,6 @@ const CommentContainer = ({
   setReplyTo,
   isReplyToReply = false,
   rootComment = null,
-  isExpanded = false,
-  onToggleExpand = () => {},
 }) => {
   const { designId } = useParams();
   const { user, users, userDoc } = useSharedProps();
@@ -95,6 +93,7 @@ const CommentContainer = ({
   const [expandedReplies, setExpandedReplies] = useState(new Set());
   const [replyCount, setReplyCount] = useState(0);
   const [replyLatestDate, setReplyLatestDate] = useState("");
+  const [isRepliesExpanded, setIsRepliesExpanded] = useState(false);
 
   // General mention select
   const [openMentionOptions, setOpenMentionOptions] = useState(false);
@@ -425,19 +424,7 @@ const CommentContainer = ({
 
   const handleExpandClick = (e) => {
     e.stopPropagation();
-
-    if (!isReply) {
-      // For root comments
-      const directReplies = comment.replies.filter(
-        (reply) => !comment.replies.some((r) => r.replies?.includes(reply.replyId))
-      );
-      if (!isExpanded) {
-        setExpandedReplies(new Set(directReplies.map((r) => r.replyId))); // Only expand direct replies
-      } else {
-        setExpandedReplies(new Set()); // Collapse all replies
-      }
-    }
-    onToggleExpand(commentId);
+    setIsRepliesExpanded((prev) => !prev);
   };
 
   const setEditingState = () => {
@@ -609,7 +596,7 @@ const CommentContainer = ({
                   handleExpandClick(e);
                 }}
               >
-                {!isExpanded ? (
+                {!isRepliesExpanded ? (
                   <UnfoldMoreRoundedIcon
                     sx={{
                       fontSize: "1.9rem",
@@ -953,9 +940,9 @@ const CommentContainer = ({
             </Paper>
           )}
         </div>
-        {!isExpanded ? (
+        {!isRepliesExpanded ? (
           <div className="replies-details">
-            <span style={{ cursor: "auto", minWidth: "60px" }} onClick={(e) => e.stopPropagation()}>
+            <span style={{ cursor: "auto" }} onClick={(e) => e.stopPropagation()}>
               {replyCount === 0
                 ? "No replies"
                 : replyCount === 1
@@ -970,9 +957,9 @@ const CommentContainer = ({
         ) : (
           <div className={`replies-container ${isReplyToReply ? "nested" : ""}`}>
             {comment.replies?.map((replyId) => {
-              // For root comments, only show direct replies
               if (!isReply) {
-                const replyObj = comment.replies.find((r) => r.replyId === replyId);
+                // For root comments, only show direct replies
+                const replyObj = replyId; // replyId is already the reply object
                 const isDirectReply = !comment.replies.some((r) =>
                   r.replies?.includes(replyObj?.replyId)
                 );
@@ -982,7 +969,7 @@ const CommentContainer = ({
                   replyObj && (
                     <CommentContainer
                       key={replyObj.replyId}
-                      commentId={rootCommentRoot.id}
+                      commentId={comment.id}
                       comment={replyObj}
                       isReply={true}
                       isReplyToReply={false}
@@ -996,8 +983,6 @@ const CommentContainer = ({
                       replyTo={replyToRoot}
                       setReplyTo={setReplyToRoot}
                       rootComment={rootCommentRoot}
-                      isExpanded={expandedReplies.has(replyObj.replyId)}
-                      onToggleExpand={onToggleExpand}
                     />
                   )
                 );
@@ -1008,7 +993,7 @@ const CommentContainer = ({
                   replyObj && (
                     <CommentContainer
                       key={replyObj.replyId}
-                      commentId={rootCommentRoot.id}
+                      commentId={rootComment.id}
                       comment={replyObj}
                       isReply={true}
                       isReplyToReply={true}
@@ -1022,8 +1007,6 @@ const CommentContainer = ({
                       replyTo={replyToRoot}
                       setReplyTo={setReplyToRoot}
                       rootComment={rootCommentRoot}
-                      isExpanded={expandedReplies.has(replyObj.replyId)}
-                      onToggleExpand={onToggleExpand}
                     />
                   )
                 );
@@ -1032,7 +1015,7 @@ const CommentContainer = ({
           </div>
         )}
         {/* Reply input field */}
-        {isExpanded && !isReply && (
+        {isRepliesExpanded && !isReply && (
           <>
             <div style={{ marginTop: "10px" }}>
               {replyToRoot && (

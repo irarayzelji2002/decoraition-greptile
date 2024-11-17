@@ -61,14 +61,8 @@ function CommentTabs({
     setExpandedComments((prev) => {
       const newSet = new Set(prev);
       if (newSet.has(commentId)) {
-        // When collapsing, also collapse all nested replies
-        const comment = designComments.find((c) => c.id === commentId);
-        if (comment?.replies) {
-          comment.replies.forEach((reply) => newSet.delete(reply.replyId));
-        }
         newSet.delete(commentId);
       } else {
-        // When expanding, only expand direct replies
         newSet.add(commentId);
       }
       return newSet;
@@ -492,8 +486,6 @@ function CommentTabs({
             setSelectedId={setSelectedId}
             activeComment={activeComment}
             setActiveComment={setActiveComment}
-            isExpanded={expandedComments.has(comment.id)}
-            onToggleExpand={handleToggleExpand}
           />
         ))}
       </Box>
@@ -589,7 +581,25 @@ const dummyUserDesignComments = [
         mentions: [dummyUser1.id],
         createdAt: createDummyDate("2024-10-01T11:00:00Z"),
         modifiedAt: createDummyDate("2024-10-01T11:30:00Z"),
-        replies: ["reply1_1_1"],
+        replies: ["reply1_1_1", "reply1_1_2"],
+      },
+      {
+        replyId: "reply1_1_1",
+        userId: dummyUser2.id,
+        message: `@${dummyUser1.username} mention in fornt. This is a 1st reply to the first reply.`,
+        mentions: [dummyUser1.id],
+        createdAt: createDummyDate("2024-10-02T11:00:00Z"),
+        modifiedAt: createDummyDate("2024-10-02T11:30:00Z"),
+        replies: ["reply1_1_1_1"],
+      },
+      {
+        replyId: "reply1_1_2",
+        userId: dummyUser2.id,
+        message: `@${dummyUser1.username} mention in fornt. This is a 2nd reply to the first reply.`,
+        mentions: [dummyUser1.id],
+        createdAt: createDummyDate("2024-10-02T11:50:00Z"),
+        modifiedAt: createDummyDate("2024-10-02T11:50:00Z"),
+        replies: [],
       },
       {
         replyId: "reply1_2",

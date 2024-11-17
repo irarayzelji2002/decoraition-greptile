@@ -26,6 +26,7 @@ import { TiledIcon, ListIcon } from "../ProjectSpace/svg/ExportIcon.jsx";
 import { Button, IconButton } from "@mui/material";
 import { iconButtonStyles } from "./DrawerComponent.jsx";
 import { gradientButtonStyles } from "../DesignSpace/PromptBar.jsx";
+import { AddDesign } from "../DesignSpace/svg/AddImage.jsx";
 
 export default function SeeAllDesigns() {
   const navigate = useNavigate();
@@ -353,6 +354,7 @@ export default function SeeAllDesigns() {
                 sx={{
                   ...gradientButtonStyles,
                   aspectRatio: "1/1",
+                  color: "var(--color-white)",
                   background:
                     page === index + 1
                       ? "var(--gradientButton) !important"
@@ -391,7 +393,7 @@ export default function SeeAllDesigns() {
             <div className="small-button-container" onClick={toggleModal}>
               <span className="small-button-text">Create a Design</span>
               <div className="small-circle-button">
-                <ImageIcon className="icon" />
+                <AddDesign />
               </div>
             </div>
             <div

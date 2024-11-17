@@ -26,6 +26,7 @@ import {
 import { HorizontalIcon, ListIcon, TiledIcon } from "../ProjectSpace/svg/ExportIcon.jsx";
 import { iconButtonStyles } from "./DrawerComponent.jsx";
 import { gradientButtonStyles } from "../DesignSpace/PromptBar.jsx";
+import { AddProject } from "../DesignSpace/svg/AddImage.jsx";
 
 export default function SeeAllProjects() {
   const navigate = useNavigate();
@@ -358,6 +359,7 @@ export default function SeeAllProjects() {
                 sx={{
                   ...gradientButtonStyles,
                   aspectRatio: "1/1",
+                  color: "var(--color-white)",
                   background:
                     page === index + 1
                       ? "var(--gradientButton) !important"
@@ -396,7 +398,7 @@ export default function SeeAllProjects() {
             <div className="small-button-container" onClick={toggleModal}>
               <span className="small-button-text">Create a Project</span>
               <div className="small-circle-button">
-                <FolderIcon className="icon" />
+                <AddProject />
               </div>
             </div>
             <div

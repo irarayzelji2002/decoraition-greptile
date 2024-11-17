@@ -75,9 +75,8 @@ const CommentContainer = ({
   activeComment,
   setActiveComment = () => {},
   isReply = false,
-  replyTo,
-  setReplyTo,
   isReplyToReply = false,
+  setReplyTo = () => {},
   rootComment = null,
 }) => {
   const { designId } = useParams();
@@ -167,15 +166,21 @@ const CommentContainer = ({
     setDate(formatDateDetail(comment.createdAt));
     setReplyCount(comment.replies?.length || 0);
     if (!isReply) setRootCommentRoot(comment);
+    else setRootCommentRoot(rootComment);
 
     // Calculate latest reply date
     if (comment.replies?.length > 0) {
       if (isReply && rootComment) {
         // For replies, find referenced replies from root comment
         const referencedReplies = comment.replies
-          .map((replyId) => rootComment.replies.find((r) => r.replyId === replyId))
+          .map((replyId) =>
+            rootComment.replies.find((r) =>
+              typeof replyId === "string" ? r.replyId === replyId : r.replyId === replyId.replyId
+            )
+          )
           .filter(Boolean);
 
+        console.log("referencedReplies isReply && rootComment", referencedReplies);
         if (referencedReplies.length > 0) {
           const latestDate = referencedReplies.reduce((latest, reply) => {
             const replyTime = reply.createdAt.seconds * 1000 + reply.createdAt.nanoseconds / 1e6;
@@ -190,6 +195,7 @@ const CommentContainer = ({
           (reply) => !comment.replies.some((r) => r.replies?.includes(reply.replyId))
         );
 
+        console.log("directReplies", directReplies);
         if (directReplies.length > 0) {
           const latestDate = directReplies.reduce((latest, reply) => {
             const replyTime = reply.createdAt.seconds * 1000 + reply.createdAt.nanoseconds / 1e6;
@@ -444,6 +450,11 @@ const CommentContainer = ({
     setOpenMentionOptions(false);
   };
 
+  const handleReplyClick = (replyDetails) => {
+    setReplyToRoot(replyDetails);
+    setIsRepliesExpanded(true);
+  };
+
   useEffect(() => {
     if (!isEditingComment) return;
     if (textFieldInputRef?.current && document.activeElement !== textFieldInputRef.current)
@@ -574,7 +585,7 @@ const CommentContainer = ({
                 }}
                 onClick={(e) => {
                   e.stopPropagation();
-                  setReplyTo({ username, date, replyId: comment.id, commentId });
+                  setReplyTo({ username, date, replyId: comment.replyId, commentId });
                   if (textFieldReplyRef.current) textFieldReplyRef.current.focus();
                 }}
               >
@@ -980,8 +991,7 @@ const CommentContainer = ({
                       setSelectedId={setSelectedId}
                       activeComment={activeComment}
                       setActiveComment={setActiveComment}
-                      replyTo={replyToRoot}
-                      setReplyTo={setReplyToRoot}
+                      setReplyTo={handleReplyClick}
                       rootComment={rootCommentRoot}
                     />
                   )
@@ -1005,7 +1015,7 @@ const CommentContainer = ({
                       activeComment={activeComment}
                       setActiveComment={setActiveComment}
                       replyTo={replyToRoot}
-                      setReplyTo={setReplyToRoot}
+                      setReplyTo={handleReplyClick}
                       rootComment={rootCommentRoot}
                     />
                   )

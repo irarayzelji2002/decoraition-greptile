@@ -1146,6 +1146,7 @@ exports.createDesignVersion = async (req, res) => {
     const emptyDesignVersionData = {
       description: "",
       images: [],
+      createdBy: userId,
       createdAt: new Date(),
       copiedDesigns: [],
       isRestored: false,
@@ -1212,6 +1213,7 @@ exports.createDesignVersion = async (req, res) => {
     const fullVersionData = {
       description: prompt,
       images: updatedImages,
+      createdBy: userId,
       createdAt: new Date(),
       copiedDesigns: [],
       isRestored: false,

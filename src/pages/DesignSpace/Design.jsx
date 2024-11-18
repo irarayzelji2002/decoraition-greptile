@@ -45,7 +45,8 @@ import { handleEditDescription } from "./backend/DesignActions";
 import { iconButtonStyles } from "../Homepage/DrawerComponent";
 
 function Design() {
-  const { user, userDoc, designs, userDesigns, userDesignVersions, comments } = useSharedProps();
+  const { user, userDoc, designs, userDesigns, designVersions, userDesignVersions, comments } =
+    useSharedProps();
   const { designId } = useParams(); // Get designId from the URL
   const [design, setDesign] = useState({});
   const [designVersion, setDesignVersion] = useState({});
@@ -91,6 +92,13 @@ function Design() {
   const [selectedSamMask, setSelectedSamMask] = useState(null);
   const [refineMaskOption, setRefineMaskOption] = useState(true); // true for Add first then remove, false for Remove first then add
   const [showPreview, setShowPreview] = useState(false);
+  const [canvasMode, setCanvasMode] = useState(true); // true for Add to Mask, false for Remove form Mask
+  const [samMasks, setSamMasks] = useState([]);
+
+  // Comment
+  const [isPinpointing, setIsPinpointing] = useState(false);
+  const [pinpointLocation, setPinpointLocation] = useState(null); // {x, y}
+  const [pinpointSelectedImage, setPinpointSelectedImage] = useState(null);
 
   // Generation
   const [statusMessage, setStatusMessage] = useState("");
@@ -170,9 +178,9 @@ function Design() {
 
     if (design?.history && design.history.length > 0) {
       const latestDesignVersionId = design.history[design.history.length - 1];
-      const fetchedLatestDesignVersion = userDesignVersions.find(
-        (designVer) => designVer.id === latestDesignVersionId
-      );
+      const fetchedLatestDesignVersion =
+        designVersions.find((v) => v.id === latestDesignVersionId) ||
+        userDesignVersions.find((v) => v.id === latestDesignVersionId);
 
       if (!fetchedLatestDesignVersion) {
         console.error("Latest design version not found.");
@@ -181,15 +189,17 @@ function Design() {
         !deepEqual(designVersion, fetchedLatestDesignVersion)
       ) {
         setDesignVersion(fetchedLatestDesignVersion);
-        setDesignVersionImages(fetchedLatestDesignVersion.images);
+        setDesignVersionImages(fetchedLatestDesignVersion.images || []);
         setIsNextGeneration(true);
         console.log("fetchedLatestDesignVersion", fetchedLatestDesignVersion);
       }
     } else {
+      setDesignVersion({});
+      setDesignVersionImages([]);
       setIsNextGeneration(false);
     }
     setLoading(false);
-  }, [design, userDesignVersions]);
+  }, [design, designVersions, userDesignVersions]);
 
   useEffect(() => {
     const handleError = (event) => {
@@ -378,11 +388,13 @@ function Design() {
                     setProgress={setProgress}
                     setEta={setEta}
                     setIsGenerating={setIsGenerating}
+                    generatedImagesPreview={generatedImagesPreview}
                     setGeneratedImagesPreview={setGeneratedImagesPreview}
                     generatedImages={generatedImages}
                     setGeneratedImages={setGeneratedImages}
                     samMaskMask={samMaskMask}
                     maskPrompt={maskPrompt}
+                    setMaskPrompt={setMaskPrompt}
                     combinedMask={combinedMask}
                     setMaskErrors={setMaskErrors}
                     samDrawing={samDrawing}
@@ -397,12 +409,19 @@ function Design() {
                     base64ImageAdd={base64ImageAdd}
                     base64ImageRemove={base64ImageRemove}
                     selectedSamMask={selectedSamMask}
+                    setSelectedSamMask={setSelectedSamMask}
                     refineMaskOption={refineMaskOption}
                     showPreview={showPreview}
+                    setShowPreview={setShowPreview}
                     promptBarRef={promptBarRef}
                     generationErrors={generationErrors}
                     setGenerationErrors={setGenerationErrors}
                     designId={designId}
+                    setRefineMaskOption={setRefineMaskOption}
+                    setCanvasMode={setCanvasMode}
+                    setSamMasks={setSamMasks}
+                    setBase64ImageAdd={setBase64ImageAdd}
+                    setBase64ImageRemove={setBase64ImageRemove}
                   />
                 </div>
               )}
@@ -430,6 +449,10 @@ function Design() {
                     designVersion={designVersion}
                     designVersionImages={designVersionImages}
                     showPromptBar={showPromptBar}
+                    isPinpointing={isPinpointing}
+                    setIsPinpointing={setIsPinpointing}
+                    pinpointLocation={pinpointLocation}
+                    pinpointSelectedImage={pinpointSelectedImage}
                   />
                 </div>
               )}
@@ -538,7 +561,7 @@ function Design() {
                   left: "8px",
                   top: "8px",
                   marginTop: "10px",
-                  zIndex: "50",
+                  zIndex: "49",
                   height: "40px",
                   width: "40px",
                   "&:hover": {
@@ -568,7 +591,7 @@ function Design() {
                     top: "8px",
                     marginRight: !showComments ? "5px" : "0px",
                     marginTop: "10px",
-                    zIndex: "50",
+                    zIndex: "49",
                     height: "40px",
                     width: "40px",
                     opacity: design?.designSettings ? 1 : 0.5,
@@ -632,8 +655,13 @@ function Design() {
                   setShowPreview={setShowPreview}
                   promptBarRef={promptBarRef}
                   generationErrors={generationErrors}
+                  canvasMode={canvasMode}
+                  setCanvasMode={setCanvasMode}
+                  samMasks={samMasks}
+                  setSamMasks={setSamMasks}
                 />
-              ) : designVersionImages.length > 0 ? (
+              ) : (isGenerating && generatedImagesPreview.length > 0) ||
+                designVersionImages.length > 0 ? (
                 <>
                   <div className="frame-buttons">
                     <button
@@ -672,43 +700,76 @@ function Design() {
                                   ? "var(--gradientButton)"
                                   : "transparent",
                             }}
-                            onClick={() => setSelectedImage(image)}
+                            onClick={() =>
+                              !isGenerating && !showComments ? setSelectedImage(image) : {}
+                            }
                           >
-                            <div className="image-frame">
-                              {infoVisible ? (
-                                <div className="image-info">
-                                  <div className="image-actual-info">
-                                    <Typography
-                                      variant="body1"
-                                      sx={{ fontWeight: "bold", fontSize: "1.1rem" }}
-                                    >
-                                      {`Image ${index + 1}`}
-                                    </Typography>
-                                    {image.description && (
+                            <div
+                              className="image-frame"
+                              style={{
+                                cursor: !isGenerating && !showComments ? "pointer" : "auto",
+                              }}
+                            >
+                              {!isGenerating &&
+                                !showComments &&
+                                (infoVisible ? (
+                                  <div className="image-info">
+                                    <div className="image-actual-info">
                                       <Typography
-                                        variant="caption"
-                                        sx={{ color: "var(--color-grey2)" }}
+                                        variant="body1"
+                                        sx={{ fontWeight: "bold", fontSize: "1.1rem" }}
                                       >
-                                        {image.description}
+                                        {`Image ${index + 1}`}
                                       </Typography>
-                                    )}
+                                      {image.description && (
+                                        <Typography
+                                          variant="caption"
+                                          sx={{ color: "var(--color-grey2)" }}
+                                        >
+                                          {image.description}
+                                        </Typography>
+                                      )}
+                                    </div>
+                                    <IconButton
+                                      sx={{
+                                        ...iconButtonStyles,
+                                        opacity: "0.3",
+                                        width: "40px",
+                                        height: "40px",
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setImageDescToEdit(image.id);
+                                        setIsEditDescModalOpen(true);
+                                      }}
+                                    >
+                                      <EditIcon />
+                                    </IconButton>
+                                    <IconButton
+                                      sx={{
+                                        color: "var(--color-white)",
+                                        borderRadius: "50%",
+                                        opacity: "0.3",
+                                        width: "40px",
+                                        height: "40px",
+                                        "&:hover": {
+                                          backgroundColor: "var(--iconButtonHover2)",
+                                        },
+                                        "& .MuiTouchRipple-root span": {
+                                          backgroundColor: "var(--iconButtonActive2)",
+                                        },
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        setInfoVisible(!infoVisible);
+                                      }}
+                                    >
+                                      {infoVisible ? <UnviewInfoIcon /> : <ViewInfoIcon />}
+                                    </IconButton>
                                   </div>
-                                  <IconButton
-                                    sx={{
-                                      ...iconButtonStyles,
-                                      opacity: "0.3",
-                                      width: "40px",
-                                      height: "40px",
-                                    }}
-                                    onClick={(e) => {
-                                      e.stopPropagation();
-                                      e.preventDefault();
-                                      setImageDescToEdit(image.id);
-                                      setIsEditDescModalOpen(true);
-                                    }}
-                                  >
-                                    <EditIcon />
-                                  </IconButton>
+                                ) : (
                                   <IconButton
                                     sx={{
                                       color: "var(--color-white)",
@@ -716,6 +777,10 @@ function Design() {
                                       opacity: "0.3",
                                       width: "40px",
                                       height: "40px",
+                                      position: "absolute",
+                                      top: "8px",
+                                      right: "8px",
+                                      zIndex: "1",
                                       "&:hover": {
                                         backgroundColor: "var(--iconButtonHover2)",
                                       },
@@ -731,36 +796,14 @@ function Design() {
                                   >
                                     {infoVisible ? <UnviewInfoIcon /> : <ViewInfoIcon />}
                                   </IconButton>
-                                </div>
-                              ) : (
-                                <IconButton
-                                  sx={{
-                                    color: "var(--color-white)",
-                                    borderRadius: "50%",
-                                    opacity: "0.3",
-                                    width: "40px",
-                                    height: "40px",
-                                    position: "absolute",
-                                    top: "8px",
-                                    right: "8px",
-                                    zIndex: "1",
-                                    "&:hover": {
-                                      backgroundColor: "var(--iconButtonHover2)",
-                                    },
-                                    "& .MuiTouchRipple-root span": {
-                                      backgroundColor: "var(--iconButtonActive2)",
-                                    },
-                                  }}
-                                  onClick={(e) => {
-                                    e.stopPropagation();
-                                    e.preventDefault();
-                                    setInfoVisible(!infoVisible);
-                                  }}
-                                >
-                                  {infoVisible ? <UnviewInfoIcon /> : <ViewInfoIcon />}
-                                </IconButton>
-                              )}
-                              <img src={image.link} alt="" className="image-preview" />
+                                ))}
+                              <img
+                                src={
+                                  isGenerating && generatedImagesPreview ? image.src : image.link
+                                }
+                                alt=""
+                                className="image-preview"
+                              />
                             </div>
                           </div>
                         ))}
@@ -781,18 +824,28 @@ function Design() {
             </div>
             {/* Default location on desktop screen */}
             {!isMobileLayout && showComments && (
-              <CommentTabs
-                workingAreaRef={workingAreaRef}
-                numImageFrames={numImageFrames}
-                showComments={showComments}
-                setShowComments={setShowComments}
-                width={controlWidthComments}
-                setWidth={setControlWidthComments}
-                prevWidth={widthComments}
-                setPrevWidth={setWidthComments}
-                prevHeight={heightComments}
-                setPrevHeight={setHeightComments}
-              />
+              <div>
+                <div style={{ height: "100%" }}>
+                  <CommentTabs
+                    workingAreaRef={workingAreaRef}
+                    numImageFrames={numImageFrames}
+                    showComments={showComments}
+                    setShowComments={setShowComments}
+                    width={controlWidthComments}
+                    setWidth={setControlWidthComments}
+                    prevWidth={widthComments}
+                    setPrevWidth={setWidthComments}
+                    design={design}
+                    designVersion={designVersion}
+                    designVersionImages={designVersionImages}
+                    showPromptBar={showPromptBar}
+                    isPinpointing={isPinpointing}
+                    setIsPinpointing={setIsPinpointing}
+                    pinpointLocation={pinpointLocation}
+                    pinpointSelectedImage={pinpointSelectedImage}
+                  />
+                </div>
+              </div>
             )}
           </div>
         </div>
@@ -814,6 +867,7 @@ function Design() {
 export default Design;
 
 export const GeneratingOverlay = ({ statusMessage, progress, eta }) => {
+  const { isDarkMode } = useSharedProps();
   return (
     <div className="generatingOverlayBox">
       <div className="generatingOverlayContent">
@@ -842,11 +896,13 @@ export const GeneratingOverlay = ({ statusMessage, progress, eta }) => {
             <Typography
               variant="body1"
               sx={{
-                color: "var(--greyText)",
+                color: isDarkMode ? "var(--greyText)" : "var(color-white)",
                 fontFamily: '"Inter", sans-serif',
                 fontSize: "0.875rem",
                 fontWeight: "400",
-                textShadow: "0px 2px 11px rgba(0,0,0,0.5)",
+                textShadow: isDarkMode
+                  ? "0px 2px 11px rgba(0,0,0,0.5)"
+                  : "0px 2px 11px rgba(255,255,255,0.5)",
               }}
             >
               {`${progress}%, ${eta}`}
@@ -908,7 +964,7 @@ export const GradientCircularProgress = ({ statusMessage, value }) => {
           </linearGradient>
         </defs>
       </svg>
-      {statusMessage && statusMessage.startsWith("Image generation in progress.") ? (
+      {statusMessage && statusMessage.startsWith("Generating image") ? (
         <CircularProgressWithBackground value={value} />
       ) : (
         <CircularProgress

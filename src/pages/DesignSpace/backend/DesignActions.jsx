@@ -868,7 +868,8 @@ export const generateNextImage = async (
   base64ImageRemove,
   selectedSamMask,
   refineMaskOption,
-  showPreview
+  showPreview,
+  setIsSelectingMask
 ) => {
   const initImage = selectedImage.link;
   const combinedMaskImg = samMaskMask;
@@ -946,7 +947,7 @@ export const generateNextImage = async (
       setGenerationErrors(formErrors);
       throw new Error(errMessage);
     }
-
+    setIsSelectingMask(false);
     const generateData = await generateResponse.json();
     const taskId = generateData.task.task_id;
     console.log(`Task ID: ${taskId}`);
@@ -1093,6 +1094,7 @@ export const createDesignVersion = async (designId, generatedImages, prompt, use
 export const addComment = async (
   designId,
   designVersionImageId,
+  location,
   message,
   mentions,
   user,
@@ -1105,7 +1107,7 @@ export const addComment = async (
   try {
     const response = await axios.post(
       `/api/design/${designId}/comment/add-comment`,
-      { userId: userDoc.id, designVersionImageId, message, mentions },
+      { userId: userDoc.id, designVersionImageId, location, message, mentions },
       {
         headers: { Authorization: `Bearer ${await user.getIdToken()}` },
       }

@@ -571,14 +571,20 @@ export const displayGeneratedImages = async (taskId, retryCount = 0, setGenerate
     }
 
     const data = await response.json();
+    console.log("Image generation response:", data);
     if (!data?.image_paths || data?.image_paths?.length === 0) {
       throw new Error("Failed to get image results");
     }
-    data.image_paths.forEach((path) => {
-      setGeneratedImages((prev) => [...prev, { link: path, description: "", comments: [] }]);
-    });
+    // Transform all paths at once instead of using forEach
+    const formattedImages = data.image_paths.map((path) => ({
+      link: path,
+      description: "",
+      comments: [],
+    }));
+    setGeneratedImages(formattedImages);
     return { success: true, data: data.image_paths };
   } catch (error) {
+    console.error("Error in displayGeneratedImages:", error);
     return { success: false, message: error.message };
   }
 };
@@ -1042,9 +1048,11 @@ export const generateFirstImage = async (
     if (!taskResult.success) {
       throw new Error(taskResult.message);
     }
-    if (!taskResult.data || !Array.isArray(taskResult.data)) {
-      throw new Error("Invalid image generation result");
+    if (!taskResult.data || !Array.isArray(taskResult.data) || taskResult.data.length === 0) {
+      throw new Error("No images were generated");
     }
+    console.log("Generated images:", taskResult.data);
+    setGeneratedImages(taskResult.data);
     return {
       success: true,
       data: taskResult.data,

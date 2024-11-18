@@ -147,6 +147,7 @@ function PromptBar({
 
   const handleColorPaletteChange = (event, newValue) => {
     clearFieldError("colorPalette");
+    clearFieldError("general");
     setColorPalette(newValue);
   };
 
@@ -235,6 +236,7 @@ function PromptBar({
 
   const handleFileChange = (file, setInitImage, setImagePreview, field) => {
     clearFieldError(field);
+    clearFieldError("general");
     const message = handleImageValidation(file);
     if (message !== "") return;
 
@@ -442,6 +444,7 @@ function PromptBar({
   useEffect(() => {
     if (generationErrors?.initImage && selectedImage?.link) {
       clearFieldError("initImage");
+      clearFieldError("general");
     }
   }, [selectedImage, generationErrors]);
 
@@ -622,35 +625,14 @@ function PromptBar({
           setGeneratedImages
         );
         if (result.success) {
-          console.log("create design ver - Result from AI API:", {
-            designId,
-            generatedImages,
-            prompt,
-            userDoc,
-          });
-          setStatusMessage("Uploading images");
-          const designVersionResult = await createDesignVersion(
-            designId,
-            generatedImages,
-            prompt,
-            user,
-            userDoc
-          );
-          console.log("create design ver - designVersionResult", designVersionResult);
-          if (designVersionResult.success) {
-            setStatusMessage("Upload complete");
-            showToast("success", result.message);
-          } else {
-            console.error("create design ver - error: ", designVersionResult.message);
-            console.error("create design ver - error status: ", designVersionResult.status);
-            showToast("error", designVersionResult.message);
+          if (generatedImages.length === 0) {
+            throw new Error("No images generated");
           }
         } else if (result?.formErrors && Object.keys(result?.formErrors).length > 0) {
           setGenerationErrors(result?.formErrors);
         } else {
           showToast("error", result.message);
         }
-        resetStateVariables();
       } else {
         console.log("Validating - next image");
         let colorPalettePassed = "";
@@ -692,34 +674,15 @@ function PromptBar({
           showPreview
         );
         if (result.success) {
-          console.log("create design ver - Result from AI API:", {
-            designId,
-            generatedImages,
-            prompt,
-            userDoc,
-          });
-          setStatusMessage("Uploading images");
-          const designVersionResult = await createDesignVersion(
-            designId,
-            generatedImages,
-            prompt,
-            user,
-            userDoc
-          );
-          if (designVersionResult.success) {
-            setStatusMessage("Upload complete");
-            setIsGenerating(false);
-            showToast("success", result.message);
-          } else {
-            console.error("Error: ", designVersionResult.message);
-            showToast("error", designVersionResult.message);
+          if (generatedImages.length === 0) {
+            throw new Error("No images generated");
           }
+          if (result.data) setGeneratedImages(result.data);
         } else if (result?.formErrors && Object.keys(result?.formErrors).length > 0) {
           setGenerationErrors(result?.formErrors);
         } else {
           showToast("error", result.message);
         }
-        resetStateVariables();
       }
     } catch (error) {
       setGenerationErrors((prev) => ({ ...prev, general: "Failed to generate image" }));
@@ -735,6 +698,40 @@ function PromptBar({
     setGeneratedImages([]);
     setIsGenerating(false);
   };
+
+  useEffect(() => {
+    console.log("generatedImages updated:", generatedImages);
+    const handleCreateDesignVersion = async () => {
+      console.log("create design ver - Result from AI API:", {
+        designId,
+        generatedImages,
+        prompt,
+        userDoc,
+      });
+      setStatusMessage("Uploading images");
+      const designVersionResult = await createDesignVersion(
+        designId,
+        generatedImages,
+        prompt,
+        user,
+        userDoc
+      );
+      console.log("create design ver - designVersionResult", designVersionResult);
+      if (designVersionResult.success) {
+        setStatusMessage("Upload complete");
+        showToast("success", designVersionResult.message);
+      } else {
+        console.error("create design ver - error: ", designVersionResult.message);
+        console.error("create design ver - error status: ", designVersionResult.status);
+        showToast("error", designVersionResult.message);
+      }
+      resetStateVariables();
+    };
+
+    if (generatedImages.length > 0) {
+      handleCreateDesignVersion();
+    }
+  }, [generatedImages]);
 
   return (
     <>
@@ -807,6 +804,7 @@ function PromptBar({
                   onChange={(e) => {
                     setPrompt(e.target.value);
                     clearFieldError("prompt");
+                    clearFieldError("general");
                   }}
                   maxRows={2}
                   disabled={disabled}
@@ -918,6 +916,7 @@ function PromptBar({
                           setBaseImage(null);
                           setBaseImagePreview("");
                           clearFieldError("baseImage");
+                          clearFieldError("general");
                         }}
                         sx={{
                           color: "var(--color-white)",
@@ -1037,6 +1036,7 @@ function PromptBar({
                         setStyleRef(null);
                         setStyleRefPreview("");
                         clearFieldError("styleReference");
+                        clearFieldError("general");
                       }}
                       sx={{
                         color: "var(--color-white)",
@@ -1269,7 +1269,11 @@ function PromptBar({
                     !disabled && isOnline && !showComments && "var(--gradientButtonHover)",
                 },
               }}
-              onClick={handleGeneration}
+              onClick={() => {
+                setGenerationErrors({});
+                resetStateVariables();
+                handleGeneration();
+              }}
             >
               Generate Image
             </Button>

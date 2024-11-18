@@ -5,7 +5,11 @@ import deepEqual from "deep-equal";
 import { useSharedProps } from "../../contexts/SharedPropsContext";
 import { showToast } from "../../functions/utils";
 import SelectMaskCanvas from "./SelectMaskCanvas";
-import { Box, IconButton, Typography } from "@mui/material";
+import { IconButton, Typography, Box, Stack } from "@mui/material";
+import { styled } from "@mui/material/styles";
+import CircularProgress, { circularProgressClasses } from "@mui/material/CircularProgress";
+import LinearProgress, { linearProgressClasses } from "@mui/material/LinearProgress";
+import PropTypes from "prop-types";
 import {
   ArrowForwardIosRounded as ArrowForwardIosRoundedIcon,
   ArrowBackIosRounded as ArrowBackIosRoundedIcon,
@@ -91,11 +95,10 @@ function Design() {
   // Generation
   const [statusMessage, setStatusMessage] = useState("");
   const [progress, setProgress] = useState(0);
-  const [eta, setEta] = useState(0);
+  const [eta, setEta] = useState("");
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedImagesPreview, setGeneratedImagesPreview] = useState([]);
   const [generatedImages, setGeneratedImages] = useState([]);
-  const [loadingGeneration, setLoadingGeneration] = useState(false);
   const [generationErrors, setGenerationErrors] = useState({});
 
   const handleEdit = async (imageId, description) => {
@@ -146,6 +149,7 @@ function Design() {
         console.error("Design not found.");
       } else if (Object.keys(design).length === 0 || !deepEqual(design, fetchedDesign)) {
         setDesign(fetchedDesign);
+        console.log("current design:", fetchedDesign);
       }
     }
     setLoading(false);
@@ -179,6 +183,7 @@ function Design() {
         setDesignVersion(fetchedLatestDesignVersion);
         setDesignVersionImages(fetchedLatestDesignVersion.images);
         setIsNextGeneration(true);
+        console.log("fetchedLatestDesignVersion", fetchedLatestDesignVersion);
       }
     } else {
       setIsNextGeneration(false);
@@ -395,8 +400,6 @@ function Design() {
                     refineMaskOption={refineMaskOption}
                     showPreview={showPreview}
                     promptBarRef={promptBarRef}
-                    loading={loadingGeneration}
-                    setLoading={setLoadingGeneration}
                     generationErrors={generationErrors}
                     setGenerationErrors={setGenerationErrors}
                     designId={designId}
@@ -633,7 +636,10 @@ function Design() {
               ) : designVersionImages.length > 0 ? (
                 <>
                   <div className="frame-buttons">
-                    <button className={numImageFrames === 2 ? "active" : ""}>
+                    <button
+                      onClick={() => setNumImageFrames(2)}
+                      className={numImageFrames === 2 ? "active" : ""}
+                    >
                       <TwoFrames />
                     </button>
                     <button
@@ -653,18 +659,22 @@ function Design() {
                         className={`image-grid-design ${numImageFrames === 4 ? "fit-view" : ""}`}
                         ref={containerRef}
                       >
-                        {designVersionImages.map((image, index) => (
+                        {(isGenerating && generatedImagesPreview
+                          ? generatedImagesPreview
+                          : designVersionImages
+                        ).map((image, index) => (
                           <div
+                            key={image.imageId}
                             className="image-frame-cont"
                             style={{
                               background:
-                                selectedImage && selectedImage.id === image.id
+                                selectedImage && selectedImage.imageId === image.imageId
                                   ? "var(--gradientButton)"
                                   : "transparent",
                             }}
                             onClick={() => setSelectedImage(image)}
                           >
-                            <div className="image-frame" key={image.id}>
+                            <div className="image-frame">
                               {infoVisible ? (
                                 <div className="image-info">
                                   <div className="image-actual-info">
@@ -765,6 +775,9 @@ function Design() {
                   <p className="grey-text">Start generating.</p>
                 </div>
               )}
+              {isGenerating && (
+                <GeneratingOverlay statusMessage={statusMessage} progress={progress} eta={eta} />
+              )}
             </div>
             {/* Default location on desktop screen */}
             {!isMobileLayout && showComments && (
@@ -800,42 +813,262 @@ function Design() {
 
 export default Design;
 
-const dummyDesignVersionImages = [
-  {
-    id: "image123",
-    link: "../../img/Room1.png",
-    description: "Living room view 1",
-    comments: ["comment1"],
-  },
-  {
-    id: "image456",
-    link: "../../img/Room1.png",
-    description: "Living room view 2",
-    comments: ["comment2"],
-  },
-  {
-    id: "image789",
-    link: "../../img/Room1.png",
-    description: "Living room view 3",
-    comments: ["comment3", "comment4"],
-  },
-  {
-    id: "image101112",
-    link: "../../img/Room1.png",
-    description: "Living room view 4",
-    comments: "",
-  },
-];
-
-const dummyDesignVersion = {
-  id: "designVersion1",
-  description: "Living room design concept",
-  images: dummyDesignVersionImages,
-  createdAt: new Date("2024-10-01T09:00:00Z"),
-  copiedDesigns: [],
-  isRestored: false,
-  isRestoredFrom: null,
+export const GeneratingOverlay = ({ statusMessage, progress, eta }) => {
+  return (
+    <div className="generatingOverlayBox">
+      <div className="generatingOverlayContent">
+        <div className="gradientCircleDiv">
+          <GradientCircularProgress statusMessage={statusMessage} value={progress} />
+        </div>
+        <div className="generatingOverlayTextCont">
+          {statusMessage && (
+            <Typography
+              variant="body1"
+              sx={{
+                color: "white",
+                fontFamily: '"Inter", sans-serif',
+                fontSize: "1.1rem",
+                background: "var(--gradientFont)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                fontWeight: "800",
+                textShadow: "0px 2px 11px rgba(0,0,0,0.5)",
+              }}
+            >
+              <BouncyText text={`${statusMessage}...`} />
+            </Typography>
+          )}
+          {statusMessage && statusMessage.startsWith("Generating image") && (
+            <Typography
+              variant="body1"
+              sx={{
+                color: "var(--greyText)",
+                fontFamily: '"Inter", sans-serif',
+                fontSize: "0.875rem",
+                fontWeight: "400",
+                textShadow: "0px 2px 11px rgba(0,0,0,0.5)",
+              }}
+            >
+              {`${progress}%, ${eta}`}
+            </Typography>
+          )}
+        </div>
+      </div>
+    </div>
+  );
 };
 
-// const dummyDesignVersionImages = [];
-// const dummyDesignVersion = {};
+const BouncyText = ({ text }) => {
+  return (
+    <Box
+      sx={{
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      {text.split("").map((char, index) => (
+        <Typography
+          key={index}
+          variant="body1"
+          sx={{
+            color: "white",
+            fontFamily: '"Inter", sans-serif',
+            fontSize: "1.1rem",
+            fontWeight: "800",
+            animation: `bounce 1.5s ease-in-out ${index * 0.1}s infinite`,
+            display: "inline-block",
+          }}
+        >
+          {char === " " ? "\u00A0" : char} {/* Non-breaking space for spaces */}
+        </Typography>
+      ))}
+      <style>
+        {`
+          @keyframes bounce {
+            0%, 20%, 50%, 80%, 100% {transform: translateY(0);} 
+            40% {transform: translateY(-4px);} 
+            60% {transform: translateY(-1px);} 
+          }
+        `}
+      </style>
+    </Box>
+  );
+};
+
+export const GradientCircularProgress = ({ statusMessage, value }) => {
+  return (
+    <React.Fragment>
+      <svg width={0} height={0}>
+        <defs>
+          <linearGradient id="gradientFont" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style={{ stopColor: "#ea1179", stopOpacity: 1 }} />
+            <stop offset="40%" style={{ stopColor: "#f36b24", stopOpacity: 1 }} />
+            <stop offset="100%" style={{ stopColor: "#faa652", stopOpacity: 1 }} />
+          </linearGradient>
+        </defs>
+      </svg>
+      {statusMessage && statusMessage.startsWith("Image generation in progress.") ? (
+        <CircularProgressWithBackground value={value} />
+      ) : (
+        <CircularProgress
+          variant="indeterminate"
+          thickness={6}
+          size={45}
+          sx={{
+            "& .MuiCircularProgress-circle": {
+              stroke: "url(#gradientFont)",
+              strokeLinecap: "round",
+            },
+          }}
+        />
+      )}
+    </React.Fragment>
+  );
+};
+
+const CircularProgressWithBackground = ({ value }) => {
+  return (
+    <Box
+      sx={{
+        position: "relative",
+        display: "inline-flex",
+        alignItems: "center",
+        justifyContent: "center",
+      }}
+    >
+      {/* Background Circle */}
+      <Box sx={{ position: "absolute" }}>
+        <CircularProgress
+          variant="determinate"
+          thickness={6}
+          size={45}
+          sx={{
+            "& .MuiCircularProgress-circle": {
+              stroke: "var(--slider)",
+              strokeLinecap: "round",
+            },
+          }}
+          value={100}
+        />
+      </Box>
+      {/* Progress Circle */}
+      <Box sx={{ position: "absolute" }}>
+        {/* Circular Progress */}
+        <CircularProgress
+          variant="determinate"
+          thickness={6}
+          size={45}
+          sx={{
+            "& .MuiCircularProgress-circle": {
+              stroke: "url(#gradientFont)",
+              strokeLinecap: "round",
+            },
+          }}
+          value={value}
+        />
+      </Box>
+    </Box>
+  );
+};
+
+function CircularProgressWithLabel(props) {
+  return (
+    <Box sx={{ position: "relative", display: "inline-flex" }}>
+      <CircularProgress
+        variant="determinate"
+        thickness={6}
+        size={45}
+        sx={{
+          color: "var(--slider)",
+          "& .MuiCircularProgress-circle": {
+            stroke: "url(#gradientFont)",
+            strokeLinecap: "round",
+          },
+        }}
+        {...props}
+      />
+      {/* <Box
+        sx={{
+          top: 0,
+          left: 0,
+          bottom: 0,
+          right: 0,
+          position: "absolute",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+        }}
+      >
+        <Typography variant="caption" component="div" color="var(--color-white)">
+          {`${Math.round(props.value)}%`}
+        </Typography>
+      </Box> */}
+    </Box>
+  );
+}
+
+CircularProgressWithLabel.propTypes = {
+  /**
+   * The value of the progress indicator for the determinate variant.
+   * Value between 0 and 100.
+   * @default 0
+   */
+  value: PropTypes.number.isRequired,
+};
+
+// <CircularProgressWithLabel value={progress} /> 0-100
+
+export const BorderLinearProgress = styled(LinearProgress)(({ theme }) => ({
+  height: 10,
+  borderRadius: 5,
+  [`&.${linearProgressClasses.colorPrimary}`]: {
+    backgroundColor: "var(--slider)",
+  },
+  [`& .${linearProgressClasses.bar}`]: {
+    borderRadius: 5,
+    background: "var(--gradientButton)",
+  },
+}));
+
+// <BorderLinearProgress variant="determinate" value={50} />;
+
+// const dummyDesignVersionImages = [
+//   {
+//     id: "image123",
+//     link: "../../img/Room1.png",
+//     description: "Living room view 1",
+//     comments: ["comment1"],
+//   },
+//   {
+//     id: "image456",
+//     link: "../../img/Room1.png",
+//     description: "Living room view 2",
+//     comments: ["comment2"],
+//   },
+//   {
+//     id: "image789",
+//     link: "../../img/Room1.png",
+//     description: "Living room view 3",
+//     comments: ["comment3", "comment4"],
+//   },
+//   {
+//     id: "image101112",
+//     link: "../../img/Room1.png",
+//     description: "Living room view 4",
+//     comments: "",
+//   },
+// ];
+
+// const dummyDesignVersion = {
+//   id: "designVersion1",
+//   description: "Living room design concept",
+//   images: dummyDesignVersionImages,
+//   createdAt: new Date("2024-10-01T09:00:00Z"),
+//   copiedDesigns: [],
+//   isRestored: false,
+//   isRestoredFrom: null,
+// };
+
+const dummyDesignVersionImages = [];
+const dummyDesignVersion = {};

@@ -3,7 +3,6 @@ const router = express.Router();
 const userController = require("../controllers/userController");
 const projectController = require("../controllers/projectController");
 const designController = require("../controllers/designController");
-
 const commentController = require("../controllers/commentController");
 const notificationController = require("../controllers/notificationController");
 const projectBudgetController = require("../controllers/projectBudgetController");
@@ -174,7 +173,7 @@ router.post(
 );
 
 // Project routes
-router.get("/project/:userId", authenticateUser, projectController.fetchUserProjects);
+// router.get("/project/:userId", authenticateUser, projectController.fetchUserProjects);
 router.post("/project/create", authenticateUser, projectController.createProject);
 router.post("/project/delete/:projectId", authenticateUser, projectController.deleteProject);
 router.put(
@@ -187,10 +186,20 @@ router.put(
   authenticateUser,
   projectController.updateProjectSettings
 );
+router.post(
+  "/project/:projectId/create-design",
+  authenticateUser,
+  projectController.createDesignProject
+);
+router.get("/project/:projectId/designs", authenticateUser, projectController.fetchProjectDesigns);
 
 // Network check
 router.get("/health-check", (req, res) => {
   res.status(200).send("OK");
 });
+
+// Timeline routes
+router.post("/timeline/:timelineId/event", authenticateUser, timelineController.createEvent);
+router.get("/project/:projectId/timelineId", authenticateUser, timelineController.fetchTimelineId); // New route to fetch timeline
 
 module.exports = router;

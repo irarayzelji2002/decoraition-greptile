@@ -107,8 +107,6 @@ function PromptBar({
   refineMaskOption,
   showPreview,
   promptBarRef,
-  loading,
-  setLoading,
   generationErrors,
   setGenerationErrors,
   designId,
@@ -624,24 +622,35 @@ function PromptBar({
           setGeneratedImages
         );
         if (result.success) {
-          const designVersionResult = createDesignVersion(
+          console.log("create design ver - Result from AI API:", {
+            designId,
+            generatedImages,
+            prompt,
+            userDoc,
+          });
+          setStatusMessage("Uploading images");
+          const designVersionResult = await createDesignVersion(
             designId,
             generatedImages,
             prompt,
             user,
             userDoc
           );
+          console.log("create design ver - designVersionResult", designVersionResult);
           if (designVersionResult.success) {
+            setStatusMessage("Upload complete");
             showToast("success", result.message);
           } else {
-            console.error("Error: ", designVersionResult.message);
-            showToast("error", result.message);
+            console.error("create design ver - error: ", designVersionResult.message);
+            console.error("create design ver - error status: ", designVersionResult.status);
+            showToast("error", designVersionResult.message);
           }
         } else if (result?.formErrors && Object.keys(result?.formErrors).length > 0) {
           setGenerationErrors(result?.formErrors);
         } else {
           showToast("error", result.message);
         }
+        resetStateVariables();
       } else {
         console.log("Validating - next image");
         let colorPalettePassed = "";
@@ -683,7 +692,14 @@ function PromptBar({
           showPreview
         );
         if (result.success) {
-          const designVersionResult = createDesignVersion(
+          console.log("create design ver - Result from AI API:", {
+            designId,
+            generatedImages,
+            prompt,
+            userDoc,
+          });
+          setStatusMessage("Uploading images");
+          const designVersionResult = await createDesignVersion(
             designId,
             generatedImages,
             prompt,
@@ -691,20 +707,33 @@ function PromptBar({
             userDoc
           );
           if (designVersionResult.success) {
+            setStatusMessage("Upload complete");
+            setIsGenerating(false);
             showToast("success", result.message);
           } else {
             console.error("Error: ", designVersionResult.message);
-            showToast("error", result.message);
+            showToast("error", designVersionResult.message);
           }
         } else if (result?.formErrors && Object.keys(result?.formErrors).length > 0) {
           setGenerationErrors(result?.formErrors);
         } else {
           showToast("error", result.message);
         }
+        resetStateVariables();
       }
     } catch (error) {
       setGenerationErrors((prev) => ({ ...prev, general: "Failed to generate image" }));
+      resetStateVariables();
     }
+  };
+
+  const resetStateVariables = () => {
+    setStatusMessage("");
+    setProgress(0);
+    setEta("");
+    setGeneratedImagesPreview([]);
+    setGeneratedImages([]);
+    setIsGenerating(false);
   };
 
   return (
@@ -1603,8 +1632,10 @@ export const outlinedButtonStyles = {
   margin: "0 !important",
 };
 
-const dummyUserColorPalettes = [
-  { colorPaletteId: 1, paletteName: "Red-Green", colors: ["#efefef", "#ef4f56", "#397438"] },
-  { colorPaletteId: 2, paletteName: "Pink-Yellow", colors: ["#ff8344", "#ec2073", "#3e3c47"] },
-  { colorPaletteId: 3, paletteName: "Among Us", colors: ["#3e3c47", "#faa653", "#ff4500"] },
-];
+// const dummyUserColorPalettes = [
+//   { colorPaletteId: 1, paletteName: "Red-Green", colors: ["#efefef", "#ef4f56", "#397438"] },
+//   { colorPaletteId: 2, paletteName: "Pink-Yellow", colors: ["#ff8344", "#ec2073", "#3e3c47"] },
+//   { colorPaletteId: 3, paletteName: "Among Us", colors: ["#3e3c47", "#faa653", "#ff4500"] },
+// ];
+
+const dummyUserColorPalettes = [];

@@ -12,39 +12,31 @@ import axios from "axios";
 
 // Adjust the import path as necessary
 
-export const fetchDesigns = (
-  userId,
-  projectId,
-  setDesigns = () => {},
-  setDesignBudgetItems = () => {}
-) => {
-  const designsRef = collection(db, "designs");
-  const q = query(designsRef, where("projectId", "==", projectId));
+export const fetchProjectDesigns = async (projectId, setDesigns) => {
+  try {
+    const token = await auth.currentUser.getIdToken();
+    console.log(`Fetching designs for projectId: ${projectId}`); // Debug log
 
-  const unsubscribeDesigns = onSnapshot(q, async (querySnapshot) => {
-    const designList = [];
-    const budgetItemsMap = {};
+    const response = await axios.get(`/api/project/${projectId}/designs`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
 
-    for (const doc of querySnapshot.docs) {
-      const design = { id: doc.id, ...doc.data() };
-      designList.push(design);
-
-      // Fetch budget items for each design within the same project
-      const budgetRef = collection(db, "budgets");
-      const budgetQuery = query(budgetRef, where("designId", "==", doc.id));
-      const budgetSnapshot = await getDocs(budgetQuery);
-      const budgetList = budgetSnapshot.docs.map((budgetDoc) => ({
-        id: budgetDoc.id,
-        ...budgetDoc.data(),
-      }));
-      budgetItemsMap[doc.id] = budgetList;
+    if (response.status === 200) {
+      console.log(`Fetched designs: ${JSON.stringify(response.data)}`); // Debug log
+      setDesigns(response.data);
+    } else {
+      showToast("error", "Failed to fetch project designs.");
     }
+  } catch (error) {
+    console.error("Error fetching project designs:", error);
+    showToast("error", "Failed to fetch project designs");
+  }
+};
 
-    setDesigns(designList);
-    setDesignBudgetItems(budgetItemsMap);
-  });
-
-  return unsubscribeDesigns;
+export const fetchDesigns = async (userId, projectId, setDesigns) => {
+  await fetchProjectDesigns(projectId, setDesigns);
 };
 
 export const handleCreateDesign = async (projectId, navigate) => {
@@ -240,5 +232,42 @@ export const updateTask = async (userId, projectId, taskId, updatedData) => {
   } catch (error) {
     console.error("Error updating task:", error);
     showToast("error", "Error updating task! Please try again.");
+  }
+};
+
+export const createEvent = async (timelineId, eventData) => {
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const response = await axios.post(
+      `/api/timeline/${timelineId}/event`,
+      {
+        eventData,
+        timelineId,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
+    return response.data;
+  } catch (error) {
+    console.error("Error creating event:", error);
+    throw error;
+  }
+};
+
+export const fetchTimelineId = async (userId, projectId) => {
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const response = await axios.get(`/api/project/${projectId}/timelineId`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+    return response.data.timelineId;
+  } catch (error) {
+    console.error("Error fetching timelineId:", error);
+    throw error;
   }
 };

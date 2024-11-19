@@ -119,6 +119,9 @@ function PromptBar({
   setSamMasks,
   setBase64ImageAdd,
   setBase64ImageRemove,
+  setIsPreviewingMask,
+  design,
+  designVersion,
 }) {
   const { user, userDoc, designs, userDesigns } = useSharedProps();
   const isOnline = useNetworkStatus();
@@ -720,14 +723,7 @@ function PromptBar({
           setIsGenerating,
           setGeneratedImagesPreview,
           setGeneratedImages,
-          setMaskErrors, // applyMask args
-          samDrawing,
-          setSamMaskMask,
-          pickedColorSam,
-          opacitySam,
-          setSamMaskImage,
-          setCombinedMask,
-          handleClearAllCanvas,
+          setMaskErrors, // previewMask args
           setPreviewMask,
           samMaskImage,
           base64ImageAdd,
@@ -735,7 +731,12 @@ function PromptBar({
           selectedSamMask,
           refineMaskOption,
           showPreview,
-          setIsSelectingMask
+          setIsSelectingMask,
+          setIsPreviewingMask,
+          design,
+          designVersion,
+          user,
+          userDoc
         );
         if (result.success) {
           await new Promise((resolve) => setTimeout(resolve, 100));

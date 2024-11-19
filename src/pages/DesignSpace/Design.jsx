@@ -81,6 +81,7 @@ function Design() {
   const [showPreview, setShowPreview] = useState(false);
   const [canvasMode, setCanvasMode] = useState(true); // true for Add to Mask, false for Remove form Mask
   const [samMasks, setSamMasks] = useState([]);
+  const [isPreviewingMask, setIsPreviewingMask] = useState(false); // for loading
 
   // Comment
   // userDesignComments & userComments for the designs's latest deisgn version
@@ -533,6 +534,9 @@ function Design() {
                     setSamMasks={setSamMasks}
                     setBase64ImageAdd={setBase64ImageAdd}
                     setBase64ImageRemove={setBase64ImageRemove}
+                    setIsPreviewingMask={setIsPreviewingMask}
+                    design={design}
+                    designVersion={designVersion}
                   />
                 </div>
               )}
@@ -783,6 +787,8 @@ function Design() {
                   design={design}
                   designVersion={designVersion}
                   designVersionImages={designVersionImages}
+                  isPreviewingMask={isPreviewingMask}
+                  setIsPreviewingMask={setIsPreviewingMask}
                 />
               ) : (isGenerating && generatedImagesPreview.length > 0) ||
                 designVersionImages.length > 0 ? (

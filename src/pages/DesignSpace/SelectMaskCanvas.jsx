@@ -118,6 +118,8 @@ function SelectMaskCanvas({
   design,
   designVersion,
   designVersionImages,
+  isPreviewingMask,
+  setIsPreviewingMask,
 }) {
   const { user, userDoc, designVersions, userDesignVersions } = useSharedProps();
   // Canvas/Container refs
@@ -145,7 +147,6 @@ function SelectMaskCanvas({
 
   // Mask Prompt & Preview
   const [isGeneratingMask, setIsGeneratingMask] = useState(false); // for loading
-  const [isPreviewingMask, setIsPreviewingMask] = useState(false); // for loading
   const [statusMessage, setStatusMessage] = useState("");
   const [isChangingMask, setIsChangingMask] = useState(false);
   // passed form parent:

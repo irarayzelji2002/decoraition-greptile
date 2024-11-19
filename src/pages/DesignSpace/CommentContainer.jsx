@@ -491,10 +491,9 @@ const CommentContainer = ({
   // Comment database functions
   const handleChangeCommentStatus = async () => {
     // Call changeCommentStatus
-    const result = await changeCommentStatus(designId, commentId, status, user, userDoc);
+    const result = await changeCommentStatus(designId, commentId, !status, user, userDoc);
     if (!result.success) {
       showToast("error", result.message);
-      setStatus((prev) => !prev);
       return;
     }
     showToast("success", result.message);
@@ -506,7 +505,9 @@ const CommentContainer = ({
     if (nonExistentUsers.length > 0) {
       setErrors((prev) => ({
         ...prev,
-        editComment: `${nonExistentUsers.length} mentioned user not found`,
+        editComment: `${nonExistentUsers.length} mentioned user${
+          nonExistentUsers.length > 0 && "s"
+        } not found`,
       }));
     } else if (!updatedCommentContent && updatedMentions.length === 0) {
       setErrors((prev) => ({ ...prev, editComment: "Commment is required" }));
@@ -552,7 +553,9 @@ const CommentContainer = ({
     if (nonExistentUsers.length > 0) {
       setErrors((prev) => ({
         ...prev,
-        editReply: `${nonExistentUsers.length} mentioned user not found`,
+        editReply: `${nonExistentUsers.length} mentioned user${
+          nonExistentUsers.length > 0 && "s"
+        } not found`,
       }));
     } else if (!replyContent && replyMentions.length === 0) {
       setErrors((prev) => ({ ...prev, editReply: "Reply is required" }));
@@ -561,7 +564,6 @@ const CommentContainer = ({
     // Call addReply
     const result = await addReply(
       designId,
-      isReplyToReply,
       commentId, // parent commentId
       comment.id, // replyId
       replyContent,
@@ -573,7 +575,10 @@ const CommentContainer = ({
       showToast("error", result.message);
       return;
     }
-    setIsEditingComment(false);
+    setIsAddingReply(false);
+    setReplyContent("");
+    setReplyMentions([]);
+    setReplyTo(null);
     showToast("success", result.message);
   };
 
@@ -583,7 +588,9 @@ const CommentContainer = ({
     if (nonExistentUsers.length > 0) {
       setErrors((prev) => ({
         ...prev,
-        editReply: `${nonExistentUsers.length} mentioned user not found`,
+        editReply: `${nonExistentUsers.length} mentioned user${
+          nonExistentUsers.length > 0 && "s"
+        } not found`,
       }));
     } else if (!updatedCommentContent && updatedMentions.length === 0) {
       setErrors((prev) => ({ ...prev, editReply: "Reply is required" }));
@@ -777,18 +784,21 @@ const CommentContainer = ({
                     >
                       {commenterUserId === userDoc.id && (
                         <>
-                          <CustomMenuItem
-                            className="dropdown-item"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              setEditingState();
-                            }}
-                          >
-                            <ListItemIcon>
-                              <EditIcon className="icon" />
-                            </ListItemIcon>
-                            <ListItemText primary="Edit" sx={{ color: "var(--color-white)" }} />
-                          </CustomMenuItem>
+                          {/* Can edit only open comments */}
+                          {!status && (
+                            <CustomMenuItem
+                              className="dropdown-item"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setEditingState();
+                              }}
+                            >
+                              <ListItemIcon>
+                                <EditIcon className="icon" />
+                              </ListItemIcon>
+                              <ListItemText primary="Edit" sx={{ color: "var(--color-white)" }} />
+                            </CustomMenuItem>
+                          )}
                           <CustomMenuItem
                             className="dropdown-item"
                             onClick={(e) => {
@@ -1100,19 +1110,17 @@ const CommentContainer = ({
           )}
         </div>
         {!isRepliesExpanded ? (
-          <div className="replies-details">
-            <span style={{ cursor: "auto" }} onClick={(e) => e.stopPropagation()}>
-              {replyCount === 0
-                ? "No replies"
-                : replyCount === 1
-                ? "1 reply"
-                : replyCount > 1 && `${replyCount} replies`}
-            </span>
-            {replyCount > 0 && <span className="gradient-bullet"></span>}
-            <span style={{ cursor: "auto" }} onClick={(e) => e.stopPropagation()}>
-              {replyLatestDate}
-            </span>
-          </div>
+          replyCount > 0 && (
+            <div className="replies-details">
+              <span style={{ cursor: "auto" }} onClick={(e) => e.stopPropagation()}>
+                {replyCount === 1 ? "1 reply" : replyCount > 1 && `${replyCount} replies`}
+              </span>
+              <span className="gradient-bullet"></span>
+              <span style={{ cursor: "auto" }} onClick={(e) => e.stopPropagation()}>
+                {replyLatestDate}
+              </span>
+            </div>
+          )
         ) : (
           <div className={`replies-container ${isReplyToReply ? "nested" : ""}`}>
             {comment.replies?.map((replyId) => {
@@ -1174,7 +1182,7 @@ const CommentContainer = ({
           </div>
         )}
         {/* Reply input field */}
-        {isRepliesExpanded && !isReply && (
+        {(isRepliesExpanded || replyCount === 0) && !isReply && (
           <>
             <div style={{ marginTop: "10px" }}>
               {replyTo && (

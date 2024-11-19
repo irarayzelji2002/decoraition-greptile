@@ -55,6 +55,7 @@ exports.addComment = async (req, res) => {
     const commentRef = db.collection("comments").doc();
     const commentData = {
       designVersionImageId,
+      location,
       userId,
       message,
       mentions: mentions || [],
@@ -219,13 +220,11 @@ exports.changeCommentStatus = async (req, res) => {
 
     // Notification
     const designOwner = designDoc.data().owner;
-    const commentOwner = commentDoc.data().userId;
     const editors = designDoc.data().editors || [];
     const commenters = designDoc.data().commenters || [];
 
     const userDocs = await Promise.all([
       db.collection("users").doc(designOwner).get(),
-      db.collection("users").doc(commentOwner).get(),
       ...editors.map((id) => db.collection("users").doc(id).get()),
       ...commenters.map((id) => db.collection("users").doc(id).get()),
     ]);
@@ -235,21 +234,28 @@ exports.changeCommentStatus = async (req, res) => {
       const settings = userDoc.data().notifSettings;
       const isOwner = userDoc.id === designOwner;
       const isCollaborator = editors.includes(userDoc.id) || commenters.includes(userDoc.id);
-      if (isOwner && settings.commentStatusChangeAsOwner) {
+      if (isOwner && settings.commentStatusChangeAsOwner && userId !== designOwner) {
         await notifController.createNotification(
           userDoc.id,
           "comment",
           `Comment ${status ? "Resolved" : "Reopened"}`,
-          `A comment on your design "${designDoc.data().name}" was ${
+          `A comment on your design "${designDoc.data().designName}" was ${
             status ? "resolved" : "reopened"
           }`
         );
-      } else if (isCollaborator && settings.commentStatusChangeAsCollab) {
+      } else if (
+        isCollaborator &&
+        settings.commentStatusChangeAsCollab &&
+        !editors.includes(userId) &&
+        !commenters.includes(userId)
+      ) {
         await notifController.createNotification(
           userDoc.id,
           "comment",
           `Comment ${status ? "Resolved" : "Reopened"}`,
-          `A comment on design "${designDoc.data().name}" was ${status ? "resolved" : "reopened"}`
+          `A comment on design "${designDoc.data().designName}" was ${
+            status ? "resolved" : "reopened"
+          }`
         );
       }
     }
@@ -365,7 +371,7 @@ exports.addReply = async (req, res) => {
   const updatedDocuments = [];
   try {
     const { designId, commentId } = req.params;
-    const { userId, isReplyToReply, replyId, message, mentions } = req.body;
+    const { userId, replyId, message, mentions } = req.body;
 
     // Get design and validate access
     const designRef = db.collection("designs").doc(designId);
@@ -398,7 +404,7 @@ exports.addReply = async (req, res) => {
 
     // 3. Update replies array
     let replies = [...commentDoc.data().replies];
-    if (isReplyToReply) {
+    if (replyId) {
       // Find parent reply and add replyId to its replies array
       const updateReply = (replyArray) => {
         for (let reply of replyArray) {

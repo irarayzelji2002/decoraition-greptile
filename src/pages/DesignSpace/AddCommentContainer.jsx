@@ -30,6 +30,7 @@ function AddCommentContainer({
   pinpointSelectedImage,
   setPinpointSelectedImage,
   applyMinHeight,
+  setSelectedImage,
 }) {
   const { designId } = useParams();
   const { user, users, userDoc } = useSharedProps();
@@ -261,8 +262,12 @@ function AddCommentContainer({
   };
 
   useEffect(() => {
-    if (!isAddingComment) return;
+    if (!isAddingComment) {
+      setIsPinpointing(false);
+      return;
+    }
     if (textFieldInputRef?.current) textFieldInputRef?.current?.focus();
+    setIsPinpointing(true);
     // handleCancelAddComment();
   }, [isAddingComment]);
 
@@ -281,9 +286,16 @@ function AddCommentContainer({
     // Validation
     const nonExistentUsers = validateMentions(mentions);
     if (nonExistentUsers.length > 0) {
-      setError(`${nonExistentUsers.length} mentioned user not found`);
+      setError(
+        `${nonExistentUsers.length} mentioned user${nonExistentUsers.length > 0 && "s"} not found`
+      );
+      return;
     } else if (!commentContent && mentions.length === 0) {
       setError("Comment is required");
+      return;
+    } else if (!pinpointSelectedImage || !pinpointLocation) {
+      showToast("error", "Please pinpoint which location in the image you're commenting on.");
+      return;
     }
 
     // Call addComment
@@ -297,10 +309,12 @@ function AddCommentContainer({
       userDoc
     );
     if (!result.success) {
-      showToast("error", result.message);
+      if (result.message !== "Comment is required") showToast("error", result.message);
       return;
     }
     setIsAddingComment(false);
+    handleCancelPinpoint();
+    setSelectedImage(null);
     showToast("success", result.message);
   };
 
@@ -322,7 +336,7 @@ function AddCommentContainer({
         >
           Adding comment
         </Typography>
-        <div className="comment-container add-comment">
+        <div className="comment-container add-comment" style={{ cursor: "auto" }}>
           <div className="profile-section">
             <div className="profile-info">
               <Box
@@ -369,9 +383,14 @@ function AddCommentContainer({
                   width: "auto",
                   textTransform: "none",
                   borderRadius: "20px",
-                  backgroundColor: isPinpointing ? "var(--iconBgHover)" : "transparent",
+                  backgroundColor: "transparent",
+                  cursor: "auto",
+                  "&:hover": {
+                    backgroundColor: "transparent",
+                  },
+                  //   backgroundColor: isPinpointing ? "var(--iconBgHover)" : "transparent",
                 }}
-                onClick={() => setIsPinpointing((prev) => !prev)}
+                // onClick={() => setIsPinpointing((prev) => !prev)}
               >
                 <Typography
                   sx={{
@@ -404,6 +423,7 @@ function AddCommentContainer({
                 const newValue = e.target.value;
                 const cursorPosition = e.target.selectionStart;
                 setCommentContent(newValue);
+                setError("");
 
                 // Get text before cursor and find the last @ before cursor
                 const textBeforeCursor = newValue.substring(0, cursorPosition);

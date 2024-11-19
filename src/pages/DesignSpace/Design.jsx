@@ -100,11 +100,15 @@ function Design() {
   // Comment
   // userDesignComments & userComments for the designs's latest deisgn version
   const [designComments, setDesignComments] = useState([]);
+  const [commentTypeTab, setCommentTypeTab] = useState(true); // true for Open, false for Resolved
   const [isPinpointing, setIsPinpointing] = useState(false);
   const [pinpointLocation, setPinpointLocation] = useState(null); // {x, y}
   const [pinpointSelectedImage, setPinpointSelectedImage] = useState(null);
   // for selected in image pinpoint
   const [activeComment, setActiveComment] = useState("");
+  const imageContainerRefs = useRef({});
+  const [imageWidth, setImageWidth] = useState(0);
+  const [imageHeight, setImageHeight] = useState(0);
 
   // Generation
   const [statusMessage, setStatusMessage] = useState("");
@@ -299,6 +303,9 @@ function Design() {
     }
 
     adjustImageFramesDefault();
+
+    setImageWidth(imageFrames[0].clientWidth);
+    setImageHeight(imageFrames[0].clientHeight);
   }, [
     showPromptBar,
     showComments,
@@ -400,6 +407,7 @@ function Design() {
       document.body.appendChild(cursor);
       cursor.style.display = "none";
       const imageFrames = document.querySelectorAll(".image-frame-cont");
+      const draggablePins = document.querySelectorAll(".comment-pin.draggable");
       const updateCursor = (e) => {
         cursor.style.left = `${e.clientX}px`;
         cursor.style.top = `${e.clientY}px`;
@@ -413,12 +421,22 @@ function Design() {
         cursor.style.display = "none";
       };
 
+      const handlePinMouseEnter = () => {
+        cursor.style.display = "none";
+      };
+
       // Add listeners to each image frame
       imageFrames.forEach((frame) => {
         frame.addEventListener("mousemove", updateCursor);
         frame.addEventListener("mouseenter", handleMouseEnter);
         frame.addEventListener("mouseleave", handleMouseLeave);
         frame.style.cursor = "none";
+      });
+
+      // Add listeners to draggable pins
+      draggablePins.forEach((pin) => {
+        pin.addEventListener("mouseenter", handlePinMouseEnter);
+        pin.addEventListener("mouseleave", handleMouseEnter);
       });
 
       return () => {
@@ -428,10 +446,25 @@ function Design() {
           frame.removeEventListener("mouseleave", handleMouseLeave);
           frame.style.cursor = "auto";
         });
+        draggablePins.forEach((pin) => {
+          pin.removeEventListener("mouseenter", handlePinMouseEnter);
+          pin.removeEventListener("mouseleave", handleMouseEnter);
+        });
         document.body.removeChild(cursor);
       };
     }
   }, [isPinpointing]);
+
+  useEffect(() => {
+    console.log("pinpoint values", {
+      imageWidth,
+      imageHeight,
+      isPinpointing,
+      pinpointLocation,
+      pinpointSelectedImage,
+      selectedImage,
+    });
+  }, [isPinpointing, pinpointLocation, pinpointSelectedImage, selectedImage]);
 
   if (loading) {
     return <Loading />;
@@ -553,6 +586,9 @@ function Design() {
                     designComments={designComments}
                     setDesignComments={setDesignComments}
                     selectedImage={selectedImage}
+                    commentTypeTab={commentTypeTab}
+                    setCommentTypeTab={setCommentTypeTab}
+                    setSelectedImage={setSelectedImage}
                   />
                 </div>
               )}
@@ -806,18 +842,23 @@ function Design() {
                                   : "transparent",
                             }}
                             onClick={(e) => {
-                              if (!isGenerating || (showComments && !isPinpointing)) {
-                                setSelectedImage(image);
-                              } else if (showComments && isPinpointing) {
+                              console.log(showComments && isPinpointing);
+                              if (showComments && isPinpointing) {
+                                console.log("clicked pinpoint");
                                 const rect = e.currentTarget.getBoundingClientRect();
-
+                                const cursorHeight = 21;
+                                const offset = 2;
                                 // Calculate percentages
                                 const x = ((e.clientX - rect.left) / rect.width) * 100;
-                                const y = ((e.clientY - rect.top) / rect.height) * 100;
+                                const y =
+                                  ((e.clientY - rect.top - (cursorHeight + offset)) / rect.height) *
+                                  100;
                                 setPinpointLocation({ x, y });
-                                setIsPinpointing(false);
+                                // setIsPinpointing(false);
                                 setSelectedImage(image);
                                 setPinpointSelectedImage(image);
+                              } else {
+                                setSelectedImage(image);
                               }
                             }}
                           >
@@ -932,6 +973,7 @@ function Design() {
                                   .map(
                                     (comment) =>
                                       comment.designVersionImageId === image.imageId &&
+                                      comment.status === !commentTypeTab &&
                                       comment.location && (
                                         <div
                                           key={comment.id}
@@ -940,7 +982,7 @@ function Design() {
                                             position: "absolute",
                                             left: `${comment.location.x}%`,
                                             top: `${comment.location.y}%`,
-                                            transform: "translate(-50%, -50%)",
+                                            transform: "translate(0%, -10%)",
                                             cursor: "pointer",
                                             zIndex: 10,
                                           }}
@@ -959,24 +1001,24 @@ function Design() {
                                   )}
 
                               {/* Show current pinpoint when adding comment */}
-                              {isPinpointing &&
+                              {showComments &&
+                                isPinpointing &&
                                 pinpointSelectedImage?.imageId === image.imageId &&
                                 pinpointLocation && (
                                   <Draggable
                                     bounds="parent"
-                                    defaultPosition={{
-                                      x: pinpointLocation.x,
-                                      y: pinpointLocation.y,
+                                    position={{
+                                      x: (pinpointLocation.x * imageWidth) / 100,
+                                      y: (pinpointLocation.y * imageHeight) / 100,
                                     }}
                                     onDrag={(e, data) => {
-                                      const x =
-                                        (data.x / data.node.parentElement.offsetWidth) * 100;
-                                      const y =
-                                        (data.y / data.node.parentElement.offsetHeight) * 100;
-                                      setPinpointLocation({ x, y });
+                                      setPinpointLocation({
+                                        x: (data.x * 100) / imageWidth,
+                                        y: (data.y * 100) / imageHeight,
+                                      });
                                     }}
                                   >
-                                    <div className="comment-pin">
+                                    <div className="comment-pin draggable">
                                       <SelectedComment />
                                     </div>
                                   </Draggable>
@@ -1027,6 +1069,9 @@ function Design() {
                     designComments={designComments}
                     setDesignComments={setDesignComments}
                     selectedImage={selectedImage}
+                    commentTypeTab={commentTypeTab}
+                    setCommentTypeTab={setCommentTypeTab}
+                    setSelectedImage={setSelectedImage}
                   />
                 </div>
               </div>

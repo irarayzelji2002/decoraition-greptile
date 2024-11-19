@@ -909,6 +909,13 @@ textarea {
   background-color: var(--iconBg);
 }
 
+.comment-pin {
+  position: absolute;
+  transform: translate(-50%, -50%);
+  cursor: move;
+  z-index: 10;
+}
+
 .replies-container {
   margin-left: 0;
   position: relative;
@@ -941,6 +948,20 @@ textarea {
 
 .editingMentionsUsername:hover {
   color: var(--brightFontHover);
+}
+
+.pinpointing {
+  cursor: none !important;
+}
+
+.custom-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  width: 24px;
+  height: 24px;
+  transform: translate(0%, -100%);
+  /* pointing on bottom left */
 }
 
 /* .comment-container.reply-to-reply:before {

@@ -26,17 +26,22 @@ function CommentTabs({
   design,
   designVersion,
   designVersionImages,
+  activeComment,
+  setActiveComment,
   showPromptBar,
   isPinpointing,
   setIsPinpointing,
   pinpointLocation,
+  setPinpointLocation,
   pinpointSelectedImage,
+  setPinpointSelectedImage,
+  designComments,
+  setDesignComments,
+  selectedImage,
 }) {
   const { user, userDoc, userComments, userReplies, userDesignComments } = useSharedProps();
   const [commentForTab, setCommentForTab] = useState(true); // true for All Comments, false for For You
   const [commentTypeTab, setCommentTypeTab] = useState(true); // true for Open, false for Resolved
-  // userDesignComments & userComments for the designs's latest deisgn version
-  const [designComments, setDesignComments] = useState([]);
   const [userOwnedComments, setUserOwnedComments] = useState([]);
   const [userOwnedReplies, setUserOwnedReplies] = useState([]);
   const [filteredAndSortedComments, setFilteredAndSortedComments] = useState([]);
@@ -48,8 +53,6 @@ function CommentTabs({
     showOptions: false,
     selectedId: null,
   });
-  // for selected in image pinpoint
-  const [activeComment, setActiveComment] = useState("");
 
   const [isLess600, setIsLess600] = useState(false);
 
@@ -424,7 +427,9 @@ function CommentTabs({
           isPinpointing={isPinpointing}
           setIsPinpointing={setIsPinpointing}
           pinpointLocation={pinpointLocation}
+          setPinpointLocation={setPinpointLocation}
           pinpointSelectedImage={pinpointSelectedImage}
+          setPinpointSelectedImage={setPinpointSelectedImage}
           applyMinHeight={applyMinHeight}
         />
       ) : (
@@ -474,7 +479,12 @@ function CommentTabs({
             </div>
           </div>
           {/* Comments container */}
-          {filteredAndSortedComments.map((comment) => (
+          {(!selectedImage
+            ? filteredAndSortedComments
+            : filteredAndSortedComments.filter(
+                (comment) => comment.designVersionImageId === selectedImage.imageId
+              )
+          ).map((comment) => (
             <RootCommentContainer
               key={comment.id}
               commentId={comment.id}
@@ -566,6 +576,11 @@ const dummyUser1 = { id: "ub9S8LqLBXRFKPJCUQL8xGgCMkH2", username: "irarayzelji"
 const dummyUser2 = { id: "qZjAWQkR1ShNfWhG6BQJkElEkQy1", username: "EmanuelRegister" };
 const dummyUser3 = { id: "VJbdZCvYn4hxiEpiT2d6pIzQq2P2", username: "irarayzelji2" };
 
+const dummyImageId1 = "GUP5ws7igBBA3MP3I4Wz";
+const dummyImageId2 = "NvHHm4EhATzWXjRz6mdi";
+const dummyImageId3 = "pKvVjtljK7jaQG5DQDpp";
+const dummyImageId4 = "UedR33oDACgvMgJA8z2Y";
+
 const createDummyDate = (stringDate) => {
   const date = new Date(stringDate); // ex: "2024-11-15T10:00:00Z"
   const seconds = Math.floor(date.getTime() / 1000);
@@ -579,7 +594,8 @@ const createDummyDate = (stringDate) => {
 const dummyUserDesignComments = [
   {
     id: "comment1",
-    designVersionImageId: "image123",
+    designVersionImageId: dummyImageId1,
+    location: { x: 50, y: 50 },
     userId: dummyUser1.id,
     message: `This is the first comment. @${dummyUser2.username} This is the first comment.This is the first comment.This is the first comment.This is the first comment.This is the first comment.This is the first comment. @${dummyUser3.username} This is the first comment.This is the first comment.`,
     mentions: [dummyUser2.id, dummyUser3.id],
@@ -636,7 +652,8 @@ const dummyUserDesignComments = [
   },
   {
     id: "comment2",
-    designVersionImageId: "image456",
+    designVersionImageId: dummyImageId2,
+    location: { x: 20, y: 30 },
     userId: dummyUser2.id,
     message: "This is the second comment.",
     mentions: [],
@@ -666,7 +683,8 @@ const dummyUserDesignComments = [
   },
   {
     id: "comment3",
-    designVersionImageId: "image789",
+    designVersionImageId: dummyImageId3,
+    location: { x: 80, y: 40 },
     userId: dummyUser3.id,
     message: `This is the third comment. @${dummyUser1.username}`,
     mentions: [dummyUser1.id],
@@ -677,7 +695,8 @@ const dummyUserDesignComments = [
   },
   {
     id: "comment4",
-    designVersionImageId: "image789",
+    designVersionImageId: dummyImageId4,
+    location: { x: 45, y: 20 },
     userId: dummyUser1.id,
     message: "This is the fourth comment.",
     mentions: [],

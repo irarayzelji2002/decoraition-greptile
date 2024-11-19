@@ -158,26 +158,27 @@ export const fetchTasks = async (timelineId) => {
 export const deleteTask = async (userId, projectId, taskId) => {
   try {
     const token = await auth.currentUser.getIdToken();
-    await axios.delete(`/api/timeline/${projectId}/event/${taskId}`, {
+    await axios.delete(`/api/timeline/event/${taskId}`, {
       headers: {
         Authorization: `Bearer ${token}`,
       },
     });
-    showToast("success", "Task successfully deleted!");
   } catch (e) {
     console.error("Error deleting document: ", e);
-    showToast("error", "Error deleting task! Please try again.");
+    toast.error("Error deleting task! Please try again.");
   }
 };
 
 export const updateTask = async (userId, projectId, taskId, updatedData) => {
   try {
-    const taskRef = doc(db, "events", taskId);
-    await updateDoc(taskRef, updatedData);
-    showToast("success", "Task updated successfully!");
+    const token = await auth.currentUser.getIdToken();
+    await axios.put(`/api/timeline/event/${taskId}`, updatedData, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
   } catch (error) {
     console.error("Error updating task:", error);
-    showToast("error", "Error updating task! Please try again.");
   }
 };
 

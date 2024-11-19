@@ -134,6 +134,16 @@ router.post(
   authenticateUser,
   designController.createDesignVersion
 );
+router.post(
+  "/design/:designId/design-version/:designVersionId/update-sam-masks",
+  authenticateUser,
+  designController.updateDesignVersionSamMask
+);
+router.post(
+  "/design/:designId/design-version/:designVersionId/update-combined-mask",
+  authenticateUser,
+  designController.updateDesignVersionCombinedMask
+);
 
 // Comment routes
 router.post(
@@ -203,5 +213,7 @@ router.post("/timeline/:timelineId/event", authenticateUser, timelineController.
 router.get("/timeline/:timelineId/events", authenticateUser, timelineController.getEvents);
 router.get("/project/:projectId/timelineId", authenticateUser, timelineController.fetchTimelineId); // New route to fetch timeline
 router.get("/timeline/event/:taskId", authenticateUser, timelineController.getEventDetails);
+router.put("/timeline/event/:taskId", authenticateUser, timelineController.updateEvent);
+router.delete("/timeline/event/:taskId", authenticateUser, timelineController.deleteEvent);
 
 module.exports = router;

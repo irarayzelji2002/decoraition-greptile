@@ -10,7 +10,7 @@ import { ToastContainer } from "react-toastify";
 import { auth } from "../../firebase";
 import { CustomSwitch } from "./ProjectSettings.jsx";
 import { Box, Modal, TextField, Button } from "@mui/material";
-import { RepeatSelector } from "./svg/ExportIcon";
+import RepeatSelector from "./RepeatSelector.jsx";
 import { ThemeProvider } from "@mui/system";
 import { theme } from "./ProjectSettings.jsx";
 import { useSharedProps } from "../../contexts/SharedPropsContext.js";
@@ -18,6 +18,7 @@ import ReminderSpecific from "./ReminderSpecific";
 import { Typography, IconButton, InputBase, Select, MenuItem } from "@mui/material";
 import DialogTitle from "@mui/material/DialogTitle";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
+import { fetchTaskDetails } from "./backend/ProjectDetails";
 
 function EditEvent() {
   const { projectId } = useParams();
@@ -28,7 +29,9 @@ function EditEvent() {
   const user = useSharedProps();
   const queryParams = new URLSearchParams(location.search);
   const selectedDate = queryParams.get("date");
-  const taskDetails = queryParams.get("task");
+  const taskDetails = queryParams.get("task")
+    ? JSON.parse(decodeURIComponent(queryParams.get("task")))
+    : null;
   const timelineId = queryParams.get("timelineId"); // Retrieve timelineId
   const [allowRepeat, setAllowRepeat] = useState(false);
   const [openModal, setOpenModal] = useState(false);
@@ -38,16 +41,21 @@ function EditEvent() {
     taskDetails && taskDetails.dateRange
       ? {
           taskName: taskDetails.eventName,
-          startDate: new Date(taskDetails.dateRange.start).toISOString().split("T")[0],
-          endDate: new Date(taskDetails.dateRange.end).toISOString().split("T")[0],
+          startDate: new Date(taskDetails.dateRange.start._seconds * 1000)
+            .toISOString()
+            .split("T")[0],
+          endDate: new Date(taskDetails.dateRange.end._seconds * 1000).toISOString().split("T")[0],
           description: taskDetails.description,
           repeat: {
-            frequency: taskDetails.repeatEvery,
-            unit: taskDetails.repeating ? "day" : "",
+            frequency: taskDetails.repeatEvery.frequency,
+            unit: taskDetails.repeatEvery.unit || "none", // Ensure unit is set to a valid option
           },
           reminders: taskDetails.reminders.map((reminder) => ({
             ...reminder,
-            count: reminder.timeBeforeEvent / (reminder.unit === "day" ? 1440 : 60),
+            count: reminder.timeBeforeEvent, // Save and retrieve in days directly
+            hours: reminder.hours || 0,
+            minutes: reminder.minutes || 0,
+            period: reminder.period || "AM",
           })),
           repeatEnabled: taskDetails.repeating,
         }
@@ -57,8 +65,8 @@ function EditEvent() {
           endDate: selectedDate || "",
           description: "",
           repeat: {
-            frequency: "",
-            unit: "day",
+            frequency: 0,
+            unit: "none", // Ensure unit is set to a valid option
           },
           reminders: [],
           repeatEnabled: true,
@@ -67,25 +75,47 @@ function EditEvent() {
   const [formData, setFormData] = useState(initialFormData);
 
   useEffect(() => {
-    if (taskDetails && taskDetails.dateRange) {
-      setFormData({
-        taskName: taskDetails.eventName,
-        startDate: new Date(taskDetails.dateRange.start).toISOString().split("T")[0],
-        endDate: new Date(taskDetails.dateRange.end).toISOString().split("T")[0],
-        description: taskDetails.description,
-        repeat: {
-          frequency: taskDetails.repeatEvery,
-          unit: taskDetails.repeating ? "day" : "",
-        },
-        reminders: taskDetails.reminders.map((reminder) => ({
-          ...reminder,
-          count: reminder.timeBeforeEvent / (reminder.unit === "day" ? 1440 : 60),
-        })),
-        repeatEnabled: taskDetails.repeating,
-      });
-      setAllowRepeat(taskDetails.repeating);
+    if (taskDetails && taskDetails.repeating) {
+      setAllowRepeat(true);
     }
   }, [taskDetails]);
+
+  useEffect(() => {
+    const fetchTask = async () => {
+      const taskId = queryParams.get("taskId");
+      if (taskId) {
+        const currentUser = auth.currentUser;
+        if (currentUser) {
+          const taskDetails = await fetchTaskDetails(currentUser.uid, taskId);
+          setFormData({
+            taskName: taskDetails.eventName,
+            startDate: new Date(taskDetails.dateRange.start._seconds * 1000)
+              .toISOString()
+              .split("T")[0],
+            endDate: new Date(taskDetails.dateRange.end._seconds * 1000)
+              .toISOString()
+              .split("T")[0],
+            description: taskDetails.description,
+            repeat: {
+              frequency: taskDetails.repeatEvery.frequency,
+              unit: taskDetails.repeatEvery.unit || "none",
+            },
+            reminders: taskDetails.reminders.map((reminder) => ({
+              ...reminder,
+              count: reminder.timeBeforeEvent,
+              hours: reminder.hours || 0,
+              minutes: reminder.minutes || 0,
+              period: reminder.period || "AM",
+            })),
+            repeatEnabled: taskDetails.repeating,
+          });
+          setAllowRepeat(taskDetails.repeating);
+        }
+      }
+    };
+
+    fetchTask();
+  }, [queryParams]);
 
   const handleInputChange = (e, fieldName, nestedField = null) => {
     const { value } = e.target;
@@ -128,41 +158,70 @@ function EditEvent() {
   };
 
   const saveReminder = (reminder) => {
-    setFormData((prevData) => ({
-      ...prevData,
-      reminders: [...prevData.reminders, { ...reminder, id: Date.now() }],
-    }));
+    setFormData((prevData) => {
+      const existingReminderIndex = prevData.reminders.findIndex((r) => r.id === reminder.id);
+      if (existingReminderIndex !== -1) {
+        const updatedReminders = [...prevData.reminders];
+        updatedReminders[existingReminderIndex] = reminder;
+        return {
+          ...prevData,
+          reminders: updatedReminders,
+        };
+      } else {
+        return {
+          ...prevData,
+          reminders: [...prevData.reminders, { ...reminder, id: Date.now() }],
+        };
+      }
+    });
     setOpenModal(false);
   };
 
   const deleteReminder = (id) => {
-    const newReminders = formData.reminders.filter((reminder) => reminder.id !== id);
     setFormData((prevData) => ({
       ...prevData,
-      reminders: newReminders,
+      reminders: prevData.reminders.filter((reminder) => reminder.id !== id),
     }));
   };
 
   const handleSave = async () => {
     const currentUser = auth.currentUser;
     if (currentUser) {
+      const startDate = new Date(formData.startDate);
+      const endDate = new Date(formData.endDate);
+
+      if (isNaN(startDate) || isNaN(endDate)) {
+        console.error("Invalid date value");
+        return;
+      }
+
       const eventData = {
         timelineId: timelineId,
         eventName: formData.taskName,
         dateRange: {
-          start: new Date(formData.startDate).toISOString(),
-          end: new Date(formData.endDate).toISOString(),
+          start: startDate,
+          end: endDate,
         },
         repeating: allowRepeat,
-        repeatEvery: formData.repeat.frequency ? parseInt(formData.repeat.frequency) : 0,
+        repeatEvery: {
+          frequency: formData.repeat.frequency,
+          unit: formData.repeat.unit,
+        },
         description: formData.description,
-        reminders: formData.reminders.map((reminder) => ({
-          timeBeforeEvent: reminder.count * (reminder.unit === "day" ? 1440 : 60),
-          timeToRemind: new Date().toISOString(), // Placeholder, replace with actual reminder time logic
-        })),
+        reminders: formData.reminders.map((reminder) => {
+          const reminderDate = new Date(startDate);
+          reminderDate.setDate(reminderDate.getDate() - reminder.count);
+          reminderDate.setHours(reminder.hours);
+          reminderDate.setMinutes(reminder.minutes);
+          return {
+            timeBeforeEvent: reminder.count, // Save in days directly
+            timeToRemind: reminderDate.toISOString(),
+          };
+        }),
       };
+
       if (taskDetails) {
-        const taskId = JSON.parse(decodeURIComponent(taskDetails)).id;
+        const taskId = taskDetails.id;
         await updateTask(currentUser.uid, projectId, taskId, eventData);
       } else {
         console.log("Creating event:", JSON.parse(JSON.stringify(eventData)));
@@ -178,6 +237,16 @@ function EditEvent() {
 
   const handleRepeatToggle = () => {
     setAllowRepeat((prev) => !prev);
+  };
+
+  const handleRepeatChange = (count, unit) => {
+    setFormData((prevFormData) => ({
+      ...prevFormData,
+      repeat: {
+        frequency: count,
+        unit: unit,
+      },
+    }));
   };
 
   const today = new Date().toISOString().split("T")[0];
@@ -233,7 +302,13 @@ function EditEvent() {
             </div>
             <div className="form-group repeat">
               <CustomSwitch label="Repeat" checked={allowRepeat} onChange={handleRepeatToggle} />
-              {allowRepeat && <RepeatSelector />}
+              {allowRepeat && (
+                <RepeatSelector
+                  count={formData.repeat.frequency}
+                  unit={formData.repeat.unit}
+                  onRepeatChange={handleRepeatChange}
+                />
+              )}
             </div>
             <div className="reminders">
               <div className="reminders-header">

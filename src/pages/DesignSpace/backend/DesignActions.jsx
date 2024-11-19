@@ -598,12 +598,7 @@ export const generateMask = async (
   initImage,
   setErrors,
   setStatusMessage,
-  setSamMasks,
-  selectedSamMask,
-  setSelectedSamMask,
-  setSamMaskImage, // mask images
-  setSamMaskMask, // masked image
-  samDrawing
+  setIsGeneratingMask
 ) => {
   let formErrors = {};
   const err_msgs = document.querySelectorAll(".err_msg");
@@ -637,6 +632,7 @@ export const generateMask = async (
 
   // Fetch API
   try {
+    setIsGeneratingMask(true);
     setStatusMessage("Generating mask");
     const response = await fetch("https://ai-api.decoraition.org/generate-sam-mask", {
       method: "POST",
@@ -648,7 +644,7 @@ export const generateMask = async (
       setStatusMessage("");
       const errMessage =
         "Failed to generate mask. Make sure to type an object present in the image in the mask prompt.";
-      formErrors.general = errMessage;
+      showToast("error", errMessage);
       setErrors(formErrors);
       return {
         success: false,
@@ -657,34 +653,9 @@ export const generateMask = async (
     }
 
     const data = await response.json();
-    const { blended_images, masks, masked_images } = data.image_paths;
-    setStatusMessage("");
-
-    // Dynamically create a radio group for the 3 mask options
-    blended_images.forEach((blended_image, index) => {
-      setSamMasks((prev) => [
-        ...prev,
-        {
-          id: index,
-          blended: blended_images[index],
-          mask: masks[index],
-          masked: masked_images[index],
-        },
-      ]);
-      if (index === 0) {
-        setSelectedSamMask({
-          id: index,
-          blended: blended_images[index],
-          mask: masks[index],
-          masked: masked_images[index],
-        });
-        setSamMaskImage(masks[index]);
-        setSamMaskMask(masked_images[index]);
-      }
-      samDrawing.useSelectedMask(selectedSamMask);
-    });
     return {
       success: true,
+      data: data.image_paths,
       message: "Masks generated successfully",
     };
   } catch (error) {
@@ -709,7 +680,9 @@ export const previewMask = async (
   setErrors,
   refineMaskOption,
   showPreview,
-  setPreviewMask
+  setPreviewMask,
+  setStatusMessage,
+  setIsPreviewingMask
 ) => {
   let formErrors = {};
   // Validate data
@@ -746,6 +719,8 @@ export const previewMask = async (
 
   // Fetch API
   try {
+    setIsPreviewingMask(true);
+    setStatusMessage("Combining masks");
     const response = await fetch("https://ai-api.decoraition.org/preview-mask", {
       method: "POST",
       body: formData,
@@ -784,64 +759,6 @@ export const previewMask = async (
   }
 };
 
-// Apply Mask is clicked/called
-export const applyMask = async (
-  setErrors,
-  samDrawing,
-  setSamMaskMask,
-  color,
-  opacity,
-  setSamMaskImage,
-  setCombinedMask,
-  handleClearAllCanvas,
-  setPreviewMask,
-  samMaskImage,
-  base64ImageAdd,
-  base64ImageRemove,
-  selectedSamMask,
-  refineMaskOption,
-  showPreview
-) => {
-  const result = await previewMask(
-    samMaskImage,
-    base64ImageAdd,
-    base64ImageRemove,
-    selectedSamMask,
-    setErrors,
-    refineMaskOption,
-    showPreview,
-    setPreviewMask
-  ); // return mask
-  if (!result.success) {
-    let formErrors = {};
-    formErrors.combinedMask = result.message;
-    setErrors((prev) => ({ ...prev, ...formErrors }));
-    return {
-      success: false,
-      message: result.message,
-      formErrors: formErrors,
-    };
-  }
-  const { mask, masked_image } = result.data;
-  setCombinedMask(result.data);
-  setPreviewMask(null);
-
-  // Add masked_image to samCanvas with styles
-  let samMask = new Image();
-  samMask.src = masked_image;
-  samMask.onload = function () {
-    setSamMaskMask(samMask.src);
-    samDrawing.applySAMMaskStyling(color, opacity);
-    setSamMaskImage(mask);
-    handleClearAllCanvas();
-  };
-  return {
-    success: true,
-    message: "Mask applied successfully",
-    data: result.data,
-  };
-};
-
 // Generate is clicked (first image) - TO FIX
 export const generateNextImage = async (
   prompt, // actual generation args
@@ -857,14 +774,7 @@ export const generateNextImage = async (
   setIsGenerating,
   setGeneratedImagesPreview,
   setGeneratedImages,
-  setErrors, // applyMask args
-  samDrawing,
-  setSamMaskMask,
-  color,
-  opacity,
-  setSamMaskImage,
-  setCombinedMask,
-  handleClearAllCanvas,
+  setErrors, // previewMask args
   setPreviewMask,
   samMaskImage,
   base64ImageAdd,
@@ -872,7 +782,12 @@ export const generateNextImage = async (
   selectedSamMask,
   refineMaskOption,
   showPreview,
-  setIsSelectingMask
+  setIsSelectingMask,
+  setIsPreviewingMask,
+  design,
+  designVersion,
+  user,
+  userDoc
 ) => {
   const initImage = selectedImage.link;
   const combinedMaskImg = samMaskMask;
@@ -881,24 +796,39 @@ export const generateNextImage = async (
   let errMessage = "";
 
   if (combinedMaskImg) {
-    const result = await applyMask(
-      setErrors,
-      samDrawing,
-      setSamMaskMask,
-      color,
-      opacity,
-      setSamMaskImage,
-      setCombinedMask,
-      handleClearAllCanvas,
-      setPreviewMask,
+    const result = await previewMask(
       samMaskImage,
       base64ImageAdd,
       base64ImageRemove,
       selectedSamMask,
+      setErrors,
       refineMaskOption,
-      showPreview
+      showPreview,
+      setPreviewMask,
+      setStatusMessage,
+      setIsPreviewingMask
     );
-    if (!result.success) {
+    if (result.success) {
+      // Upload Combined masks
+      setStatusMessage("Uploading images of masks");
+      const combinedMaskData = {
+        samMaskImage: result.data.mask,
+        samMaskMask: result.data.masked_image,
+      };
+      const resultUpdateCombinedMask = await updateDesignVersionCombinedMask(
+        design.id,
+        designVersion.id, //designVersionId,
+        selectedImage.imageId, //designVersionImageId,
+        combinedMaskData,
+        user,
+        userDoc
+      );
+      if (!resultUpdateCombinedMask.success) {
+        showToast("error", "Failed to apply mask");
+        return;
+      }
+      setStatusMessage("Uploading images of masks complete");
+    } else {
       let formErrors = {};
       formErrors.combinedMask = result.message;
       setErrors((prev) => ({ ...prev, ...formErrors }));
@@ -1096,6 +1026,58 @@ export const createDesignVersion = async (designId, generatedImages, prompt, use
   }
 };
 
+export const updateDesignVersionSamMask = async (
+  designId,
+  designVersionId,
+  designVersionImageId,
+  samMasks,
+  user,
+  userDoc
+) => {
+  try {
+    const response = await axios.post(
+      `/api/design/${designId}/design-version/${designVersionId}/update-sam-masks`,
+      { userId: userDoc.id, designVersionImageId, samMasks },
+      {
+        headers: { Authorization: `Bearer ${await user.getIdToken()}` },
+      }
+    );
+    if (response.status === 200) {
+      return { success: true, message: "SAM masks uploaded successfully" };
+    }
+    return { success: false, message: "Failed to upload SAM masks", status: response.status };
+  } catch (error) {
+    console.error("Error uploading SAM masks:", error);
+    return { success: false, message: "Failed to upload SAM masks" };
+  }
+};
+
+export const updateDesignVersionCombinedMask = async (
+  designId,
+  designVersionId,
+  designVersionImageId,
+  combinedMask,
+  user,
+  userDoc
+) => {
+  try {
+    const response = await axios.post(
+      `/api/design/${designId}/design-version/${designVersionId}/update-combined-mask`,
+      { userId: userDoc.id, designVersionImageId, combinedMask },
+      {
+        headers: { Authorization: `Bearer ${await user.getIdToken()}` },
+      }
+    );
+    if (response.status === 200) {
+      return { success: true, message: "Combined mask uploaded successfully" };
+    }
+    return { success: false, message: "Failed to upload combined mask", status: response.status };
+  } catch (error) {
+    console.error("Error uploading combined mask:", error);
+    return { success: false, message: "Failed to upload combined mask" };
+  }
+};
+
 export const addComment = async (
   designId,
   designVersionImageId,
@@ -1117,9 +1099,9 @@ export const addComment = async (
       return { success: true, message: "Comment added successfully" };
     } // "Mentioned user not found"/"Mentioned users not found"
   } catch (error) {
-    console.error("Error adding comment:", error);
+    console.error("Error adding comment:", error?.response?.data?.error || error.message);
     // "Mentioned user not found"/"Mentioned users not found"
-    return { success: false, message: "Failed to add comment" };
+    return { success: false, message: error?.response?.data?.error || "Failed to add comment" };
   }
 };
 
@@ -1136,8 +1118,8 @@ export const editComment = async (designId, commentId, message, mentions, user, 
       return { success: true, message: "Comment edited successfully" };
     }
   } catch (error) {
-    console.error("Error editing comment:", error);
-    return { success: false, message: "Failed to edit comment" };
+    console.error("Error editing comment:", error?.response?.data?.error || error.message);
+    return { success: false, message: error?.response?.data?.error || "Failed to edit comment" };
   }
 };
 
@@ -1155,8 +1137,14 @@ export const changeCommentStatus = async (designId, commentId, status, user, use
       return { success: true, message: `Comment ${status ? "resolved" : "reopened"} successfully` };
     }
   } catch (error) {
-    console.error(`Error ${status ? "resolving" : "reopening"} comment:`, error);
-    return { success: false, message: `Failed to ${status ? "resolve" : "reopen"} comment` };
+    console.error(
+      `Error ${status ? "resolving" : "reopening"} comment:`,
+      error?.response?.data?.error || error.message
+    );
+    return {
+      success: false,
+      message: error?.response?.data?.error || `Failed to ${status ? "resolve" : "reopen"} comment`,
+    };
   }
 };
 
@@ -1173,24 +1161,27 @@ export const deleteComment = async (designId, commentId, user, userDoc) => {
       return { success: true, message: "Comment deleted successfully" };
     }
   } catch (error) {
-    console.error("Error deleting comment:", error);
-    return { success: false, message: "Failed to delete comment" };
+    console.error("Error deleting comment:", error?.response?.data?.error || error.message);
+    return { success: false, message: error?.response?.data?.error || "Failed to delete comment" };
   }
 };
 
 export const addReply = async (
   designId,
   commentId = "",
-  replyId = "",
   message,
   mentions,
+  replyTo,
   user,
   userDoc
 ) => {
   try {
+    const apiLink = !replyTo
+      ? `/api/design/${designId}/comment/${commentId}/add-reply`
+      : `/api/design/${designId}/comment/${replyTo.commentId}/add-reply`;
     const response = await axios.put(
-      `/api/design/${designId}/comment/${commentId}/add-reply`,
-      { userId: userDoc.id, replyId, message, mentions },
+      apiLink,
+      { userId: userDoc.id, message, mentions, replyTo },
       {
         headers: { Authorization: `Bearer ${await user.getIdToken()}` },
       }
@@ -1199,14 +1190,13 @@ export const addReply = async (
       return { success: true, message: "Reply added successfully" };
     }
   } catch (error) {
-    console.error("Error adding reply:", error);
-    return { success: false, message: "Failed to add reply" };
+    console.error("Error adding reply:", error?.response?.data?.error || error.message);
+    return { success: false, message: error?.response?.data?.error || "Failed to add reply" };
   }
 };
 
 export const editReply = async (
   designId,
-  isReplyToReply,
   commentId = "",
   replyId = "",
   message,
@@ -1214,10 +1204,11 @@ export const editReply = async (
   user,
   userDoc
 ) => {
+  console.log("edit reply function");
   try {
     const response = await axios.put(
       `/api/design/${designId}/comment/${commentId}/edit-reply`,
-      { userId: userDoc.id, isReplyToReply, replyId, message, mentions },
+      { userId: userDoc.id, replyId, message, mentions },
       {
         headers: { Authorization: `Bearer ${await user.getIdToken()}` },
       }
@@ -1226,8 +1217,8 @@ export const editReply = async (
       return { success: true, message: "Reply edited successfully" };
     }
   } catch (error) {
-    console.error("Error editing reply:", error);
-    return { success: false, message: "Failed to edit reply" };
+    console.error("Error editing reply:", error?.response?.data?.error || error.message);
+    return { success: false, message: error?.response?.data?.error || "Failed to edit reply" };
   }
 };
 
@@ -1244,7 +1235,7 @@ export const deleteReply = async (designId, commentId, replyId, user, userDoc) =
       return { success: true, message: "Reply deleted successfully" };
     }
   } catch (error) {
-    console.error("Error deleting reply:", error);
-    return { success: false, message: "Failed to delete reply" };
+    console.error("Error deleting reply:", error?.response?.data?.error || error.message);
+    return { success: false, message: error?.response?.data?.error || "Failed to delete reply" };
   }
 };

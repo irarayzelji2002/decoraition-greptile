@@ -462,6 +462,8 @@ const CommentContainer = ({
     setUpdatedMentions(mentions);
     setIsEditingComment(false);
     setOpenMentionOptions(false);
+    if (!isReply) clearFieldError("editComment");
+    else clearFieldError("editReply");
   };
 
   useEffect(() => {
@@ -476,6 +478,17 @@ const CommentContainer = ({
     if (textFieldReplyInputRef?.current) textFieldReplyInputRef?.current?.focus();
     handleCancelEditComment();
   }, [isAddingReply]);
+
+  // Remove only the specified field error
+  const clearFieldError = (field) => {
+    setErrors((prevErrors) => {
+      if (prevErrors && prevErrors[field]) {
+        const { [field]: _, ...remainingErrors } = prevErrors;
+        return remainingErrors;
+      }
+      return prevErrors;
+    });
+  };
 
   const validateMentions = (mentions) => {
     let nonExistentUsers = [];
@@ -509,8 +522,13 @@ const CommentContainer = ({
           nonExistentUsers.length > 0 && "s"
         } not found`,
       }));
+      return;
     } else if (!updatedCommentContent && updatedMentions.length === 0) {
       setErrors((prev) => ({ ...prev, editComment: "Commment is required" }));
+      return;
+    } else if (updatedCommentContent === commentContent) {
+      setErrors((prev) => ({ ...prev, editComment: "Commment is same as currrent comment" }));
+      return;
     }
 
     // Call editComment
@@ -557,17 +575,19 @@ const CommentContainer = ({
           nonExistentUsers.length > 0 && "s"
         } not found`,
       }));
+      return;
     } else if (!replyContent && replyMentions.length === 0) {
-      setErrors((prev) => ({ ...prev, editReply: "Reply is required" }));
+      setErrors((prev) => ({ ...prev, addReply: "Reply is required" }));
+      return;
     }
 
     // Call addReply
     const result = await addReply(
       designId,
       commentId, // parent commentId
-      comment.id, // replyId
       replyContent,
       replyMentions,
+      replyTo,
       user,
       userDoc
     );
@@ -592,16 +612,20 @@ const CommentContainer = ({
           nonExistentUsers.length > 0 && "s"
         } not found`,
       }));
+      return;
     } else if (!updatedCommentContent && updatedMentions.length === 0) {
       setErrors((prev) => ({ ...prev, editReply: "Reply is required" }));
+      return;
+    } else if (updatedCommentContent === commentContent) {
+      setErrors((prev) => ({ ...prev, editReply: "Reply is same as currrent comment" }));
+      return;
     }
 
     // Call editReply
     const result = await editReply(
       designId,
-      isReplyToReply,
       commentId, // parent commentId
-      comment.id, // replyId
+      comment.replyId, // replyId
       updatedCommentContent,
       updatedMentions,
       user,
@@ -620,7 +644,7 @@ const CommentContainer = ({
     const result = await deleteReply(
       designId,
       commentId, // parent commentId
-      comment.id, // replyId
+      comment.replyId, // replyId
       user,
       userDoc
     );
@@ -892,6 +916,10 @@ const CommentContainer = ({
                   const cursorPosition = e.target.selectionStart;
                   setUpdatedCommentContent(newValue);
 
+                  // Clear errors
+                  clearFieldError("editComment");
+                  clearFieldError("editReply");
+
                   // Get text before cursor and find the last @ before cursor
                   const textBeforeCursor = newValue.substring(0, cursorPosition);
                   const lastAtIndex = textBeforeCursor.lastIndexOf("@");
@@ -949,7 +977,7 @@ const CommentContainer = ({
                 disabled={!isEditingComment}
                 fullWidth
                 margin="normal"
-                helperText={isReply ? errors?.editComment : errors?.editReply}
+                helperText={!isReply ? errors?.editComment : errors?.editReply}
                 minRows={1}
                 sx={{
                   ...textFieldStyles,
@@ -1182,7 +1210,7 @@ const CommentContainer = ({
           </div>
         )}
         {/* Reply input field */}
-        {(isRepliesExpanded || replyCount === 0) && !isReply && (
+        {(isRepliesExpanded || replyCount === 0) && !isReply && !status && (
           <>
             <div style={{ marginTop: "10px" }}>
               {replyTo && (
@@ -1222,6 +1250,9 @@ const CommentContainer = ({
                   const newValue = e.target.value;
                   const cursorPosition = e.target.selectionStart;
                   setReplyContent(newValue);
+
+                  // Clear errors
+                  clearFieldError("addReply");
 
                   // Get text before cursor and find the last @ before cursor
                   const textBeforeCursor = newValue.substring(0, cursorPosition);

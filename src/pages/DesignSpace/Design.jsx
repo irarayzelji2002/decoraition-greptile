@@ -16,29 +16,14 @@ import {
   ArrowBackIosRounded as ArrowBackIosRoundedIcon,
   KeyboardArrowDownRounded as KeyboardArrowDownRoundedIcon,
 } from "@mui/icons-material";
-import { doc, getDoc, updateDoc } from "firebase/firestore";
-import { db } from "../../firebase"; // Assuming you have firebase setup
 import DesignSpace from "./DesignSpace";
-import DesignHead from "../../components/DesignHead";
-import { getAuth } from "firebase/auth";
 import PromptBar from "./PromptBar";
-import BottomBar from "./BottomBar";
 import Loading from "../../components/Loading";
 import CommentTabs from "./CommentTabs";
-import { ToastContainer, toast } from "react-toastify";
-import Version from "./Version";
 import "../../css/design.css";
 import TwoFrames from "./svg/TwoFrames";
 import FourFrames from "./svg/FourFrames";
-import CommentContainer from "./CommentContainer";
-import { onSnapshot } from "firebase/firestore";
-import { Tabs, Tab } from "@mui/material";
-import {
-  toggleComments,
-  togglePromptBar,
-  handleSidebarEffect,
-  handleNameChange,
-} from "./backend/DesignActions"; // Import the functions from the backend file
+import { toggleComments, togglePromptBar } from "./backend/DesignActions";
 import { UnviewInfoIcon, ViewInfoIcon } from "../../components/svg/SharedIcons";
 import { EditIcon } from "../../components/svg/DefaultMenuIcons";
 import EditDescModal from "./EditDescModal";
@@ -795,6 +780,9 @@ function Design() {
                   setCanvasMode={setCanvasMode}
                   samMasks={samMasks}
                   setSamMasks={setSamMasks}
+                  design={design}
+                  designVersion={designVersion}
+                  designVersionImages={designVersionImages}
                 />
               ) : (isGenerating && generatedImagesPreview.length > 0) ||
                 designVersionImages.length > 0 ? (
@@ -957,9 +945,13 @@ function Design() {
                                   </IconButton>
                                 ))}
                               <img
-                                src={
-                                  isGenerating && generatedImagesPreview ? image.src : image.link
-                                }
+                                src={(() => {
+                                  const source =
+                                    isGenerating && generatedImagesPreview ? image.src : image.link;
+                                  return source && source !== ""
+                                    ? source
+                                    : "/img/transparent-image.png";
+                                })()}
                                 alt=""
                                 className="image-preview"
                               />

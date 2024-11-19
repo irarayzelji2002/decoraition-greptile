@@ -469,6 +469,19 @@ function PromptBar({
     });
   };
 
+  // Open/closing select area to edit
+  const toggleSelectAreaToEdit = () => {
+    setIsSelectingMask(!isSelectingMask);
+    setPrevWidth(width);
+    setPrevHeight(height);
+    if (!isSelectingMask) {
+      setShowPromptBar(false);
+      setShowComments(false);
+    } else {
+      setShowPromptBar(true);
+    }
+  };
+
   const handleFirstImageValidation = () => {
     let formErrors = {};
     let colorPalettePassed = "";
@@ -528,6 +541,7 @@ function PromptBar({
     if (!selectedSamMask) {
       if (!initImage && !maskPrompt) {
         formErrors.general = "Generate a mask first with mask prompt and your selected image";
+        toggleSelectAreaToEdit();
         return {
           success: false,
           message: "Invalid inputs.",
@@ -537,6 +551,7 @@ function PromptBar({
         if (!maskPrompt) {
           errMessage = "Mask prompt is required to generate a mask";
           formErrors.maskPrompt = errMessage;
+          toggleSelectAreaToEdit();
         }
         if (!initImage) {
           errMessage = "Select an image first to generate a mask";
@@ -641,6 +656,13 @@ function PromptBar({
             link: path,
             description: "",
             comments: [],
+            masks: {
+              samMasks: [],
+              combinedMask: {
+                samMaskImage: "",
+                samMaskMask: "",
+              },
+            },
           }));
           setGeneratedImages(generatedImageData);
           // Create design version with local data
@@ -677,6 +699,7 @@ function PromptBar({
         console.log("Validating - next image");
         let colorPalettePassed = "";
         const validationResult = handleNextImageValidation();
+        console.log("validationResult", validationResult);
         if (!validationResult.success) {
           setGenerationErrors(validationResult.formErrors);
           return;
@@ -715,11 +738,19 @@ function PromptBar({
           setIsSelectingMask
         );
         if (result.success) {
+          await new Promise((resolve) => setTimeout(resolve, 100));
           // Store result data locally
           const generatedImageData = result.data.map((path) => ({
             link: path,
             description: "",
             comments: [],
+            masks: {
+              samMasks: [],
+              combinedMask: {
+                samMaskImage: "",
+                samMaskMask: "",
+              },
+            },
           }));
           setGeneratedImages(generatedImageData);
           // Create design version with local data
@@ -1067,17 +1098,7 @@ function PromptBar({
                         backgroundImage: "var(--gradientCircleHover)",
                       },
                     }}
-                    onClick={() => {
-                      setIsSelectingMask(!isSelectingMask);
-                      setPrevWidth(width);
-                      setPrevHeight(height);
-                      if (!isSelectingMask) {
-                        setShowPromptBar(false);
-                        setShowComments(false);
-                      } else {
-                        setShowPromptBar(true);
-                      }
-                    }}
+                    onClick={toggleSelectAreaToEdit}
                   >
                     {isSelectingMask ? <DeselectMask /> : <SelectMask />}
                   </Button>

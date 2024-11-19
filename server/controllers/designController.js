@@ -1273,6 +1273,240 @@ exports.createDesignVersion = async (req, res) => {
   }
 };
 
+// Update Design Version SAM Masks
+exports.updateDesignVersionSamMask = async (req, res) => {
+  const updatedDocuments = [];
+  try {
+    const { designId, designVersionId } = req.params;
+    const { userId, designVersionImageId, samMasks } = req.body;
+
+    // Check user role in design
+    const designRef = db.collection("designs").doc(designId);
+    const designDoc = await designRef.get();
+    if (!designDoc.exists) {
+      return res.status(404).json({ error: "Design not found" });
+    }
+    const allowAction = isOwnerEditorDesign(designDoc, userId);
+    if (!allowAction) {
+      return res
+        .status(403)
+        .json({ error: "User does not have permission to create design version" });
+    }
+
+    // Store previous name for potential rollback
+    const designVersionRef = db.collection("designVersions").doc(designVersionId);
+    const designVersionDoc = await designVersionRef.get();
+    if (!designVersionDoc.exists) {
+      return res.status(404).json({ error: "Design version not found" });
+    }
+    const previousImages = designVersionDoc.data().images;
+    updatedDocuments.push({
+      collection: "designVersions",
+      id: designVersionId,
+      field: "images",
+      previousValue: previousImages,
+    });
+
+    // Process images and upload to Firebase Storage
+    const images = samMasks; // how can i change it starting here?
+    const updatedImages = await Promise.all(
+      images.map(async (img) => {
+        const imageName = img.link.split("/").pop();
+        const storagePath = `designs/${designId}/versions/${designVersionId}/${designVersionImageId}/masks/${imageName}`;
+        const storageRef = ref(storage, storagePath);
+
+        try {
+          const aiApiUrl = `https://ai-api.decoraition.org/static/masks/${imageName}`;
+          const response = await axios.get(aiApiUrl, { responseType: "arraybuffer" });
+          const imageBuffer = Buffer.from(response.data, "binary");
+
+          await uploadBytes(storageRef, imageBuffer, {
+            contentType: "image/png",
+          });
+          const downloadURL = await getDownloadURL(storageRef);
+
+          return {
+            ...img,
+            masks: {
+              samMasks: [
+                {
+                  blended: "downloadURL", // blended preview
+                  mask: "downloadURL", // original mask
+                  masked: "downloadURL", // masked result
+                },
+                {
+                  blended: "downloadURL", // blended preview
+                  mask: "downloadURL", // original mask
+                  masked: "downloadURL", // masked result
+                },
+                {
+                  blended: "downloadURL", // blended preview
+                  mask: "downloadURL", // original mask
+                  masked: "downloadURL", // masked result
+                },
+              ],
+              combinedMask: {
+                samMaskImage: "previous value", // final mask image
+                samMaskMask: "previous value", // final masked result
+              },
+            },
+          };
+        } catch (error) {
+          console.error(`Error processing image ${imageName}:`, error);
+          throw error;
+        }
+      })
+    );
+
+    console.log("updateDesignVersionSamMask - updatedImages", updatedImages);
+    if (!updatedImages || updatedImages.length === 0) {
+      throw new Error("Failed to generate image");
+    }
+    await designVersionRef.update({ images: updatedImages });
+
+    res.status(200).json({
+      success: true,
+      message: "Design version created successfully",
+      images: updatedImages,
+    });
+  } catch (error) {
+    console.error("Error creating design version:", error);
+
+    // Rollback updates
+    for (const doc of updatedDocuments) {
+      try {
+        await db
+          .collection(doc.collection)
+          .doc(doc.id)
+          .update({
+            [doc.field]: doc.previousValue,
+          });
+      } catch (rollbackError) {
+        console.error(`Rollback failed for ${doc.collection}/${doc.id}:`, rollbackError);
+      }
+    }
+
+    res.status(500).json({ error: "Failed to create design version" });
+  }
+};
+
+// Update Design Version Combined Mask
+exports.updateDesignVersionCombinedMask = async (req, res) => {
+  const updatedDocuments = [];
+  try {
+    const { designId, designVersionId } = req.params;
+    const { userId, designVersionImageId, combinedMask } = req.body;
+
+    // Check user role in design
+    const designRef = db.collection("designs").doc(designId);
+    const designDoc = await designRef.get();
+    if (!designDoc.exists) {
+      return res.status(404).json({ error: "Design not found" });
+    }
+    const allowAction = isOwnerEditorDesign(designDoc, userId);
+    if (!allowAction) {
+      return res
+        .status(403)
+        .json({ error: "User does not have permission to create design version" });
+    }
+
+    // Store previous name for potential rollback
+    const designVersionRef = db.collection("designVersions").doc(designVersionId);
+    const designVersionDoc = await designVersionRef.get();
+    if (!designVersionDoc.exists) {
+      return res.status(404).json({ error: "Design version not found" });
+    }
+    const previousImages = designVersionDoc.data().images;
+    updatedDocuments.push({
+      collection: "designVersions",
+      id: designVersionId,
+      field: "images",
+      previousValue: previousImages,
+    });
+
+    // Process images and upload to Firebase Storage
+    const images = combinedMask; // how can i change it starting here?
+    const updatedImages = await Promise.all(
+      images.map(async (img) => {
+        const imageName = img.link.split("/").pop();
+        const storagePath = `designs/${designId}/versions/${designVersionId}/${designVersionImageId}/masks/${imageName}`;
+        const storageRef = ref(storage, storagePath);
+
+        try {
+          const aiApiUrl = `https://ai-api.decoraition.org/static/masks/${imageName}`;
+          const response = await axios.get(aiApiUrl, { responseType: "arraybuffer" });
+          const imageBuffer = Buffer.from(response.data, "binary");
+
+          await uploadBytes(storageRef, imageBuffer, {
+            contentType: "image/png",
+          });
+          const downloadURL = await getDownloadURL(storageRef);
+
+          return {
+            ...img,
+            masks: {
+              samMasks: [
+                {
+                  blended: "previous value", // blended preview
+                  mask: "previous value", // original mask
+                  masked: "previous value", // masked result
+                },
+                {
+                  blended: "previous value", // blended preview
+                  mask: "previous value", // original mask
+                  masked: "previous value", // masked result
+                },
+                {
+                  blended: "previous value", // blended preview
+                  mask: "previous value", // original mask
+                  masked: "previous value", // masked result
+                },
+              ],
+              combinedMask: {
+                samMaskImage: "downloadURL", // final mask image
+                samMaskMask: "downloadURL", // final masked result
+              },
+            },
+          };
+        } catch (error) {
+          console.error(`Error processing image ${imageName}:`, error);
+          throw error;
+        }
+      })
+    );
+
+    console.log("updateDesignVersionCombinedMask - updatedImages", updatedImages);
+    if (!updatedImages || updatedImages.length === 0) {
+      throw new Error("Failed to generate image");
+    }
+    await designVersionRef.update({ images: updatedImages });
+
+    res.status(200).json({
+      success: true,
+      message: "Design version created successfully",
+      images: updatedImages,
+    });
+  } catch (error) {
+    console.error("Error creating design version:", error);
+
+    // Rollback updates
+    for (const doc of updatedDocuments) {
+      try {
+        await db
+          .collection(doc.collection)
+          .doc(doc.id)
+          .update({
+            [doc.field]: doc.previousValue,
+          });
+      } catch (rollbackError) {
+        console.error(`Rollback failed for ${doc.collection}/${doc.id}:`, rollbackError);
+      }
+    }
+
+    res.status(500).json({ error: "Failed to create design version" });
+  }
+};
+
 // Delete Design
 exports.deleteDesign = async (req, res) => {
   const deletedDocuments = [];

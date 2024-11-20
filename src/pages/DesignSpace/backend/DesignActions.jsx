@@ -653,9 +653,20 @@ export const generateMask = async (
     }
 
     const data = await response.json();
+    const origImagePaths = data.image_paths;
+    const baseURL = "https://ai-api.decoraition.org/";
+    // Create a new object with updated paths
+    const imageLinks = Object.fromEntries(
+      Object.entries(origImagePaths).map(([key, paths]) => [
+        key,
+        paths.map((path) => `${baseURL}${path.replace(/^\/+/, "")}`),
+      ])
+    );
+    console.log("Updated Image Links:", imageLinks);
+
     return {
       success: true,
-      data: data.image_paths,
+      data: imageLinks,
       message: "Masks generated successfully",
     };
   } catch (error) {
@@ -682,7 +693,8 @@ export const previewMask = async (
   showPreview,
   setPreviewMask,
   setStatusMessage,
-  setIsPreviewingMask
+  setIsPreviewingMask,
+  setCombinedMask
 ) => {
   let formErrors = {};
   // Validate data
@@ -694,9 +706,11 @@ export const previewMask = async (
   const user_mask_remove = base64ImageRemove;
   if (!user_mask_add) {
     formErrors.userMaskAdd = "Please provide the add mask.";
+    console.log("Please provide the add mask.");
   }
   if (!user_mask_remove) {
     formErrors.userMaskRemove = "Please provide the remove mask.";
+    console.log("Please provide the remove mask.");
   }
   if (Object.keys(formErrors).length > 0) {
     setErrors((prev) => ({ ...prev, ...formErrors }));
@@ -714,8 +728,8 @@ export const previewMask = async (
   formData.append("sam_mask", sam_mask_path);
   formData.append("user_mask_add", user_mask_add);
   formData.append("user_mask_remove", user_mask_remove);
-  console.log("Form Data:");
-  console.log(formData);
+  // console.log("Form Data:");
+  // console.log(formData);
 
   // Fetch API
   try {
@@ -728,22 +742,44 @@ export const previewMask = async (
 
     if (!response.ok) {
       const error = await response.json();
+      console.log("error repsonse not ok", error);
       throw new Error(error.error || "Failed to combine masks");
     }
 
     const data = await response.json();
+    const { mask, masked_image } = data;
 
-    if (showPreview) {
-      const { mask, masked_image } = data;
-      setPreviewMask(masked_image);
-    }
+    const fetchImage = async (url) => {
+      const response = await fetch(url);
+      if (!response.ok) throw new Error("Image load failed");
+      const blob = await response.blob();
+      return URL.createObjectURL(blob); // Convert Blob to a local URL
+    };
+
+    const baseURL = "https://ai-api.decoraition.org/";
+    const formattedMaskURL = `${baseURL}${mask.replace(/^\/+/, "")}`;
+    const formattedMaskedImageURL = `${baseURL}${masked_image.replace(/^\/+/, "")}`;
+
+    const updatedData = {
+      mask: {
+        url: formattedMaskURL,
+        data: await fetchImage(formattedMaskURL),
+      },
+      masked_image: {
+        url: formattedMaskedImageURL,
+        data: await fetchImage(formattedMaskedImageURL),
+      },
+    };
+    setCombinedMask(updatedData);
+    if (showPreview) setPreviewMask(updatedData.masked_image.data);
     return {
       success: true,
       message: "Masks combined successfully",
-      data: data,
+      data: updatedData,
     };
   } catch (error) {
     console.error("Error:", error);
+    console.log("error catch", error.message);
     let formErrors = {};
     let errorMessage = "";
     if (error.message === "NetworkError when attempting to fetch resource.")
@@ -812,8 +848,8 @@ export const generateNextImage = async (
       // Upload Combined masks
       setStatusMessage("Uploading images of masks");
       const combinedMaskData = {
-        samMaskImage: result.data.mask,
-        samMaskMask: result.data.masked_image,
+        samMaskImage: result?.data?.mask?.url || "",
+        samMaskMask: result?.data?.masked_image?.url || "",
       };
       const resultUpdateCombinedMask = await updateDesignVersionCombinedMask(
         design.id,
@@ -839,7 +875,7 @@ export const generateNextImage = async (
       };
     }
     const { mask, masked_image } = result.data;
-    combinedMaskBW = mask;
+    combinedMaskBW = mask?.url;
   } else {
     errMessage = "Generate a mask first with the mask prompt and init image";
     formErrors.general = errMessage;
@@ -897,13 +933,15 @@ export const generateNextImage = async (
     if (!taskResult.success) {
       throw new Error(taskResult.message);
     }
-    if (!taskResult.data || !Array.isArray(taskResult.data)) {
-      throw new Error("Invalid image generation result");
+    if (!taskResult.data || !Array.isArray(taskResult.data) || taskResult.data.length === 0) {
+      throw new Error("No images were generated");
     }
+    console.log("Generated images:", taskResult.data);
+    setGeneratedImages(taskResult.data);
     return {
       success: true,
       data: taskResult.data,
-      message: "Images generated successfully",
+      message: `Image${numberOfImages > 1 ? "s" : ""} generated successfully`,
     };
   } catch (error) {
     console.error("Error:", error);

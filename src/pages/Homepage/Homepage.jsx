@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import axios from "axios";
 import { useSharedProps } from "../../contexts/SharedPropsContext.js";
@@ -25,6 +25,7 @@ import AddIcon from "@mui/icons-material/Add";
 import CloseIcon from "@mui/icons-material/Close";
 import FolderIcon from "@mui/icons-material/Folder";
 import ImageIcon from "@mui/icons-material/Image";
+import KeyboardDoubleArrowUpRoundedIcon from "@mui/icons-material/KeyboardDoubleArrowUpRounded";
 import HomepageTable from "./HomepageTable.jsx";
 import SearchAppBar from "./SearchAppBar.jsx";
 import DesignIcon from "../../components/DesignIcon.jsx";
@@ -54,7 +55,9 @@ function Homepage() {
   const [viewForDesigns, setViewForDesigns] = useState(0); //0 for tiled view, 1 for list view
   const [viewForProjects, setViewForProjects] = useState(0);
   const [loadingDesigns, setLoadingDesigns] = useState(true);
+  const [loadingDesignsTable, setLoadingDesignsTable] = useState(true);
   const [loadingProjects, setLoadingProjects] = useState(true);
+  const [loadingProjectsTable, setLoadingProjectsTable] = useState(true);
 
   const [numToShowMoreDesign, setNumToShowMoreDesign] = useState(0);
   const [numToShowMoreProject, setNumToShowMoreProject] = useState(0);
@@ -97,8 +100,9 @@ function Homepage() {
   };
 
   const loadDesignDataForView = async () => {
-    setLoadingDesigns(true);
     if (userDesigns.length > 0) {
+      setLoadingDesigns(true);
+      setLoadingDesignsTable(true);
       const designsByLatest = [...userDesigns].sort(
         (a, b) => b.modifiedAt.toMillis() - a.modifiedAt.toMillis()
       );
@@ -108,7 +112,10 @@ function Homepage() {
       );
 
       setFilteredDesigns(filteredDesigns);
+      console.log("filteredDesigns", filteredDesigns);
+      setLoadingDesigns(false);
 
+      console.log("filteredDesigns", filteredDesigns);
       const ownerIds = filteredDesigns.map((design) => design.owner);
       const usernames = await fetchUsernamesBatch(ownerIds);
 
@@ -127,12 +134,14 @@ function Homepage() {
       setFilteredDesigns([]);
       setFilteredDesignsForTable([]);
     }
-    setLoadingDesigns(false);
+
+    setLoadingDesignsTable(false);
   };
 
   const loadProjectDataForView = async () => {
-    setLoadingProjects(true);
     if (userProjects.length > 0) {
+      setLoadingProjects(true);
+      setLoadingProjectsTable(true);
       const projectsByLatest = [...userProjects].sort(
         (a, b) => b.modifiedAt.toMillis() - a.modifiedAt.toMillis()
       );
@@ -142,6 +151,8 @@ function Homepage() {
       );
 
       setFilteredProjects(filteredProjects);
+      setLoadingProjects(false);
+
       const managerIds = filteredProjects.flatMap((project) => project.managers || []);
       const managers = await fetchManagersBatch(managerIds);
 
@@ -159,11 +170,11 @@ function Homepage() {
       });
 
       setFilteredProjectsForTable(tableData);
+      setLoadingProjectsTable(false);
     } else {
       setFilteredProjects([]);
       setFilteredProjectsForTable([]);
     }
-    setLoadingProjects(false);
   };
 
   const setThresholdAfterViewChange = (type) => {
@@ -235,6 +246,16 @@ function Homepage() {
   useEffect(() => {
     setThresholdAfterViewChange("projects");
   }, [viewForProjects]);
+
+  const recentDesignsRef = useRef(null);
+  const recentProjectsRef = useRef(null);
+
+  const scrollToRecentDesigns = () => {
+    recentDesignsRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+  const scrollToRecentProjects = () => {
+    recentProjectsRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
 
   return (
     <div className={`homepage ${menuOpen ? "darkened" : ""}`}>
@@ -322,7 +343,7 @@ function Homepage() {
           <div className="recent-designs">
             <div className="separator">
               {/* <DesignSvg /> */}
-              <h2>Recent Designs</h2>
+              <h2 ref={recentDesignsRef}>Recent Designs</h2>
               <div style={{ marginLeft: "auto", display: "inline-flex", marginBottom: "10px" }}>
                 {filteredDesigns.length > 0 && (
                   <div className="homepageIconButtons">
@@ -414,14 +435,18 @@ function Homepage() {
                     </div>
                   ) : (
                     <div style={{ width: "100%" }}>
-                      <HomepageTable
-                        isDesign={true}
-                        data={filteredDesignsForTable}
-                        isHomepage={true}
-                        numToShowMore={numToShowMoreDesign}
-                        optionsState={optionsState}
-                        setOptionsState={setOptionsState}
-                      />
+                      {!loadingDesignsTable ? (
+                        <HomepageTable
+                          isDesign={true}
+                          data={filteredDesignsForTable}
+                          isHomepage={true}
+                          numToShowMore={numToShowMoreDesign}
+                          optionsState={optionsState}
+                          setOptionsState={setOptionsState}
+                        />
+                      ) : (
+                        <Loading />
+                      )}
                     </div>
                   )
                 ) : (
@@ -436,26 +461,49 @@ function Homepage() {
             </div>
           </div>
         </section>
-        {filteredDesigns.length > thresholdDesign &&
-          numToShowMoreDesign < filteredDesigns.length && (
+        <div style={{ display: "inline-flex", marginTop: "20px", position: "relative" }}>
+          {filteredDesigns.length > thresholdDesign &&
+            numToShowMoreDesign < filteredDesigns.length && (
+              <Button
+                variant="contained"
+                onClick={() => setNumToShowMoreDesign(numToShowMoreDesign + thresholdDesign)}
+                className="cancel-button"
+                sx={{
+                  width: "200px",
+                }}
+              >
+                Show more
+              </Button>
+            )}
+          {filteredDesigns.length > thresholdDesign &&
+          numToShowMoreDesign < filteredDesigns.length ? (
+            <IconButton
+              onClick={() => scrollToRecentDesigns()}
+              sx={{ ...iconButtonStyles, position: "absolute", right: "-50px" }}
+            >
+              <KeyboardDoubleArrowUpRoundedIcon
+                sx={{ color: "var(--color-white)", transform: "scale(1.2)" }}
+              />
+            </IconButton>
+          ) : (
             <Button
               variant="contained"
-              onClick={() => setNumToShowMoreDesign(numToShowMoreDesign + thresholdDesign)}
+              onClick={() => scrollToRecentDesigns()}
               className="cancel-button"
               sx={{
-                marginTop: "20px",
-                width: "80%",
+                width: "200px",
               }}
             >
-              Show More
+              Scroll to top
             </Button>
           )}
+        </div>
 
         <section className="recent-section" style={{ marginBottom: "200px" }}>
           <div className="recent-designs">
             <div className="separator">
               {/* <ProjectIcon /> */}
-              <h2>Recent Projects</h2>
+              <h2 ref={recentProjectsRef}>Recent Projects</h2>
               <div style={{ marginLeft: "auto", display: "inline-flex", marginBottom: "10px" }}>
                 {filteredProjects.length > 0 && (
                   <div className="homepageIconButtons">
@@ -554,14 +602,18 @@ function Homepage() {
                     </div>
                   ) : (
                     <div style={{ width: "100%" }}>
-                      <HomepageTable
-                        isDesign={false}
-                        data={filteredProjectsForTable}
-                        isHomepage={true}
-                        numToShowMore={numToShowMoreProject}
-                        optionsState={optionsState}
-                        setOptionsState={setOptionsState}
-                      />
+                      {!loadingProjectsTable ? (
+                        <HomepageTable
+                          isDesign={false}
+                          data={filteredProjectsForTable}
+                          isHomepage={true}
+                          numToShowMore={numToShowMoreProject}
+                          optionsState={optionsState}
+                          setOptionsState={setOptionsState}
+                        />
+                      ) : (
+                        <Loading />
+                      )}
                     </div>
                   )
                 ) : (
@@ -576,20 +628,44 @@ function Homepage() {
             </div>
           </div>
         </section>
-        {filteredProjects.length > thresholdProject &&
-          numToShowMoreProject < filteredProjects.length && (
+        <div style={{ display: "inline-flex", marginTop: "20px", position: "relative" }}>
+          {filteredProjects.length > thresholdProject &&
+            numToShowMoreProject < filteredProjects.length && (
+              <Button
+                variant="contained"
+                onClick={() => setNumToShowMoreProject(numToShowMoreProject + thresholdProject)}
+                className="cancel-button"
+                sx={{
+                  marginTop: "20px",
+                  width: "80%",
+                }}
+              >
+                Show more
+              </Button>
+            )}
+          {filteredProjects.length > thresholdProject &&
+          numToShowMoreProject < filteredProjects.length ? (
+            <IconButton
+              onClick={() => scrollToRecentProjects}
+              sx={{ ...iconButtonStyles, position: "absolute", right: "-50px" }}
+            >
+              <KeyboardDoubleArrowUpRoundedIcon
+                sx={{ color: "var(--color-white)", transform: "scale(1.2)" }}
+              />
+            </IconButton>
+          ) : (
             <Button
               variant="contained"
-              onClick={() => setNumToShowMoreProject(numToShowMoreProject + thresholdProject)}
+              onClick={() => scrollToRecentProjects}
               className="cancel-button"
               sx={{
-                marginTop: "20px",
-                width: "80%",
+                width: "200px",
               }}
             >
-              Show More
+              Scroll to top
             </Button>
           )}
+        </div>
 
         <div className="circle-button-container" style={{ bottom: "30px" }}>
           {menuOpen && (

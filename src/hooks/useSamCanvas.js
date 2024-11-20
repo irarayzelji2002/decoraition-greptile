@@ -5,6 +5,7 @@ export const useSamCanvas = (
   previewCanvasRef,
   color,
   opacity,
+  samMaskModalOpen,
   setConfirmSamMaskChangeModalOpen,
   selectedSamMask,
   samMasks,
@@ -84,7 +85,7 @@ export const useSamCanvas = (
 
   const useSelectedMask = useCallback(
     (selectedSamMask) => {
-      if (selectedSamMask) {
+      if (selectedSamMask && samMasks) {
         const masks = samMasks.map((samMask) => samMask["mask"]);
 
         // Check if the input value is not empty
@@ -96,7 +97,7 @@ export const useSamCanvas = (
           console.log("Is Value in Masks:", isValueInMasks);
 
           // If the current value is not in masks, show confirmation dialog
-          if (!isValueInMasks) {
+          if (!isValueInMasks && samMaskModalOpen) {
             setConfirmSamMaskChangeModalOpen(true);
             return;
           }
@@ -106,7 +107,13 @@ export const useSamCanvas = (
         console.log("No selected SAM mask found.");
       }
     },
-    [actualUseSelectedMask, samMaskImage, samMasks, setConfirmSamMaskChangeModalOpen]
+    [
+      actualUseSelectedMask,
+      samMaskImage,
+      samMasks,
+      setConfirmSamMaskChangeModalOpen,
+      samMaskModalOpen,
+    ]
   );
 
   return {

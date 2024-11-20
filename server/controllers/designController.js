@@ -1293,85 +1293,78 @@ exports.updateDesignVersionSamMask = async (req, res) => {
         .json({ error: "User does not have permission to create design version" });
     }
 
-    // Store previous name for potential rollback
+    // Get current images array
     const designVersionRef = db.collection("designVersions").doc(designVersionId);
     const designVersionDoc = await designVersionRef.get();
-    if (!designVersionDoc.exists) {
-      return res.status(404).json({ error: "Design version not found" });
-    }
-    const previousImages = designVersionDoc.data().images;
+    const currentImages = designVersionDoc.data().images;
+    const imageIndex = currentImages.findIndex((img) => img.imageId === designVersionImageId);
+
+    // Process and upload each mask
+    const updatedSamMasks = await Promise.all(
+      samMasks.map(async (mask, index) => {
+        // Upload blended image
+        const blendedName = `blended_${index}_${Date.now()}.png`;
+        const blendedPath = `designs/${designId}/versions/${designVersionId}/${designVersionImageId}/masks/${blendedName}`;
+        const blendedRef = ref(storage, blendedPath);
+        const blendedResponse = await axios.get(mask.blended, { responseType: "arraybuffer" });
+        await uploadBytes(blendedRef, Buffer.from(blendedResponse.data), {
+          contentType: "image/png",
+        });
+        const blendedURL = await getDownloadURL(blendedRef);
+
+        // Upload mask image
+        const maskName = `mask_${index}_${Date.now()}.png`;
+        const maskPath = `designs/${designId}/versions/${designVersionId}/${designVersionImageId}/masks/${maskName}`;
+        const maskRef = ref(storage, maskPath);
+        const maskResponse = await axios.get(mask.mask, { responseType: "arraybuffer" });
+        await uploadBytes(maskRef, Buffer.from(maskResponse.data), { contentType: "image/png" });
+        const maskURL = await getDownloadURL(maskRef);
+
+        // Upload masked image
+        const maskedName = `masked_${index}_${Date.now()}.png`;
+        const maskedPath = `designs/${designId}/versions/${designVersionId}/${designVersionImageId}/masks/${maskedName}`;
+        const maskedRef = ref(storage, maskedPath);
+        const maskedResponse = await axios.get(mask.masked, { responseType: "arraybuffer" });
+        await uploadBytes(maskedRef, Buffer.from(maskedResponse.data), {
+          contentType: "image/png",
+        });
+        const maskedURL = await getDownloadURL(maskedRef);
+
+        return {
+          id: mask.id,
+          blended: blendedURL,
+          mask: maskURL,
+          masked: maskedURL,
+        };
+      })
+    );
+
+    // Update the specific image's masks in the images array
+    const updatedImages = [...currentImages];
+    updatedImages[imageIndex] = {
+      ...updatedImages[imageIndex],
+      masks: {
+        ...updatedImages[imageIndex].masks,
+        samMasks: updatedSamMasks,
+      },
+    };
+
+    // Perform action
     updatedDocuments.push({
       collection: "designVersions",
       id: designVersionId,
       field: "images",
-      previousValue: previousImages,
+      previousValue: currentImages,
     });
-
-    // Process images and upload to Firebase Storage
-    const images = samMasks; // how can i change it starting here?
-    const updatedImages = await Promise.all(
-      images.map(async (img) => {
-        const imageName = img.link.split("/").pop();
-        const storagePath = `designs/${designId}/versions/${designVersionId}/${designVersionImageId}/masks/${imageName}`;
-        const storageRef = ref(storage, storagePath);
-
-        try {
-          const aiApiUrl = `https://ai-api.decoraition.org/static/masks/${imageName}`;
-          const response = await axios.get(aiApiUrl, { responseType: "arraybuffer" });
-          const imageBuffer = Buffer.from(response.data, "binary");
-
-          await uploadBytes(storageRef, imageBuffer, {
-            contentType: "image/png",
-          });
-          const downloadURL = await getDownloadURL(storageRef);
-
-          return {
-            ...img,
-            masks: {
-              samMasks: [
-                {
-                  blended: "downloadURL", // blended preview
-                  mask: "downloadURL", // original mask
-                  masked: "downloadURL", // masked result
-                },
-                {
-                  blended: "downloadURL", // blended preview
-                  mask: "downloadURL", // original mask
-                  masked: "downloadURL", // masked result
-                },
-                {
-                  blended: "downloadURL", // blended preview
-                  mask: "downloadURL", // original mask
-                  masked: "downloadURL", // masked result
-                },
-              ],
-              combinedMask: {
-                samMaskImage: "previous value", // final mask image
-                samMaskMask: "previous value", // final masked result
-              },
-            },
-          };
-        } catch (error) {
-          console.error(`Error processing image ${imageName}:`, error);
-          throw error;
-        }
-      })
-    );
-
-    console.log("updateDesignVersionSamMask - updatedImages", updatedImages);
-    if (!updatedImages || updatedImages.length === 0) {
-      throw new Error("Failed to generate image");
-    }
     await designVersionRef.update({ images: updatedImages });
 
     res.status(200).json({
       success: true,
-      message: "Design version created successfully",
+      message: "SAM masks updated successfully",
       images: updatedImages,
     });
   } catch (error) {
-    console.error("Error creating design version:", error);
-
+    console.error("Error updating SAM masks:", error);
     // Rollback updates
     for (const doc of updatedDocuments) {
       try {
@@ -1385,8 +1378,7 @@ exports.updateDesignVersionSamMask = async (req, res) => {
         console.error(`Rollback failed for ${doc.collection}/${doc.id}:`, rollbackError);
       }
     }
-
-    res.status(500).json({ error: "Failed to create design version" });
+    res.status(500).json({ error: "Failed to update SAM masks" });
   }
 };
 
@@ -1410,85 +1402,65 @@ exports.updateDesignVersionCombinedMask = async (req, res) => {
         .json({ error: "User does not have permission to create design version" });
     }
 
-    // Store previous name for potential rollback
+    // Get current images array
     const designVersionRef = db.collection("designVersions").doc(designVersionId);
     const designVersionDoc = await designVersionRef.get();
-    if (!designVersionDoc.exists) {
-      return res.status(404).json({ error: "Design version not found" });
-    }
-    const previousImages = designVersionDoc.data().images;
+    const currentImages = designVersionDoc.data().images;
+    const imageIndex = currentImages.findIndex((img) => img.imageId === designVersionImageId);
+
+    // Upload samMaskImage
+    const maskImageName = `combined_mask_${Date.now()}.png`;
+    const maskImagePath = `designs/${designId}/versions/${designVersionId}/${designVersionImageId}/masks/${maskImageName}`;
+    const maskImageRef = ref(storage, maskImagePath);
+    const maskImageResponse = await axios.get(combinedMask.samMaskImage, {
+      responseType: "arraybuffer",
+    });
+    await uploadBytes(maskImageRef, Buffer.from(maskImageResponse.data), {
+      contentType: "image/png",
+    });
+    const maskImageURL = await getDownloadURL(maskImageRef);
+
+    // Upload samMaskMask
+    const maskMaskName = `combined_masked_${Date.now()}.png`;
+    const maskMaskPath = `designs/${designId}/versions/${designVersionId}/${designVersionImageId}/masks/${maskMaskName}`;
+    const maskMaskRef = ref(storage, maskMaskPath);
+    const maskMaskResponse = await axios.get(combinedMask.samMaskMask, {
+      responseType: "arraybuffer",
+    });
+    await uploadBytes(maskMaskRef, Buffer.from(maskMaskResponse.data), {
+      contentType: "image/png",
+    });
+    const maskMaskURL = await getDownloadURL(maskMaskRef);
+
+    // Update the specific image's combined mask in the images array
+    const updatedImages = [...currentImages];
+    updatedImages[imageIndex] = {
+      ...updatedImages[imageIndex],
+      masks: {
+        ...updatedImages[imageIndex].masks,
+        combinedMask: {
+          samMaskImage: maskImageURL,
+          samMaskMask: maskMaskURL,
+        },
+      },
+    };
+
+    // Perform action
     updatedDocuments.push({
       collection: "designVersions",
       id: designVersionId,
       field: "images",
-      previousValue: previousImages,
+      previousValue: currentImages,
     });
-
-    // Process images and upload to Firebase Storage
-    const images = combinedMask; // how can i change it starting here?
-    const updatedImages = await Promise.all(
-      images.map(async (img) => {
-        const imageName = img.link.split("/").pop();
-        const storagePath = `designs/${designId}/versions/${designVersionId}/${designVersionImageId}/masks/${imageName}`;
-        const storageRef = ref(storage, storagePath);
-
-        try {
-          const aiApiUrl = `https://ai-api.decoraition.org/static/masks/${imageName}`;
-          const response = await axios.get(aiApiUrl, { responseType: "arraybuffer" });
-          const imageBuffer = Buffer.from(response.data, "binary");
-
-          await uploadBytes(storageRef, imageBuffer, {
-            contentType: "image/png",
-          });
-          const downloadURL = await getDownloadURL(storageRef);
-
-          return {
-            ...img,
-            masks: {
-              samMasks: [
-                {
-                  blended: "previous value", // blended preview
-                  mask: "previous value", // original mask
-                  masked: "previous value", // masked result
-                },
-                {
-                  blended: "previous value", // blended preview
-                  mask: "previous value", // original mask
-                  masked: "previous value", // masked result
-                },
-                {
-                  blended: "previous value", // blended preview
-                  mask: "previous value", // original mask
-                  masked: "previous value", // masked result
-                },
-              ],
-              combinedMask: {
-                samMaskImage: "downloadURL", // final mask image
-                samMaskMask: "downloadURL", // final masked result
-              },
-            },
-          };
-        } catch (error) {
-          console.error(`Error processing image ${imageName}:`, error);
-          throw error;
-        }
-      })
-    );
-
-    console.log("updateDesignVersionCombinedMask - updatedImages", updatedImages);
-    if (!updatedImages || updatedImages.length === 0) {
-      throw new Error("Failed to generate image");
-    }
     await designVersionRef.update({ images: updatedImages });
 
     res.status(200).json({
       success: true,
-      message: "Design version created successfully",
+      message: "Combined mask updated successfully",
       images: updatedImages,
     });
   } catch (error) {
-    console.error("Error creating design version:", error);
-
+    console.error("Error updating combined mask:", error);
     // Rollback updates
     for (const doc of updatedDocuments) {
       try {
@@ -1502,8 +1474,7 @@ exports.updateDesignVersionCombinedMask = async (req, res) => {
         console.error(`Rollback failed for ${doc.collection}/${doc.id}:`, rollbackError);
       }
     }
-
-    res.status(500).json({ error: "Failed to create design version" });
+    res.status(500).json({ error: "Failed to update combined mask" });
   }
 };
 

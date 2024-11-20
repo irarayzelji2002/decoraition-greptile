@@ -1360,6 +1360,9 @@ function PromptBar({
               if (disabled) showToast("info", "Please select an image first");
               else if (!isOnline)
                 showToast("info", "You are offline. Please check your internet connection.");
+              else if (showComments) showToast("info", "Please hide the comments tab");
+              else if (isNextGeneration && !isSelectingMask)
+                showToast("info", "Please select a mask before generating");
               else e.stopPropagation();
             }}
           >
@@ -1372,7 +1375,9 @@ function PromptBar({
               type="submit"
               fullWidth
               variant="contained"
-              disabled={disabled || !isOnline || showComments}
+              disabled={
+                disabled || !isOnline || showComments || (isNextGeneration && !isSelectingMask)
+              }
               sx={{
                 color: "white",
                 mt: 3,
@@ -1381,11 +1386,21 @@ function PromptBar({
                 borderRadius: "20px",
                 textTransform: "none",
                 fontWeight: "bold",
-                opacity: disabled || !isOnline || showComments ? "0.5" : "1",
-                cursor: disabled || !isOnline || showComments ? "default" : "pointer",
+                opacity:
+                  disabled || !isOnline || showComments || (isNextGeneration && !isSelectingMask)
+                    ? "0.5"
+                    : "1",
+                cursor:
+                  disabled || !isOnline || showComments || (isNextGeneration && !isSelectingMask)
+                    ? "default"
+                    : "pointer",
                 "&:hover": {
                   backgroundImage:
-                    !disabled && isOnline && !showComments && "var(--gradientButtonHover)",
+                    !disabled &&
+                    isOnline &&
+                    !showComments &&
+                    !(isNextGeneration && !isSelectingMask) &&
+                    "var(--gradientButtonHover)",
                 },
               }}
               onClick={() => {

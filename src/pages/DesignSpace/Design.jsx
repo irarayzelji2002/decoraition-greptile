@@ -30,6 +30,7 @@ import EditDescModal from "./EditDescModal";
 import { handleEditDescription } from "./backend/DesignActions";
 import { iconButtonStyles } from "../Homepage/DrawerComponent";
 import { SelectedComment, UnselectedComment } from "./svg/AddColor";
+import LoadingPage from "../../components/LoadingPage";
 
 function Design() {
   const { user, userDoc, designs, userDesigns, designVersions, userDesignVersions, comments } =
@@ -194,7 +195,7 @@ function Design() {
       setDesignVersionImages([]);
       setIsNextGeneration(false);
     }
-    setLoading(false);
+    // setLoading(false);
   }, [design, designVersions, userDesignVersions]);
 
   useEffect(() => {
@@ -453,11 +454,13 @@ function Design() {
   }, [isPinpointing, pinpointLocation, pinpointSelectedImage, selectedImage]);
 
   if (loading) {
-    return <Loading />;
+    return <LoadingPage message="Please wait, we're loading your design." />;
   }
 
   if (!design) {
-    return <div>Design not found. Please reload or navigate to this design again.</div>;
+    return (
+      <LoadingPage message="Design not found. Please reload or navigate to this design again." />
+    );
   }
 
   return (

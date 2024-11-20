@@ -79,10 +79,11 @@ function Design() {
   const [base64ImageRemove, setBase64ImageRemove] = useState(null);
   const [selectedSamMask, setSelectedSamMask] = useState(null);
   const [refineMaskOption, setRefineMaskOption] = useState(true); // true for Add first then remove, false for Remove first then add
-  const [showPreview, setShowPreview] = useState(false);
+  const [showPreview, setShowPreview] = useState(true);
   const [canvasMode, setCanvasMode] = useState(true); // true for Add to Mask, false for Remove form Mask
   const [samMasks, setSamMasks] = useState([]);
   const [isPreviewingMask, setIsPreviewingMask] = useState(false); // for loading
+  const [validateApplyMask, setValidateApplyMask] = useState(null);
 
   // Comment
   // userDesignComments & userComments for the designs's latest deisgn version
@@ -291,8 +292,8 @@ function Design() {
 
     adjustImageFramesDefault();
 
-    setImageWidth(imageFrames[0].clientWidth);
-    setImageHeight(imageFrames[0].clientHeight);
+    setImageWidth(imageFrames?.[0].clientWidth);
+    setImageHeight(imageFrames?.[0].clientHeight);
   }, [
     showPromptBar,
     showComments,
@@ -540,6 +541,8 @@ function Design() {
                     setIsPreviewingMask={setIsPreviewingMask}
                     design={design}
                     designVersion={designVersion}
+                    samMasks={samMasks}
+                    validateApplyMask={validateApplyMask}
                   />
                 </div>
               )}
@@ -792,6 +795,8 @@ function Design() {
                   designVersionImages={designVersionImages}
                   isPreviewingMask={isPreviewingMask}
                   setIsPreviewingMask={setIsPreviewingMask}
+                  validateApplyMask={validateApplyMask}
+                  setValidateApplyMask={setValidateApplyMask}
                 />
               ) : (isGenerating && generatedImagesPreview.length > 0) ||
                 designVersionImages.length > 0 ? (
@@ -1039,7 +1044,12 @@ function Design() {
                 </div>
               )}
               {isGenerating && (
-                <GeneratingOverlay statusMessage={statusMessage} progress={progress} eta={eta} />
+                <GeneratingOverlay
+                  statusMessage={statusMessage}
+                  progress={progress}
+                  eta={eta}
+                  transparent={true}
+                />
               )}
             </div>
             {/* Default location on desktop screen */}
@@ -1096,10 +1106,13 @@ function Design() {
 
 export default Design;
 
-export const GeneratingOverlay = ({ statusMessage, progress, eta }) => {
+export const GeneratingOverlay = ({ statusMessage, progress, eta, transparent = false }) => {
   const { isDarkMode } = useSharedProps();
   return (
-    <div className="generatingOverlayBox">
+    <div
+      className="generatingOverlayBox"
+      style={{ backgroundColor: transparent ? "rgba(0, 0, 0, 0)" : "rgba(0, 0, 0, 0.4)" }}
+    >
       <div className="generatingOverlayContent">
         <div className="gradientCircleDiv">
           <GradientCircularProgress statusMessage={statusMessage} value={progress} />

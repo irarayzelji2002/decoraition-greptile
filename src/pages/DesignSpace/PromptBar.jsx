@@ -46,6 +46,7 @@ import {
 } from "../../components/RenameModal";
 import { set } from "lodash";
 import deepEqual from "deep-equal";
+import naughtyWords from "naughty-words";
 import {
   generateFirstImage,
   generateNextImage,
@@ -53,6 +54,7 @@ import {
 } from "./backend/DesignActions";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
 import { checkValidServiceWorker } from "../../serviceWorkerRegistration";
+import { AutoTokenizer } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.5.0";
 
 const theme = extendTheme({
   components: {
@@ -122,6 +124,8 @@ function PromptBar({
   setIsPreviewingMask,
   design,
   designVersion,
+  samMasks,
+  validateApplyMask,
 }) {
   const { user, userDoc, designs, userDesigns } = useSharedProps();
   const isOnline = useNetworkStatus();
@@ -152,6 +156,56 @@ function PromptBar({
 
   const [isSmallWidth, setIsSmallWidth] = useState(false);
   const [isLess600, setIsLess600] = useState(false);
+
+  const customWordList = new Set([
+    ...Object.values(naughtyWords).flat(),
+    "naked",
+    "unclothed",
+    "sexual",
+    "sex",
+    "nudity",
+    "nude",
+    "erotic",
+    "inappropriate",
+    "offensive",
+    "pornography",
+    "porn",
+    "explicit",
+    "violence",
+    "penis",
+    "vagina",
+    "fuck",
+    "fucking",
+  ]);
+
+  const regexList = [
+    /\b(?:naked|nude|sexual|p[o0]rn(?:ography)?)\b/i, // Creative spelling
+    /\b(?:explicit|erotic|violence|offensive|x-rated)\b/i,
+    /\b(?:adult(?: content| entertainment)?|18\+|nsfw)\b/i, // Implicit terms
+    /\b(?:v[i1]olence|[s$][e3]xual|[s$][e3]x|n[0o]dity)\b/i, // Leetspeak
+  ];
+
+  // Function to check if a prompt is clean
+  const isCleanPrompt = (input) => {
+    const words = input.toLowerCase().split(/\s+/);
+    const explicitMatch = words.some((word) => customWordList.has(word));
+    const regexMatch = regexList.some((regex) => regex.test(input));
+    return !(explicitMatch || regexMatch);
+  };
+
+  const initializeTokenizer = async () => {
+    const tokenizer = await AutoTokenizer.from_pretrained("Xenova/t5-small");
+    return tokenizer;
+  };
+
+  const validateTokenCount = async (prompt) => {
+    const tokenizer = await initializeTokenizer();
+    const { input_ids } = tokenizer(prompt);
+    if (input_ids.length > 75) {
+      return `Prompt exceeds the token limit of 75. Current count: ${input_ids.length}`;
+    }
+    return null;
+  };
 
   const handleSliderChange = (event, newValue) => {
     setNumberOfImages(newValue);
@@ -485,14 +539,20 @@ function PromptBar({
     }
   };
 
-  const handleFirstImageValidation = () => {
+  const handleFirstImageValidation = async () => {
     let formErrors = {};
     let colorPalettePassed = "";
     if (!prompt) {
-      formErrors.prompt = "Prompt is required.";
+      formErrors.prompt = "Prompt is required";
+    } else if (!isCleanPrompt(prompt)) {
+      formErrors.prompt = "Prompt contains inappropriate content";
+      console.log("Prompt contains inappropriate content");
+    } else {
+      const tokenError = await validateTokenCount(prompt);
+      if (tokenError) formErrors.prompt = tokenError;
     }
     if (!numberOfImages || numberOfImages < 1 || numberOfImages > 4) {
-      formErrors.numberOfImages = "Only 1 - 4 number of images allowed.";
+      formErrors.numberOfImages = "Only 1 - 4 number of images allowed";
     }
     if (baseImage) {
       const validExtensions = ["jpg", "jpeg", "png"];
@@ -535,7 +595,7 @@ function PromptBar({
     };
   };
 
-  const handleNextImageValidation = () => {
+  const handleNextImageValidation = async () => {
     const initImage = selectedImage.link;
     const combinedMaskImg = samMaskMask;
     let formErrors = {};
@@ -587,6 +647,11 @@ function PromptBar({
     }
     if (!prompt) {
       formErrors.prompt = "Prompt is required";
+    } else if (!isCleanPrompt(prompt)) {
+      formErrors.prompt = "Prompt contains inappropriate content";
+    } else {
+      const tokenError = await validateTokenCount(prompt);
+      if (tokenError) formErrors.prompt = tokenError;
     }
     if (!numberOfImages || numberOfImages < 1 || numberOfImages > 4) {
       formErrors.numberOfImages = "Only 1 - 4 number of images allowed";
@@ -629,7 +694,7 @@ function PromptBar({
       if (!isNextGeneration) {
         console.log("Validating - first image");
         let colorPalettePassed = "";
-        const validationResult = handleFirstImageValidation();
+        const validationResult = await handleFirstImageValidation();
         if (!validationResult.success) {
           setGenerationErrors(validationResult.formErrors);
           console.log("Errors: ", validationResult.formErrors);
@@ -699,9 +764,22 @@ function PromptBar({
           showToast("error", result.message);
         }
       } else {
+        await setShowPreview(true);
+        let isSamMaskOnly = false;
+        if (!validateApplyMask) return;
+        const masks = await validateApplyMask();
+        if (!masks) {
+          console.log("Using SAM mask only");
+          isSamMaskOnly = true;
+        } else {
+          setBase64ImageAdd(masks.base64ImageAdd);
+          setBase64ImageRemove(masks.base64ImageRemove);
+        }
+        await new Promise((resolve) => setTimeout(resolve, 0));
+
         console.log("Validating - next image");
         let colorPalettePassed = "";
-        const validationResult = handleNextImageValidation();
+        const validationResult = await handleNextImageValidation();
         console.log("validationResult", validationResult);
         if (!validationResult.success) {
           setGenerationErrors(validationResult.formErrors);
@@ -714,7 +792,6 @@ function PromptBar({
           numberOfImages,
           colorPalettePassed,
           selectedImage,
-          samMaskMask,
           styleRef,
           setGenerationErrors,
           setStatusMessage, // checkTaskStatus args
@@ -723,20 +800,26 @@ function PromptBar({
           setIsGenerating,
           setGeneratedImagesPreview,
           setGeneratedImages,
-          setMaskErrors, // previewMask args
-          setPreviewMask,
-          samMaskImage,
+          samMaskImage, // previewMask args
           base64ImageAdd,
           base64ImageRemove,
           selectedSamMask,
+          setMaskErrors,
           refineMaskOption,
-          showPreview,
-          setIsSelectingMask,
-          setIsPreviewingMask,
+          setPreviewMask,
+          setCombinedMask,
+          combinedMask,
           design,
           designVersion,
           user,
-          userDoc
+          userDoc,
+          samMasks,
+          setSamMaskImage,
+          setSamMaskMask,
+          samDrawing,
+          handleClearAllCanvas,
+          setIsSelectingMask,
+          isSamMaskOnly
         );
         if (result.success) {
           await new Promise((resolve) => setTimeout(resolve, 100));
@@ -786,6 +869,7 @@ function PromptBar({
         }
       }
     } catch (error) {
+      console.error("Error generating image", error.message);
       setGenerationErrors((prev) => ({ ...prev, general: "Failed to generate image" }));
     } finally {
       resetStateVariables();

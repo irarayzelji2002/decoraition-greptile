@@ -749,6 +749,8 @@ export const previewMask = async (
     const data = await response.json();
     const { mask, masked_image } = data;
 
+    if (!mask || !masked_image) throw new Error("Failed to combine masks");
+
     const fetchImage = async (url) => {
       const response = await fetch(url);
       if (!response.ok) throw new Error("Image load failed");
@@ -801,7 +803,6 @@ export const generateNextImage = async (
   numberOfImages,
   colorPalette, // string of hex colors sepaarted by ','
   selectedImage,
-  samMaskMask,
   styleReference,
   setGenerationErrors,
   setStatusMessage, // checkTaskStatus args
@@ -810,82 +811,117 @@ export const generateNextImage = async (
   setIsGenerating,
   setGeneratedImagesPreview,
   setGeneratedImages,
-  setErrors, // previewMask args
-  setPreviewMask,
-  samMaskImage,
+  samMaskImage, // previewMask args
   base64ImageAdd,
   base64ImageRemove,
   selectedSamMask,
+  setMaskErrors,
   refineMaskOption,
-  showPreview,
-  setIsSelectingMask,
-  setIsPreviewingMask,
+  setPreviewMask,
+  setCombinedMask,
+  combinedMask,
   design,
   designVersion,
   user,
-  userDoc
+  userDoc,
+  samMasks,
+  setSamMaskImage,
+  setSamMaskMask,
+  samDrawing,
+  handleClearAllCanvas,
+  setIsSelectingMask,
+  isSamMaskOnly
 ) => {
   const initImage = selectedImage.link;
-  const combinedMaskImg = samMaskMask;
   let combinedMaskBW = "";
-  let formErrors = {};
-  let errMessage = "";
+  let combinedMaskData;
 
-  if (combinedMaskImg) {
-    const result = await previewMask(
-      samMaskImage,
-      base64ImageAdd,
-      base64ImageRemove,
-      selectedSamMask,
-      setErrors,
-      refineMaskOption,
-      showPreview,
-      setPreviewMask,
-      setStatusMessage,
-      setIsPreviewingMask
-    );
-    if (result.success) {
-      // Upload Combined masks
-      setStatusMessage("Uploading images of masks");
-      const combinedMaskData = {
-        samMaskImage: result?.data?.mask?.url || "",
-        samMaskMask: result?.data?.masked_image?.url || "",
-      };
-      const resultUpdateCombinedMask = await updateDesignVersionCombinedMask(
-        design.id,
-        designVersion.id, //designVersionId,
-        selectedImage.imageId, //designVersionImageId,
-        combinedMaskData,
-        user,
-        userDoc
+  // Apply Mask
+  if (!isSamMaskOnly) {
+    console.log("Applying Mask - next image");
+    if (!combinedMask) {
+      console.log("applying mask - inside if");
+      const result = await previewMask(
+        samMaskImage,
+        base64ImageAdd,
+        base64ImageRemove,
+        selectedSamMask,
+        setMaskErrors,
+        refineMaskOption,
+        false, // showPreview to not set previewMask
+        setPreviewMask,
+        setStatusMessage,
+        setIsGenerating,
+        setCombinedMask
       );
-      if (!resultUpdateCombinedMask.success) {
-        showToast("error", "Failed to apply mask");
-        return;
+      if (result.success) {
+        // Upload Combined masks
+        setStatusMessage("Uploading images of masks");
+        combinedMaskData = {
+          samMaskImage: result?.data?.mask?.url || "",
+          samMaskMask: result?.data?.masked_image?.url || "",
+        };
+        console.log("combinedMaskData", combinedMaskData);
+      } else {
+        let formErrors = {};
+        formErrors.combinedMask = result.message;
+        setMaskErrors((prev) => ({ ...prev, ...formErrors }));
+        return {
+          success: false,
+          message: result.message,
+          formErrors: result.formErrors,
+        };
       }
-      setStatusMessage("Uploading images of masks complete");
     } else {
-      let formErrors = {};
-      formErrors.combinedMask = result.message;
-      setErrors((prev) => ({ ...prev, ...formErrors }));
-      return {
-        success: false,
-        message: result.message,
-        formErrors: result.formErrors,
+      console.log("applying mask - inside else");
+      setIsGenerating(true);
+      setStatusMessage("Uploading images of masks");
+      combinedMaskData = {
+        samMaskImage: combinedMask?.mask?.url || "",
+        samMaskMask: combinedMask?.masked_image?.url || "",
       };
+      console.log("applying mask - combinedMaskData", combinedMaskData);
     }
-    const { mask, masked_image } = result.data;
-    combinedMaskBW = mask?.url;
+    const resultUpdateCombinedMask = await updateDesignVersionCombinedMask(
+      design?.id,
+      designVersion?.id, //designVersionId,
+      selectedImage?.imageId, //designVersionImageId,
+      combinedMaskData,
+      user,
+      userDoc
+    );
+    if (!resultUpdateCombinedMask.success) {
+      showToast("error", "Failed to apply mask");
+      return;
+    }
+    setStatusMessage("Uploading images of masks complete");
+    const images = resultUpdateCombinedMask?.data || designVersion.images;
+    const imageId = selectedImage?.imageId;
+    const image = images.find((i) => i.imageId === imageId) ?? null;
+    const newSamMaskImage = image?.masks?.combinedMask?.samMaskImage || samMasks?.[0]?.mask || null;
+    const newSamMaskMask =
+      image?.masks?.combinedMask?.samMaskMask ||
+      samMasks?.[0]?.masked ||
+      "/img/transparent-image.png";
+    console.log("applying mask - setSamMaskImage", newSamMaskImage);
+    console.log("applying mask - newSamMaskMask", newSamMaskMask);
+    setSamMaskImage(newSamMaskImage);
+    setSamMaskMask(newSamMaskMask);
+    setCombinedMask(null);
+    setPreviewMask(null);
+    if (samDrawing) samDrawing.setNeedsRedraw(true);
+    if (handleClearAllCanvas) handleClearAllCanvas();
+    combinedMaskBW = newSamMaskImage;
   } else {
-    errMessage = "Generate a mask first with the mask prompt and init image";
-    formErrors.general = errMessage;
-    return {
-      success: false,
-      message: errMessage,
-      formErrors: formErrors,
-    };
+    const image = designVersion?.images.find((i) => i.imageId === imageId) ?? null;
+    const imageId = selectedImage?.imageId;
+    const samMaskImage =
+      image?.masks?.combinedMask?.samMaskImage?.trim() || samMasks?.[0]?.mask?.trim() || null;
+    combinedMaskBW = samMaskImage;
   }
+
   // Create FormData object
+  console.log("Generating - next image");
   const formData = new FormData();
   formData.append("prompt", prompt);
   formData.append("number_of_images", numberOfImages);
@@ -913,8 +949,11 @@ export const generateNextImage = async (
       const error = await generateResponse.json();
       const errMessage = error.error || "Failed to queue task";
       formErrors.general = errMessage;
-      setGenerationErrors(formErrors);
-      throw new Error(errMessage);
+      return {
+        success: false,
+        message: errMessage,
+        formErrors: formErrors,
+      };
     }
     setIsSelectingMask(false);
     const generateData = await generateResponse.json();
@@ -1081,7 +1120,11 @@ export const updateDesignVersionSamMask = async (
       }
     );
     if (response.status === 200) {
-      return { success: true, message: "SAM masks uploaded successfully" };
+      return {
+        success: true,
+        message: "SAM masks uploaded successfully",
+        data: response.data.images || null,
+      };
     }
     return { success: false, message: "Failed to upload SAM masks", status: response.status };
   } catch (error) {
@@ -1107,7 +1150,11 @@ export const updateDesignVersionCombinedMask = async (
       }
     );
     if (response.status === 200) {
-      return { success: true, message: "Combined mask uploaded successfully" };
+      return {
+        success: true,
+        message: "Combined mask uploaded successfully",
+        data: response.data.images || null,
+      };
     }
     return { success: false, message: "Failed to upload combined mask", status: response.status };
   } catch (error) {

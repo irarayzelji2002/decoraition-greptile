@@ -808,16 +808,23 @@ function SelectMaskCanvas({
           return;
         }
         setStatusMessage("Upload masks completed");
-        // final part handled by useEffect
+        const images = resultUpdateSamMasks?.data || designVersionImages;
+        const imageId = selectedImage?.imageId;
+        const image = images.find((i) => i.imageId === imageId) ?? null;
+        const newSamMasks = image?.masks?.samMasks ?? null;
+        setSamMasks(newSamMasks);
+        setSelectedSamMask(newSamMasks?.[0] ?? null);
+        if (samDrawing) samDrawing.useSelectedMask(newSamMasks?.[0] ?? null);
       } else {
         console.log(result.message);
         if (result.message !== "Invalid inputs.") showToast("error", result.message);
-        setIsGeneratingMask(false);
-        setStatusMessage("");
       }
     } catch (error) {
       console.log("Error generating masks: ", error.message);
       showToast("error", "Failed to generate mask");
+      setIsGeneratingMask(false);
+      setStatusMessage("");
+    } finally {
       setIsGeneratingMask(false);
       setStatusMessage("");
     }
@@ -931,10 +938,24 @@ function SelectMaskCanvas({
         return;
       }
       setStatusMessage("Upload complete");
-      // final part handled by useEffect
+      const images = resultUpdateCombinedMask?.data || designVersionImages;
+      const imageId = selectedImage?.imageId;
+      const image = images.find((i) => i.imageId === imageId) ?? null;
+      const newSamMaskImage =
+        image?.masks?.combinedMask?.samMaskImage ?? samMasks?.[0]?.mask ?? null;
+      const newSamMaskMask =
+        image?.masks?.combinedMask?.samMaskMask ??
+        samMasks?.[0]?.masked ??
+        "/img/transparent-image.png";
+      setSamMaskImage(newSamMaskImage);
+      setSamMaskMask(newSamMaskMask);
+      setCombinedMask(null);
+      setPreviewMask(null);
+      if (handleClearAllCanvas) handleClearAllCanvas();
     } catch (error) {
       console.log("Error applying masks: ", error.message);
       showToast("error", "Failed to apply mask");
+    } finally {
       setIsPreviewingMask(false);
       setStatusMessage("");
     }
@@ -971,29 +992,6 @@ function SelectMaskCanvas({
     if (samDrawing) samDrawing.setNeedsRedraw(true);
     console.log("select mask canvas - samMaskImage", samMaskImage);
     console.log("select mask canvas - samMaskMask", samMaskMask);
-
-    // After generating mask
-    if (isGeneratingMask && samMasks) {
-      if (samDrawing) samDrawing.useSelectedMask(samMasks?.[0] ?? null);
-      setIsGeneratingMask(false);
-      setStatusMessage("");
-      setSamMaskModalOpen(true);
-    } else {
-      setIsGeneratingMask(false);
-      setStatusMessage("");
-    }
-
-    // After applying mask
-    if (isPreviewingMask && samMaskImage && samMaskMask) {
-      setCombinedMask(null);
-      setPreviewMask(null);
-      if (handleClearAllCanvas) handleClearAllCanvas();
-      setIsPreviewingMask(false);
-      setStatusMessage("");
-    } else {
-      setIsPreviewingMask(false);
-      setStatusMessage("");
-    }
   }, [designVersion, designVersionImages]);
 
   return (

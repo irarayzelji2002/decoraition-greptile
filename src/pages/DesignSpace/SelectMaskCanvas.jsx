@@ -27,6 +27,7 @@ import {
   ArrowBackIosRounded as ArrowBackIosRoundedIcon,
   ArrowForwardIosRounded as ArrowForwardIosRoundedIcon,
   ColorizeRounded as ColorizeRoundedIcon,
+  Tune,
 } from "@mui/icons-material";
 import {
   ViewIconWhite,
@@ -623,7 +624,7 @@ function SelectMaskCanvas({
   // Update SAM mask when selected mask changes
   useEffect(() => {
     console.log("Selected SAM mask changed:", selectedSamMask);
-    if (samDrawing && selectedSamMask && !isGeneratingMask) {
+    if (samDrawing && selectedSamMask && !isGeneratingMask && samMaskModalOpen) {
       samDrawing.useSelectedMask(selectedSamMask);
     }
   }, [selectedSamMask]);
@@ -717,6 +718,7 @@ function SelectMaskCanvas({
     setBase64ImageRemove(base64ImageRemove);
     // console.log("base64: base64ImageAdd", base64ImageAdd);
     // console.log("base64: base64ImageRemove", base64ImageRemove);
+    return { base64ImageAdd, base64ImageRemove };
   };
 
   // Remove only the specified field error
@@ -836,9 +838,10 @@ function SelectMaskCanvas({
     if (isAddCanvasEmpty && isRemoveCanvasEmpty) {
       console.log("Both canvases are empty");
       setPreviewMask(samMaskMask);
-      return;
+      return null;
     }
-    await getUserMasks();
+    const masks = await getUserMasks();
+    return masks;
   };
 
   const handlePreviewMask = async () => {
@@ -879,9 +882,10 @@ function SelectMaskCanvas({
     if (isAddCanvasEmpty && isRemoveCanvasEmpty) {
       setPreviewMask(null);
       if (handleClearAllCanvas) handleClearAllCanvas();
-      return;
+      return null;
     }
-    await getUserMasks();
+    const masks = await getUserMasks();
+    return masks;
   };
 
   const handleApplyMask = async () => {
@@ -913,8 +917,6 @@ function SelectMaskCanvas({
         } else {
           console.log(result.message);
           if (result.message !== "Invalid inputs.") showToast("error", result.message);
-          setIsPreviewingMask(false);
-          setStatusMessage("");
         }
       } else {
         console.log("applying mask - inside else");
@@ -924,6 +926,7 @@ function SelectMaskCanvas({
           samMaskImage: combinedMask?.mask?.url || "",
           samMaskMask: combinedMask?.masked_image?.url || "",
         };
+        console.log("applying mask - combinedMaskData", combinedMaskData);
       }
       const resultUpdateCombinedMask = await updateDesignVersionCombinedMask(
         design.id,
@@ -947,10 +950,13 @@ function SelectMaskCanvas({
         image?.masks?.combinedMask?.samMaskMask ??
         samMasks?.[0]?.masked ??
         "/img/transparent-image.png";
+      console.log("applying mask - setSamMaskImage", newSamMaskImage);
+      console.log("applying mask - newSamMaskMask", newSamMaskMask);
       setSamMaskImage(newSamMaskImage);
       setSamMaskMask(newSamMaskMask);
       setCombinedMask(null);
       setPreviewMask(null);
+      if (samDrawing) samDrawing.setNeedsRedraw(true);
       if (handleClearAllCanvas) handleClearAllCanvas();
     } catch (error) {
       console.log("Error applying masks: ", error.message);
@@ -962,6 +968,8 @@ function SelectMaskCanvas({
   };
 
   useEffect(() => {
+    // Do not update if generating, previewing, or applying becaus eit's already handled and avoid overriding
+    if (isPreviewingMask || isGeneratingMask) return;
     console.log("select mask canvas - designVersion", designVersion);
     console.log("select mask canvas - designVersionImages", designVersionImages);
     console.log("select mask canvas - selectedImage", selectedImage);
@@ -993,6 +1001,18 @@ function SelectMaskCanvas({
     console.log("select mask canvas - samMaskImage", samMaskImage);
     console.log("select mask canvas - samMaskMask", samMaskMask);
   }, [designVersion, designVersionImages]);
+
+  useEffect(() => {
+    if (showPreview && previewMask && samDrawing) {
+      samDrawing.setNeedsRedraw(true);
+    }
+  }, [showPreview, previewMask]);
+
+  // useEffect(() => {
+  //   if (showPreview && samMaskMask && samMaskImage) {
+  //     samDrawing.setNeedsRedraw(true);
+  //   }
+  // }, [samMaskMask]);
 
   return (
     <Box sx={canvasStyles.canvasContainer} ref={containerRef}>
@@ -1552,10 +1572,10 @@ function SelectMaskCanvas({
               </Typography>
               <Button
                 variant="contained"
-                onClick={() => {
+                onClick={async () => {
                   setShowPreview(true);
-                  validatePreviewMask();
-                  handlePreviewMask();
+                  const masks = await validatePreviewMask();
+                  if (masks) await handlePreviewMask();
                 }}
                 sx={{
                   ...gradientButtonStyles,
@@ -1623,10 +1643,10 @@ function SelectMaskCanvas({
                 </Typography>
                 <Button
                   variant="contained"
-                  onClick={() => {
+                  onClick={async () => {
                     setShowPreview(true);
-                    validateApplyMask();
-                    handleApplyMask();
+                    const masks = await validateApplyMask();
+                    if (masks) await handleApplyMask();
                   }}
                   sx={{
                     ...gradientButtonStyles,

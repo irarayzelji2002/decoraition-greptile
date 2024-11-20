@@ -715,8 +715,8 @@ function SelectMaskCanvas({
     setBase64ImageAdd(base64ImageAdd);
     const base64ImageRemove = await removeDrawing.userMaskBase64BAW();
     setBase64ImageRemove(base64ImageRemove);
-    console.log("base64: base64ImageAdd", base64ImageAdd);
-    console.log("base64: base64ImageRemove", base64ImageRemove);
+    // console.log("base64: base64ImageAdd", base64ImageAdd);
+    // console.log("base64: base64ImageRemove", base64ImageRemove);
   };
 
   // Remove only the specified field error
@@ -823,7 +823,7 @@ function SelectMaskCanvas({
     }
   };
 
-  const handlePreviewMask = async () => {
+  const validatePreviewMask = async () => {
     const isAddCanvasEmpty = addDrawing.isCanvasEmpty();
     const isRemoveCanvasEmpty = removeDrawing.isCanvasEmpty();
     if (isAddCanvasEmpty && isRemoveCanvasEmpty) {
@@ -831,9 +831,12 @@ function SelectMaskCanvas({
       setPreviewMask(samMaskMask);
       return;
     }
+    await getUserMasks();
+  };
+
+  const handlePreviewMask = async () => {
     try {
       console.log("combining masks");
-      await getUserMasks();
       console.log(`sam mask path: ${samMaskImage ? "true" : "false"}`);
       console.log(`user mask add: ${base64ImageAdd ? "true" : "false"}`);
       console.log(`user mask remove: ${base64ImageRemove ? "true" : "false"}`);
@@ -863,7 +866,7 @@ function SelectMaskCanvas({
     }
   };
 
-  const handleApplyMask = async () => {
+  const validateApplyMask = async () => {
     const isAddCanvasEmpty = addDrawing.isCanvasEmpty();
     const isRemoveCanvasEmpty = removeDrawing.isCanvasEmpty();
     if (isAddCanvasEmpty && isRemoveCanvasEmpty) {
@@ -871,6 +874,10 @@ function SelectMaskCanvas({
       if (handleClearAllCanvas) handleClearAllCanvas();
       return;
     }
+    await getUserMasks();
+  };
+
+  const handleApplyMask = async () => {
     try {
       let combinedMaskData;
       if (!combinedMask) {
@@ -1549,6 +1556,7 @@ function SelectMaskCanvas({
                 variant="contained"
                 onClick={() => {
                   setShowPreview(true);
+                  validatePreviewMask();
                   handlePreviewMask();
                 }}
                 sx={{
@@ -1617,7 +1625,11 @@ function SelectMaskCanvas({
                 </Typography>
                 <Button
                   variant="contained"
-                  onClick={handleApplyMask}
+                  onClick={() => {
+                    setShowPreview(true);
+                    validateApplyMask();
+                    handleApplyMask();
+                  }}
                   sx={{
                     ...gradientButtonStyles,
                     width: "125px",

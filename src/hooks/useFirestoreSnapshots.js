@@ -13,6 +13,7 @@ import {
   where,
   documentId,
 } from "firebase/firestore";
+import { createDefaultBudget } from "../pages/DesignSpace/backend/DesignActions";
 
 const firebaseConfig = {
   apiKey: process.env.REACT_APP_FIREBASE_API_KEY,
@@ -569,31 +570,45 @@ const fetchUserProjectBudgets = async (projectsSnapshot) => {
 
 //get all user-related budgets from the budgets array field of userProjectBudgets's documents AND also from the budgetId field of userDesignVersion's documents in the budgets collection
 const fetchUserBudgets = async (projectBudgetsSnapshot, designVersionsSnapshot) => {
-  let budgetIdsFromProjects = [];
-  let budgetIdsFromDesigns = [];
-  if (projectBudgetsSnapshot && !projectBudgetsSnapshot.empty) {
-    budgetIdsFromProjects =
-      projectBudgetsSnapshot?.docs.flatMap((doc) => doc.data().budgets || []) || [];
+  try {
+    // Collect budget IDs from projects & design versions & combine
+    let budgetIdsFromProjects = [];
+    if (projectBudgetsSnapshot && !projectBudgetsSnapshot.empty) {
+      budgetIdsFromProjects = projectBudgetsSnapshot?.docs.flatMap(
+        (doc) => doc.data().budgets || []
+      );
+    }
+    let budgetIdsFromDesigns = [];
+    if (designVersionsSnapshot && !designVersionsSnapshot.empty) {
+      budgetIdsFromDesigns = designVersionsSnapshot?.docs
+        .map((doc) => doc.data().budgetId)
+        .filter(Boolean);
+    }
+    const allBudgetIds = [...new Set([...budgetIdsFromProjects, ...budgetIdsFromDesigns])];
+
+    // If no budgets exist, return empty result
+    if (allBudgetIds.length === 0) {
+      return { snapshot: null, data: [] };
+    }
+
+    // Fetch existing budgets
+    const batches = batchIntoChunks(allBudgetIds);
+    const budgetsSnapshots = await Promise.all(
+      batches.map((batch) =>
+        getDocs(query(collection(db, "budgets"), where(documentId(), "in", batch)))
+      )
+    );
+    const data = budgetsSnapshots.flatMap((snapshot) =>
+      snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
+    );
+    return {
+      snapshot: combineSnapshots(budgetsSnapshots),
+      data,
+    };
+  } catch (error) {
+    console.error("Error in fetchUserBudgets:", error);
+    throw error;
   }
-  if (designVersionsSnapshot && !designVersionsSnapshot.empty) {
-    budgetIdsFromDesigns =
-      designVersionsSnapshot?.docs.map((doc) => doc.data().budgetId).filter(Boolean) || [];
-  }
-  const allBudgetIds = [...new Set([...budgetIdsFromProjects, ...budgetIdsFromDesigns])];
-  if (allBudgetIds.length === 0) {
-    return { snapshot: null, data: [] };
-  }
-  const batches = batchIntoChunks(allBudgetIds);
-  const budgetsSnapshots = await Promise.all(
-    batches.map((batch) =>
-      getDocs(query(collection(db, "budgets"), where(documentId(), "in", batch)))
-    )
-  );
-  const data = budgetsSnapshots.flatMap((snapshot) =>
-    snapshot.docs.map((doc) => ({ id: doc.id, ...doc.data() }))
-  );
-  const snapshot = combineSnapshots(budgetsSnapshots);
-  return { snapshot, data };
 };
 
 //get all user-related items from the items array field of userBudgets's documents in the items collection

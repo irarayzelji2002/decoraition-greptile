@@ -11,6 +11,7 @@ import SearchIcon from "@mui/icons-material/Search";
 import NoImage from "./svg/NoImage";
 import { showToast } from "../../functions/utils";
 import { useSharedProps } from "../../contexts/SharedPropsContext";
+import { textFieldInputProps, textFieldStyles } from "./DesignSettings";
 
 const AddItem = () => {
   const { budgetId } = useParams();
@@ -218,26 +219,12 @@ const AddItem = () => {
               ),
             }}
             sx={{
+              ...textFieldStyles,
               width: "100%",
               marginBottom: "20px",
-
-              "& .MuiOutlinedInput-root": {
-                "& fieldset": {
-                  border: "var(--borderInput) 2px solid",
-                  borderRadius: "20px",
-                },
-                "&:hover fieldset": {
-                  border: "var(--borderInput) 2px solid",
-                },
-                "&.Mui-focused fieldset": {
-                  border: "var(--borderInputBrighter) 2px solid",
-                },
-                "& input": {
-                  color: "var(--color-white)", // Change the text color
-                },
-              },
             }}
             fullWidth
+            inputProps={textFieldInputProps}
           />
 
           <div className="upload-section">

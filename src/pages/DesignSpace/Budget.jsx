@@ -17,7 +17,7 @@ import { Divider } from "@mui/material";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
 import "../../css/budget.css";
 import { AddBudget, AddItem, BlankImage } from "./svg/AddImage";
-import { getDesignImage, handleNameChange } from "./backend/DesignActions";
+import { getDesignImage, handleNameChange, createDefaultBudget } from "./backend/DesignActions";
 import LoadingPage from "../../components/LoadingPage";
 
 const style = {
@@ -65,7 +65,7 @@ function Budget() {
   const [isEditingBudget, setIsEditingBudget] = useState(false);
   const [totalCost, setTotalCost] = useState(0);
   const [formattedTotalCost, setFormattedTotalCost] = useState("0.00");
-  const [exceededBudget, setExceededBudget] = useState(0);
+  const [exceededBudget, setExceededBudget] = useState(false);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -181,22 +181,47 @@ function Budget() {
 
   // Get budget and items
   useEffect(() => {
-    const fetchedBudget =
-      userBudgets.find((budget) => budget?.designVersionId === designVersion.id) ||
-      budgets.find((budget) => budget?.designVersionId === designVersion.id);
-    setBudget(fetchedBudget || {});
+    const fetchBudgetData = async () => {
+      try {
+        if (!designVersion?.id) {
+          console.error("No design version available");
+          setError("Unable to load budget: No design version found");
+          return;
+        }
 
-    const fetchedItems =
-      fetchedBudget && fetchedBudget.items
-        ? userItems.filter((item) => fetchedBudget.items?.includes(item.id)) ||
-          items.filter((item) => fetchedBudget.items?.includes(item.id))
-        : [];
-    setDesignItems(fetchedItems);
+        const fetchedBudget =
+          userBudgets.find((budget) => budget?.designVersionId === designVersion.id) ||
+          budgets.find((budget) => budget?.designVersionId === designVersion.id);
+        setBudget(fetchedBudget || {});
 
-    if (fetchedBudget && fetchedItems.length > 0) {
-      computeTotalCostAndExceededBudget(fetchedItems, fetchedBudget.budget?.amount);
-    }
-    setLoading(false);
+        if (!fetchedBudget) {
+          console.error(`No budget found for design version ${designVersion.id}`);
+          // Create new budget if none exists
+          const newBudget = await createDefaultBudget(designVersion.id);
+          setBudget(newBudget);
+        } else {
+          setBudget(fetchedBudget);
+        }
+
+        const fetchedItems =
+          fetchedBudget && fetchedBudget.items
+            ? userItems.filter((item) => fetchedBudget.items?.includes(item.id)) ||
+              items.filter((item) => fetchedBudget.items?.includes(item.id))
+            : [];
+        setDesignItems(fetchedItems);
+
+        if (fetchedBudget && fetchedItems.length > 0) {
+          computeTotalCostAndExceededBudget(fetchedItems, fetchedBudget.budget?.amount);
+        }
+      } catch (err) {
+        console.error("Error fetching budget:", err);
+        setError("Failed to load budget data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchBudgetData();
   }, [designVersion, budgets, userBudgets, items, userItems]);
 
   const updateItems = () => {

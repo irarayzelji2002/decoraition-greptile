@@ -19,10 +19,7 @@ import {
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DesignSpace from "./DesignSpace";
 import {
-  Divider,
   TextField,
-  Box,
-  Modal,
   Dialog,
   DialogTitle,
   DialogContent,
@@ -39,13 +36,13 @@ import LoadingPage from "../../components/LoadingPage";
 import { iconButtonStyles } from "../Homepage/DrawerComponent";
 import { gradientButtonStyles, outlinedButtonStyles } from "./PromptBar";
 import CurrencySelect from "../../components/CurrencySelect";
-import { textFieldStyles } from "./DesignSettings";
 import {
   dialogActionsStyles,
   dialogContentStyles,
   dialogStyles,
   dialogTitleStyles,
 } from "../../components/RenameModal";
+import { textFieldInputProps } from "./DesignSettings";
 
 const style = {
   position: "absolute",
@@ -338,6 +335,7 @@ function Budget() {
   }, [budget]);
 
   useEffect(() => {
+    console.log("designItems updated - ", designItems);
     if (budgetAmount && designItems.length > 0) {
       computeTotalCostAndExceededBudget(designItems, budgetAmount);
     }
@@ -474,7 +472,7 @@ function Budget() {
                   <>
                     No cost, Budget:{" "}
                     <strong>
-                      {budgetCurrency} {formatNumber(budgetAmount)}
+                      {budgetCurrency?.currencyCode} {formatNumber(budgetAmount)}
                     </strong>
                   </>
                 );
@@ -489,7 +487,7 @@ function Budget() {
                   <>
                     Total Cost: <strong>{formattedTotalCost}</strong>, Budget:{" "}
                     <strong>
-                      {budgetCurrency} {formatNumber(budgetAmount)}
+                      {budgetCurrency?.currencyCode} {formatNumber(budgetAmount)}
                     </strong>
                   </>
                 );
@@ -520,7 +518,7 @@ function Budget() {
           </div>
         </div>
         <div className="cutoff">
-          <div className="budgetSpaceImg">
+          <div className="budgetSpaceImg pic">
             <div
               style={{
                 display: "flex",
@@ -561,7 +559,7 @@ function Budget() {
             </div>
           </div>
           <div
-            className="budgetSpaceImg"
+            className="budgetSpaceImg items"
             style={{ alignItems: designItems.length === 0 ? "center" : "start" }}
           >
             {designItems.length > 0 ? (
@@ -708,7 +706,7 @@ function Budget() {
             </DialogTitle>
             <div style={{ wrap: "nowrap" }}>
               <div style={{ display: "flex", flexDirection: "column" }}>
-                <div className="input-group" style={{ marginTop: "12px", margin: "18px" }}>
+                <div className="input-group budget" style={{ marginTop: "12px", margin: "18px" }}>
                   <div style={{ flexWrap: "nowrap", display: "flex" }}>
                     <CurrencySelect
                       selectedCurrency={budgetCurrencyForInput}
@@ -732,6 +730,7 @@ function Budget() {
                         }
                       }}
                       sx={priceTextFieldStyles}
+                      inputProps={{ ...textFieldInputProps, maxLength: 22 }}
                     />
                   </div>
                 </div>
@@ -747,7 +746,14 @@ function Budget() {
                 fullWidth
                 variant="contained"
                 onClick={() => handleUpdateBudget(budgetAmountForInput, budgetCurrencyForInput)}
-                sx={gradientButtonStyles}
+                sx={{
+                  ...gradientButtonStyles,
+                  opacity: isBudgetButtonDisabled ? "0.5" : "1",
+                  cursor: isBudgetButtonDisabled ? "default" : "pointer",
+                  "&:hover": {
+                    backgroundImage: !isBudgetButtonDisabled && "var(--gradientButton)",
+                  },
+                }}
                 disabled={isBudgetButtonDisabled}
               >
                 {isEditingBudget ? "Edit budget" : "Add Budget"}
@@ -771,66 +777,76 @@ function Budget() {
           </Dialog>
         )}
         {isRemoveBudgetModalOpen && (
-          <Modal
+          <Dialog
             open={isRemoveBudgetModalOpen}
             onClose={() => setIsRemoveBudgetModalOpen(false)}
             aria-labelledby="modal-modal-title"
             aria-describedby="modal-modal-description"
+            sx={dialogStyles}
           >
-            <Box sx={style}>
-              <div style={{ display: "flex", flexDirection: "column" }}>
-                <div style={{ display: "flex", marginBottom: "12px", margin: "18px" }}>
-                  <span id="modal-modal-title" style={{ fontSize: "18px", fontWeight: "600" }}>
-                    Confirm budget removal
-                  </span>
-                  <CloseRoundedIcon
-                    sx={{ marginLeft: "auto" }}
-                    onClick={() => setIsRemoveBudgetModalOpen(false)}
-                    cursor={"pointer"}
-                  />
-                </div>
-                <Divider sx={{ borderColor: "var(--color-grey)" }} />
-                <span style={{ textAlign: "center", margin: "18px" }}>
-                  Are you sure you want to remove the budget?
-                </span>
-                <div
-                  style={{
-                    display: "flex",
-                    gap: "12px",
-                    margin: "18px",
-                    marginTop: "-24px",
-                    justifyContent: "center",
-                  }}
-                >
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() => handleRemoveBudget(budgetCurrency)}
-                    sx={gradientButtonStyles}
-                    disabled={isConfirmRemoveBudgetBtnDisabled}
-                  >
-                    Yes
-                  </Button>
-                  <Button
-                    fullWidth
-                    variant="contained"
-                    onClick={() => setIsRemoveBudgetModalOpen(false)}
-                    sx={outlinedButtonStyles}
-                    onMouseOver={(e) =>
-                      (e.target.style.backgroundImage =
-                        "var(--lightGradient), var(--gradientButtonHover)")
-                    }
-                    onMouseOut={(e) =>
-                      (e.target.style.backgroundImage =
-                        "var(--lightGradient), var(--gradientButton)")
-                    }
-                  >
-                    No
-                  </Button>
-                </div>
-              </div>
-            </Box>
-          </Modal>
+            <DialogTitle sx={dialogTitleStyles}>
+              <Typography
+                variant="body1"
+                sx={{
+                  fontWeight: "bold",
+                  fontSize: "1.15rem",
+                  flexGrow: 1,
+                  maxWidth: "80%",
+                  whiteSpace: "normal",
+                }}
+              >
+                Confirm budget removal
+              </Typography>
+              <IconButton
+                onClick={() => setIsRemoveBudgetModalOpen(false)}
+                sx={{
+                  ...iconButtonStyles,
+                  flexShrink: 0,
+                  marginLeft: "auto",
+                }}
+              >
+                <CloseRoundedIcon />
+              </IconButton>
+            </DialogTitle>
+            <DialogContent sx={{ ...dialogContentStyles, marginTop: "0 !important" }}>
+              <span style={{ textAlign: "center", margin: "18px" }}>
+                Are you sure you want to remove the budget?
+              </span>
+            </DialogContent>
+            <DialogActions sx={{ ...dialogActionsStyles, marginTop: "0 !important" }}>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => handleRemoveBudget(budgetCurrency)}
+                sx={{
+                  ...gradientButtonStyles,
+                  opacity: isConfirmRemoveBudgetBtnDisabled ? "0.5" : "1",
+                  cursor: isConfirmRemoveBudgetBtnDisabled ? "default" : "pointer",
+                  "&:hover": {
+                    backgroundImage: !isConfirmRemoveBudgetBtnDisabled && "var(--gradientButton)",
+                  },
+                }}
+                disabled={isConfirmRemoveBudgetBtnDisabled}
+              >
+                Yes
+              </Button>
+              <Button
+                fullWidth
+                variant="contained"
+                onClick={() => setIsRemoveBudgetModalOpen(false)}
+                sx={outlinedButtonStyles}
+                onMouseOver={(e) =>
+                  (e.target.style.backgroundImage =
+                    "var(--lightGradient), var(--gradientButtonHover)")
+                }
+                onMouseOut={(e) =>
+                  (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButton)")
+                }
+              >
+                No
+              </Button>
+            </DialogActions>
+          </Dialog>
         )}
       </DesignSpace>
     </div>

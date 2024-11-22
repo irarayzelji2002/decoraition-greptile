@@ -4,7 +4,6 @@ import { IconButton, Menu, TextField } from "@mui/material";
 import MenuIcon from "@mui/icons-material/Menu";
 import { CommentIcon, ShareIcon } from "./svg/DefaultMenuIcons";
 import MoreVertIcon from "@mui/icons-material/MoreVert";
-import { signOut } from "firebase/auth";
 import ChangeModeMenu from "./ChangeModeMenu.jsx";
 import CopyLinkModal from "./CopyLinkModal.jsx";
 import DefaultMenu from "./DefaultMenu.jsx";
@@ -19,10 +18,8 @@ import ShareMenu from "./ShareMenu.jsx";
 import MakeCopyModal from "./MakeCopyModal.jsx";
 import ShareConfirmationModal from "./ShareConfirmationModal.jsx";
 import "../css/design.css";
-import { auth } from "../firebase.js";
 import DrawerComponent from "../pages/Homepage/DrawerComponent.jsx";
 import Version from "../pages/DesignSpace/Version.jsx";
-import { toast } from "react-toastify";
 import { showToast } from "../functions/utils.js";
 import {
   handleNameChange,
@@ -284,6 +281,7 @@ function DesignHead({
     handleEditNameToggle();
   };
 
+  // Rename Navbar Action
   const handleBlur = async () => {
     // Save the name when the user clicks away from the input field
     if (!isEditingName) {
@@ -299,7 +297,7 @@ function DesignHead({
     else showToast("success", result.message);
   };
 
-  // Download Modal Action
+  // Add Collaborators Modal Action
   const handleShare = async (design, emails, role, message, notifyPeople = false) => {
     if (emails.length === 0) {
       return { success: false, message: "No email addresses added" };
@@ -329,6 +327,7 @@ function DesignHead({
     }
   };
 
+  // Manage Access Modal Action
   const handleAccessChange = async (design, initEmailsWithRole, emailsWithRole) => {
     // Filter emails with role changes and create synchronized lists
     const changedEmailsWithRole = emailsWithRole.filter((email) => {
@@ -440,11 +439,7 @@ function DesignHead({
     }
   };
 
-  const toggleDarkMode = () => {
-    setDarkMode(!darkMode);
-    document.body.classList.toggle("dark-mode", !darkMode);
-  };
-
+  // Navigate to settings
   const handleSettings = () => {
     navigate(`/settings/design/${design.id}`, {
       state: { navigateFrom: navigateFrom },
@@ -453,13 +448,7 @@ function DesignHead({
 
   return (
     <div className={`designHead stickyMenu`}>
-      <DrawerComponent
-        isDrawerOpen={isDrawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        toggleDarkMode={toggleDarkMode}
-        handleLogout={handleLogout}
-        darkMode={darkMode}
-      />
+      <DrawerComponent isDrawerOpen={isDrawerOpen} onClose={() => setDrawerOpen(false)} />
       <Version
         isDrawerOpen={isHistoryOpen}
         onClose={handleHistoryClose}
@@ -490,46 +479,54 @@ function DesignHead({
         </IconButton>
         <div className="design-name-section">
           {isEditingName ? (
-            <TextField
-              placeholder="Design Name"
-              value={newName}
-              onChange={(e) => setNewName(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  e.target.blur();
-                }
-              }}
-              autoFocus
-              onBlur={handleBlur}
-              variant="outlined"
-              className="headTitleInput headTitle"
-              fullWidth
-              sx={{
-                backgroundColor: "transparent",
-                input: { color: "var(--color-white)" },
-                padding: "0px",
-                marginTop: "3px",
-                "& .MuiOutlinedInput-root": {
-                  fontSize: "1.5rem",
-                  fontWeight: "bold",
-                  padding: "8px 15px",
-                  borderRadius: "8px",
-                  "& fieldset": {
-                    borderColor: "var( --borderInput)",
+            <>
+              <TextField
+                placeholder="Design Name"
+                value={newName}
+                onChange={(e) => setNewName(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    e.target.blur();
+                  }
+                }}
+                autoFocus
+                onBlur={handleBlur}
+                variant="outlined"
+                className="headTitleInput headTitle"
+                fullWidth
+                inputProps={{ maxLength: 100 }}
+                sx={{
+                  backgroundColor: "transparent",
+                  input: { color: "var(--color-white)" },
+                  padding: "0px",
+                  marginTop: "3px",
+                  "& .MuiOutlinedInput-root": {
+                    fontSize: "1.5rem",
+                    fontWeight: "bold",
+                    padding: "8px 15px",
+                    borderRadius: "8px",
+                    "& fieldset": {
+                      borderColor: "var( --borderInput)",
+                    },
+                    "&:hover fieldset": {
+                      borderColor: "var( --borderInput)",
+                    },
+                    "&.Mui-focused fieldset": {
+                      borderColor: "var(--borderInputBrighter)",
+                    },
+                    "& input": {
+                      padding: 0,
+                    },
                   },
-                  "&:hover fieldset": {
-                    borderColor: "var( --borderInput)",
-                  },
-                  "&.Mui-focused fieldset": {
-                    borderColor: "var(--borderInputBrighter)",
-                  },
-                  "& input": {
-                    padding: 0,
-                  },
-                },
-              }}
-            />
+                }}
+              />
+              {newName.length >= 100 && (
+                <div style={{ color: "var( --errorText)", fontSize: "0.8rem" }}>
+                  Character limit reached!
+                </div>
+              )}
+            </>
           ) : (
             <span onClick={handleInputClick} className="headTitleInput" style={{ height: "20px" }}>
               {design?.designName ?? "Untitled Design"}

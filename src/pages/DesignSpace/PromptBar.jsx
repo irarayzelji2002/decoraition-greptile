@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import "../../css/design.css";
 import {
   FormControl,
@@ -31,6 +32,8 @@ import { AddImage, DeselectMask, SelectMask, SaveIcon } from "./svg/AddImage";
 import AddColor from "./svg/AddColor";
 import NoImage from "./svg/NoImage";
 import CreatePallete from "./CreatePallete";
+import ConfirmDeselectMaskModal from "./ConfirmDeselectMaskModal";
+import NavigationConfirmationDialog from "../../components/NavigationConfirmDialog";
 import { extendTheme, CssVarsProvider } from "@mui/joy/styles";
 import { useSharedProps } from "../../contexts/SharedPropsContext";
 import { togglePromptBar, toggleComments } from "./backend/DesignActions";
@@ -53,6 +56,7 @@ import {
   createDesignVersion,
 } from "./backend/DesignActions";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus";
+import { usePreventNavigation } from "../../hooks/usePreventNavigation";
 import { checkValidServiceWorker } from "../../serviceWorkerRegistration";
 import { AutoTokenizer } from "https://cdn.jsdelivr.net/npm/@xenova/transformers@2.5.0";
 
@@ -80,6 +84,7 @@ function PromptBar({
   prevHeight,
   setPrevHeight,
   selectedImage,
+  setSelectedImage,
   isNextGeneration,
   isSelectingMask,
   setIsSelectingMask,
@@ -126,6 +131,7 @@ function PromptBar({
   designVersion,
   samMasks,
   validateApplyMask,
+  isGenerating,
 }) {
   const { user, userDoc, designs, userDesigns } = useSharedProps();
   const isOnline = useNetworkStatus();
@@ -136,7 +142,10 @@ function PromptBar({
   const [isEditingPalette, setIsEditingPalette] = useState(false);
   const [userColorPalettes, setUserColorPalettes] = useState([]);
 
+  const [confirmDeselectMaskOpen, setConfirmDeselectMaskOpen] = useState(false);
+
   const [disabled, setDisabled] = useState(true);
+  const [isGenerateImgBtbDisabled, setIsGenerateImgBtbDisabled] = useState(false);
 
   const [dragging, setDragging] = useState(false);
   const [baseImageModalOpen, setBaseImageModalOpen] = useState(false);
@@ -156,6 +165,28 @@ function PromptBar({
 
   const [isSmallWidth, setIsSmallWidth] = useState(false);
   const [isLess600, setIsLess600] = useState(false);
+
+  const navigate = useNavigate();
+  const [showNavDialog, setShowNavDialog] = useState(false);
+
+  useEffect(() => {
+    // Clear any leftover history state when arriving at homepage
+    window.history.replaceState(null, "", window.location.pathname);
+  }, []);
+
+  usePreventNavigation(isGenerateImgBtbDisabled && isGenerating, setShowNavDialog);
+
+  const handleNavigationConfirm = () => {
+    setIsGenerateImgBtbDisabled(false);
+    resetStateVariables();
+    setGenerationErrors({});
+    setShowNavDialog(false);
+    navigate(-1);
+  };
+
+  const handleNavigationCancel = () => {
+    setShowNavDialog(false);
+  };
 
   const customWordList = new Set([
     ...Object.values(naughtyWords).flat(),
@@ -288,7 +319,7 @@ function PromptBar({
   const handleImageValidation = (file) => {
     let message = "";
     const acceptedTypes = ["image/png", "image/jpeg", "image/jpg"];
-    if (!acceptedTypes.includes(file.type)) {
+    if (!acceptedTypes?.includes(file.type)) {
       message = "Please upload an image file of png, jpg, or jpeg type";
       showToast("error", message);
     } else {
@@ -343,7 +374,7 @@ function PromptBar({
   }, [userDoc]);
 
   const [height, setHeight] = useState("100%");
-  const [applyMinHeight, setApplyMinHeight] = useState(true);
+  const [applyMinHeight, setApplyMinHeight] = useState(false);
   const resizeFactor = 2;
   const resizeHandleRef = useRef(null);
   const resizeHandleHeightRef = useRef(null);
@@ -494,10 +525,11 @@ function PromptBar({
 
   // Check height on component mount and on numImageFrames change
   useEffect(() => {
+    console.log(numImageFrames);
     const checkWorkingAreaHeight = () => {
       if (workingAreaRef.current) {
         const workingAreaHeight = workingAreaRef.current.offsetHeight;
-        if (workingAreaHeight + 154 > window.innerHeight) {
+        if (workingAreaHeight + 154 > window.innerHeight || numImageFrames === 2) {
           setApplyMinHeight(false);
         } else {
           setApplyMinHeight(true);
@@ -528,6 +560,10 @@ function PromptBar({
 
   // Open/closing select area to edit
   const toggleSelectAreaToEdit = () => {
+    if (isSelectingMask && combinedMask) {
+      setConfirmDeselectMaskOpen(true);
+      return;
+    }
     setIsSelectingMask(!isSelectingMask);
     setPrevWidth(width);
     setPrevHeight(height);
@@ -537,6 +573,15 @@ function PromptBar({
     } else {
       setShowPromptBar(true);
     }
+  };
+
+  const handleConfirmDeselectMask = () => {
+    setCombinedMask(null);
+    setIsSelectingMask(false);
+    setPrevWidth(width);
+    setPrevHeight(height);
+    setShowPromptBar(true);
+    setConfirmDeselectMaskOpen(false);
   };
 
   const handleFirstImageValidation = async () => {
@@ -558,7 +603,7 @@ function PromptBar({
       const validExtensions = ["jpg", "jpeg", "png"];
       const fileExtension = baseImage.name.split(".").pop().toLowerCase();
 
-      if (!validExtensions.includes(fileExtension)) {
+      if (!validExtensions?.includes(fileExtension)) {
         formErrors.baseImage = "Invalid file type. Please upload a JPG or PNG image.";
       }
     }
@@ -566,7 +611,7 @@ function PromptBar({
       const validExtensions = ["jpg", "jpeg", "png"];
       const fileExtension = styleRef.name.split(".").pop().toLowerCase();
 
-      if (!validExtensions.includes(fileExtension)) {
+      if (!validExtensions?.includes(fileExtension)) {
         formErrors.styleReference = "Invalid file type. Please upload a JPG or PNG image.";
       }
     }
@@ -604,7 +649,6 @@ function PromptBar({
     if (!selectedSamMask) {
       if (!initImage && !maskPrompt) {
         formErrors.general = "Generate a mask first with mask prompt and your selected image";
-        toggleSelectAreaToEdit();
         return {
           success: false,
           message: "Invalid inputs.",
@@ -614,7 +658,6 @@ function PromptBar({
         if (!maskPrompt) {
           errMessage = "Mask prompt is required to generate a mask";
           formErrors.maskPrompt = errMessage;
-          toggleSelectAreaToEdit();
         }
         if (!initImage) {
           errMessage = "Select an image first to generate a mask";
@@ -660,7 +703,7 @@ function PromptBar({
       const validExtensions = ["jpg", "jpeg", "png"];
       const fileExtension = styleRef.name.split(".").pop().toLowerCase();
 
-      if (!validExtensions.includes(fileExtension)) {
+      if (!validExtensions?.includes(fileExtension)) {
         formErrors.styleReference = "Invalid file type. Please upload a JPG or PNG image.";
       }
     }
@@ -691,6 +734,7 @@ function PromptBar({
 
   const handleGeneration = async () => {
     try {
+      setIsGenerateImgBtbDisabled(true);
       if (!isNextGeneration) {
         console.log("Validating - first image");
         let colorPalettePassed = "";
@@ -753,6 +797,7 @@ function PromptBar({
             setStatusMessage("Upload complete");
             showToast("success", designVersionResult.message);
             clearAllFields();
+            setGenerationErrors({});
           } else {
             console.error("create design ver - error: ", designVersionResult.message);
             console.error("create design ver - error status: ", designVersionResult.status);
@@ -857,6 +902,7 @@ function PromptBar({
             setStatusMessage("Upload complete");
             showToast("success", designVersionResult.message);
             clearAllFields();
+            setGenerationErrors({});
           } else {
             console.error("create design ver - error: ", designVersionResult.message);
             console.error("create design ver - error status: ", designVersionResult.status);
@@ -873,8 +919,13 @@ function PromptBar({
       setGenerationErrors((prev) => ({ ...prev, general: "Failed to generate image" }));
     } finally {
       resetStateVariables();
+      setIsGenerateImgBtbDisabled(false);
     }
   };
+
+  useEffect(() => {
+    console.log("generation errors:", generationErrors);
+  }, [generationErrors]);
 
   const resetStateVariables = () => {
     setStatusMessage("");
@@ -902,7 +953,7 @@ function PromptBar({
       setBase64ImageAdd(null);
       setBase64ImageRemove(null);
       setCombinedMask(null);
-      selectedImage(null);
+      setSelectedImage(null);
       setSamMasks([]);
       setSamMaskMask(null);
       setSamMaskImage(null);
@@ -971,7 +1022,7 @@ function PromptBar({
             </IconButton>
           )}
           <div
-            style={{ minHeight: applyMinHeight ? "calc(100% - 129.2px)" : "655.8px" }}
+            style={{ minHeight: applyMinHeight ? "calc(100% - 129.2px)" : "662.8px" }}
             className="transitionMinHeight"
           >
             <h3>
@@ -1460,7 +1511,11 @@ function PromptBar({
               fullWidth
               variant="contained"
               disabled={
-                disabled || !isOnline || showComments || (isNextGeneration && !isSelectingMask)
+                disabled ||
+                !isOnline ||
+                showComments ||
+                (isNextGeneration && !isSelectingMask) ||
+                isGenerateImgBtbDisabled
               }
               sx={{
                 color: "white",
@@ -1471,11 +1526,19 @@ function PromptBar({
                 textTransform: "none",
                 fontWeight: "bold",
                 opacity:
-                  disabled || !isOnline || showComments || (isNextGeneration && !isSelectingMask)
+                  disabled ||
+                  !isOnline ||
+                  showComments ||
+                  (isNextGeneration && !isSelectingMask) ||
+                  isGenerateImgBtbDisabled
                     ? "0.5"
                     : "1",
                 cursor:
-                  disabled || !isOnline || showComments || (isNextGeneration && !isSelectingMask)
+                  disabled ||
+                  !isOnline ||
+                  showComments ||
+                  (isNextGeneration && !isSelectingMask) ||
+                  isGenerateImgBtbDisabled
                     ? "default"
                     : "pointer",
                 "&:hover": {
@@ -1484,6 +1547,7 @@ function PromptBar({
                     isOnline &&
                     !showComments &&
                     !(isNextGeneration && !isSelectingMask) &&
+                    !isGenerateImgBtbDisabled &&
                     "var(--gradientButtonHover)",
                 },
               }}
@@ -1779,6 +1843,21 @@ function PromptBar({
         isEditingPalette={isEditingPalette}
         colorPaletteToEdit={colorPaletteToEdit}
       />
+
+      {/* Confirm deselect modal */}
+      <ConfirmDeselectMaskModal
+        isOpen={confirmDeselectMaskOpen}
+        onClose={() => setConfirmDeselectMaskOpen(false)}
+        handleConfirm={handleConfirmDeselectMask}
+      />
+
+      {/* Confirm browser back modal */}
+      <NavigationConfirmationDialog
+        isOpen={showNavDialog}
+        onClose={handleNavigationCancel}
+        onConfirm={handleNavigationConfirm}
+        message="Image generation is in progress. Are you sure you want to leave? This will cancel the generation process."
+      />
     </>
   );
 }
@@ -1786,6 +1865,7 @@ function PromptBar({
 export default PromptBar;
 
 const selectStyles = {
+  fontFamily: '"Inter", sans-serif !important',
   backgroundColor: "transparent",
   borderRadius: "10px",
   padding: "15px 20px",

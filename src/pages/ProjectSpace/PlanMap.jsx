@@ -1,19 +1,16 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { doc, getDoc, onSnapshot } from "firebase/firestore";
-import { db, auth } from "../../firebase";
-import { fetchDesigns } from "./backend/ProjectDetails";
+import { onAuthStateChanged } from "firebase/auth";
+import { auth } from "../../firebase";
+import { fetchPins, deleteProjectPin, savePinOrder } from "./backend/ProjectDetails";
 import ProjectHead from "./ProjectHead";
 import MapPin from "./MapPin";
 import BottomBarDesign from "./BottomBarProject";
 import { useParams } from "react-router-dom";
-import AddIcon from "@mui/icons-material/Add";
-import CloseIcon from "@mui/icons-material/Close";
+import { AddIcon } from "../../components/svg/DefaultMenuIcons";
 import "../../css/project.css";
 import "../../css/seeAll.css";
 import "../../css/budget.css";
-import { ToastContainer } from "react-toastify";
 import { AddPin, AdjustPin, ChangeOrder, ChangePlan } from "../DesignSpace/svg/AddImage";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
@@ -28,8 +25,6 @@ import {
   dialogTitleStyles,
   dialogContentStyles,
   dialogActionsVertButtonsStyles,
-  gradientButtonStyles,
-  outlinedButtonStyles,
 } from "../../components/RenameModal";
 import ImageFrame from "../../components/ImageFrame";
 
@@ -38,11 +33,8 @@ function PlanMap() {
   const location = useLocation();
   const navigateFrom = location.pathname;
   const { projectId } = useParams();
-
   const [pins, setPins] = useState([]);
-
   const [menuOpen, setMenuOpen] = useState(false);
-  const [designs, setDesigns] = useState([]);
   const [user, setUser] = useState(null);
   const [styleRefModalOpen, setStyleRefModalOpen] = useState(false);
   const [styleRefPreview, setStyleRefPreview] = useState(null);
@@ -50,58 +42,29 @@ function PlanMap() {
   const styleRefFileInputRef = useRef(null);
 
   useEffect(() => {
-    const currentUser = auth.currentUser;
     if (user) {
     }
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
         setUser(user);
-        fetchDesigns(currentUser.uid, projectId, setDesigns);
+        fetchPins(projectId, setPins);
       } else {
         setUser(null);
-        setDesigns([]);
+        setPins([]);
       }
     });
     return () => unsubscribeAuth();
-  }, [user]);
-
-  useEffect(() => {
-    const auth = getAuth();
-    const unsubscribe = auth.onAuthStateChanged((user) => {
-      if (user) {
-        const fetchProjectDetails = async () => {
-          try {
-            const projectRef = doc(db, "projects", projectId);
-            const projectSnapshot = await getDoc(projectRef);
-            if (projectSnapshot.exists()) {
-              const unsubscribeProject = onSnapshot(projectRef, (doc) => {
-                if (doc.exists()) {
-                  const updatedProject = doc.data();
-                }
-              });
-              return () => unsubscribeProject();
-            } else {
-              console.error("Project not found");
-            }
-          } catch (error) {
-            console.error("Error fetching project details:", error);
-          }
-        };
-        fetchProjectDetails();
-      } else {
-        console.error("User is not authenticated");
-      }
-    });
-    return () => unsubscribe();
-  }, [projectId]);
+  });
 
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
 
   const navigateToAddPin = () => {
+    const totalPins = pins.length; // Assuming `pins` is an array containing the existing pins
+    console.log("Total Pins:", totalPins);
     navigate("/addPin/", {
-      state: { navigateFrom: navigateFrom },
+      state: { navigateFrom: navigateFrom, projectId: projectId, totalPins: totalPins },
     });
   };
   const navigateToPinLayout = () => {
@@ -111,7 +74,14 @@ function PlanMap() {
   };
   const navigateToAdjustPin = () => {
     navigate(`/adjustPin/${projectId}`, {
-      state: { navigateFrom: navigateFrom },
+      state: { navigateFrom: navigateFrom, projectId: projectId },
+    });
+  };
+
+  const navigateToEditPin = (pinId) => {
+    const pinToEdit = pins.find((pin) => pin.id === pinId);
+    navigate("/addPin/", {
+      state: { navigateFrom: navigateFrom, projectId: projectId, pinToEdit: pinToEdit },
     });
   };
 
@@ -147,6 +117,22 @@ function PlanMap() {
       reader.readAsDataURL(file);
     }
   };
+  const deletePin = async (pinId) => {
+    try {
+      await deleteProjectPin(projectId, pinId);
+      console.log("Deleting pin", pinId);
+      const updatedPins = pins
+        .filter((pin) => pin.id !== pinId)
+        .map((pin, index) => ({
+          ...pin,
+          order: index + 1,
+        }));
+      setPins(updatedPins);
+      await savePinOrder(projectId, updatedPins);
+    } catch (error) {
+      console.error("Error deleting pin:", error);
+    }
+  };
 
   const onFileUpload = (event, setInitStyleRef, setStyleRefPreview) => {
     const file = event.target.files[0];
@@ -169,24 +155,34 @@ function PlanMap() {
       <ProjectHead />
       {menuOpen && <div className="overlay" onClick={toggleMenu}></div>}
       <div className="sectionBudget" style={{ background: "none" }}>
-        <div className="budgetSpaceImg">
+        <div className="budgetSpaceImg" style={{ background: "none", height: "100%" }}>
           <ImageFrame
             src="../../img/floorplan.png"
             alt="design preview"
             pins={pins}
+            projectId={projectId}
             setPins={setPins}
             draggable={false} // Ensure this line is present
           />
         </div>
         <div className="budgetSpaceImg">
-          {designs.length > 0 ? (
-            designs.map((design) => {
-              return (
-                <>
-                  <MapPin title={design.designName} />
-                </>
-              );
-            })
+          {pins.length > 0 ? (
+            pins
+              .sort((a, b) => a.order - b.order) // Sort pins by design.order
+              .map((design) => {
+                return (
+                  <>
+                    <MapPin
+                      title={design.designName}
+                      pinColor={design.color}
+                      pinNo={design.order}
+                      pinId={design.id}
+                      deletePin={() => deletePin(design.id)} // Pass design.id to deletePin
+                      editPin={() => navigateToEditPin(design.id)} // Pass design.id to editPin
+                    />
+                  </>
+                );
+              })
           ) : (
             <div className="no-content" style={{ height: "80vh" }}>
               <img src="/img/design-placeholder.png" alt="No designs yet" />
@@ -227,8 +223,8 @@ function PlanMap() {
             </div>
           </div>
         )}
-        <div className={`circle-button ${menuOpen ? "rotate" : ""}`} onClick={toggleMenu}>
-          {menuOpen ? <CloseIcon /> : <AddIcon />}
+        <div className={`circle-button ${menuOpen ? "rotate" : ""} add`} onClick={toggleMenu}>
+          {menuOpen ? <AddIcon /> : <AddIcon />}
         </div>
       </div>
       <BottomBarDesign PlanMap={true} projId={projectId} />

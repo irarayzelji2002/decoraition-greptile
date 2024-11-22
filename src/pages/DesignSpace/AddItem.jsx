@@ -5,10 +5,6 @@ import TopBar from "../../components/TopBar";
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import "../../css/budget.css";
-import { db } from "../../firebase"; // Assuming you have firebase setup
-import { collection, addDoc, getDocs } from "firebase/firestore";
-import { getAuth } from "firebase/auth";
-import { ToastContainer, toast } from "react-toastify";
 import { InputAdornment } from "@mui/material";
 import TextField from "@mui/material/TextField";
 import SearchIcon from "@mui/icons-material/Search";
@@ -23,8 +19,9 @@ const AddItem = () => {
   const navigateTo = location.state?.navigateFrom || "/";
   const navigateFrom = location.pathname;
 
-  const { user, designs, userDesigns } = useSharedProps();
+  const { user, designs, userDesigns, designVersions, userDesignVersions } = useSharedProps();
   const [design, setDesign] = useState({});
+  const [designVersion, setDesignVersion] = useState({});
 
   const [itemQuantity, setItemQuantity] = useState(1);
   const [budgetItem, setBudgetItem] = useState("");
@@ -35,28 +32,25 @@ const AddItem = () => {
   const [selectedImagePreview, setSelectedImagePreview] = useState(null);
   const [isUploadedImage, setIsUploadedImage] = useState(false);
   const [imageLink, setImageLink] = useState("");
+  const [isDesignButtonDisabled, setIsDesignButtonDisabled] = useState(false);
 
   const [errors, setErrors] = useState({});
-
-  // Initialize
-  useEffect(() => {
-    const fetchedDesign = userDesigns.find((design) => design.budgetId === budgetId);
-    setDesign(fetchedDesign || {});
-    if (!fetchedDesign) {
-      console.error("Design not found.");
-    }
-  }, []);
+  const [loading, setLoading] = useState(true);
 
   // Updates on Real-time changes on shared props
   useEffect(() => {
-    const fetchedDesign = userDesigns.find((design) => design.budgetId === budgetId);
+    setLoading(true);
+    const fetchedDesignVersion =
+      userDesignVersions.find((designVersion) => designVersion?.budgetId === budgetId) ||
+      designVersions.find((designVersion) => designVersion?.budgetId === budgetId);
 
-    if (!fetchedDesign) {
-      console.error("Design not found");
-    } else if (!deepEqual(design, fetchedDesign)) {
-      setDesign(fetchedDesign);
+    if (!fetchedDesignVersion) {
+      console.error("Design version not found");
+    } else if (!deepEqual(designVersion, fetchedDesignVersion)) {
+      setDesignVersion(fetchedDesignVersion);
     }
-  }, [designs, userDesigns]);
+    setLoading(false);
+  }, [designVersions, userDesignVersions]);
 
   const handleImageUpload = (event) => {
     const file = event.target.files[0];
@@ -64,7 +58,7 @@ const AddItem = () => {
       // Image validation
       let message = "";
       const acceptedTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
-      if (!acceptedTypes.includes(file.type)) {
+      if (!acceptedTypes?.includes(file.type)) {
         message = "Please upload an image file of png, jpg, jpeg, gif, or webp type";
         showToast("error", message);
       } else {
@@ -127,7 +121,7 @@ const AddItem = () => {
     // Image validation
     if (isUploadedImage && selectedImage) {
       const acceptedTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
-      if (!acceptedTypes.includes(selectedImage.type)) {
+      if (!acceptedTypes?.includes(selectedImage.type)) {
         formErrors.image = "Please upload an image file of png, jpg, jpeg, gif, or webp type";
         showToast("error", formErrors.image);
       } else {
@@ -143,10 +137,12 @@ const AddItem = () => {
 
   const handleAddItem = async (e) => {
     e.preventDefault();
+    setIsDesignButtonDisabled(true);
     const formErrors = handleValidation();
 
     if (Object.keys(formErrors).length > 0) {
       setErrors(formErrors);
+      setIsDesignButtonDisabled(false);
       return;
     } else {
       setErrors({});
@@ -185,7 +181,7 @@ const AddItem = () => {
         const itemName = budgetItem;
         showToast("success", `${itemName} has been added!`);
         if (design) {
-          setTimeout(() => navigate(`/budget/${design.id}`), 1000);
+          setTimeout(() => navigate(`/budget/${designVersion.id}`), 1000);
         } else {
           setTimeout(() => window.history.back(), 1000);
         }
@@ -193,12 +189,17 @@ const AddItem = () => {
     } catch (error) {
       console.error("Error adding item:", error);
       if (error.response) {
-        showToast("error", error?.response?.data?.message || "Failed to add item. Please try again.");
+        showToast(
+          "error",
+          error?.response?.data?.message || "Failed to add item. Please try again."
+        );
       } else if (error.request) {
         showToast("error", "Network error. Please check your connection.");
       } else {
         showToast("error", "Failed to add item. Please try again.");
       }
+    } finally {
+      setIsDesignButtonDisabled(false);
     }
   };
 
@@ -348,7 +349,18 @@ const AddItem = () => {
             <div className="error-text">{errors?.quantity}</div>
 
             {/* Add Item Button */}
-            <button className="add-item-btn" onClick={handleAddItem}>
+            <button
+              className="add-item-btn"
+              onClick={handleAddItem}
+              disabled={isDesignButtonDisabled}
+              style={{
+                opacity: isDesignButtonDisabled ? "0.5" : "1",
+                cursor: isDesignButtonDisabled ? "default" : "pointer",
+                "&:hover": {
+                  backgroundImage: !isDesignButtonDisabled && "var(--gradientButton)",
+                },
+              }}
+            >
               Add item
             </button>
           </div>

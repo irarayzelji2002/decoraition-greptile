@@ -15,7 +15,7 @@ import {
 } from "@mui/material";
 import ArrowBackIosNewRoundedIcon from "@mui/icons-material/ArrowBackIosNewRounded";
 import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-import { formatDateDetailComma } from "../Homepage/backend/HomepageActions";
+import { formatDateDetail, formatDateDetailComma } from "../Homepage/backend/HomepageActions";
 import { fetchVersionDetails } from "./backend/DesignActions";
 import { useSharedProps } from "../../contexts/SharedPropsContext";
 import { showToast } from "../../functions/utils";
@@ -112,18 +112,21 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
           setVersionDetails([]);
           return;
         }
-        let versionDetails = result.versionDetails;
-        versionDetails.forEach((version) => {
+
+        // Create new array with modified versions instead of modifying in place
+        let versionDetails = result.versionDetails.map((version) => {
           const displayDate = formatDateDetailComma(version.createdAt);
           let restoredFromCreatedAt, restoredFromDisplayDate;
-          if (version.isRestored && version.isRestoredFrom.versionId) {
-            const isRestoredFrom = versionDetails.find(
+          if (version.isRestored && version.isRestoredFrom?.versionId) {
+            const isRestoredFrom = result.versionDetails.find(
               (v) => v.id === version.isRestoredFrom.versionId
             );
-            restoredFromCreatedAt = isRestoredFrom.createdAt;
-            restoredFromDisplayDate = formatDateDetailComma(restoredFromCreatedAt);
+            if (isRestoredFrom) {
+              restoredFromCreatedAt = isRestoredFrom.createdAt;
+              restoredFromDisplayDate = formatDateDetailComma(restoredFromCreatedAt);
+            }
           }
-          version = {
+          return {
             ...version,
             displayDate,
             isRestoredFrom: {
@@ -135,18 +138,19 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
             imagesLink: version.images?.map((img) => img.link) || [],
           };
         });
-        setVersionDetails(versionDetails);
 
-        // Reverse the version details to show the latest version at the top
+        // Reverse after mapping
         versionDetails = versionDetails.reverse();
         setVersionDetails(versionDetails);
+        console.log("versionDetails - versionDetails", versionDetails);
 
-        // Set the latest version as the selected version
+        // Set latest version
         const latestVersion = versionDetails[0];
         if (latestVersion) {
           setSelectedDesignVersionId(latestVersion.id);
           setSelectedVersionDetails(latestVersion);
         }
+        console.log("versionDetails - latestVersion", latestVersion);
 
         // Get copied versions
         const copiedVersionDetails = await Promise.all(
@@ -186,6 +190,7 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
           })
         ).then((results) => results.flat().filter(Boolean));
         setCopiedVersionDetails(copiedVersionDetails.reverse());
+        console.log("versionDetails - copiedVersionDetails", copiedVersionDetails.reverse());
       }
     };
 

@@ -56,7 +56,7 @@ export const theme = createTheme({
 });
 
 const DesignSettings = () => {
-  const { user, userDoc, userDesigns } = useSharedProps();
+  const { user, userDoc, designs, userDesigns } = useSharedProps();
   const { designId } = useParams({}); // Get the designId parameter from the URL
   const location = useLocation();
   const navigateTo = location.state?.navigateFrom || "/";
@@ -79,10 +79,13 @@ const DesignSettings = () => {
 
   const [loading, setLoading] = useState(true);
   const [allowEdit, setAllowEdit] = useState(false);
+  const [isDesignButtonDisabled, setIsDesignButtonDisabled] = useState(false);
 
   useEffect(() => {
     if (designId && userDesigns.length > 0) {
-      const fetchedDesign = userDesigns.find((design) => design.id === designId);
+      const fetchedDesign =
+        userDesigns.find((design) => design.id === designId) ||
+        designs.find((design) => design.id === designId);
 
       if (!fetchedDesign) {
         console.error("Design not found.");
@@ -104,7 +107,7 @@ const DesignSettings = () => {
       }
     }
     setLoading(false);
-  }, [designId, userDesigns]);
+  }, [designId, designs, userDesigns]);
 
   useEffect(() => {
     if (!design || !user || !userDoc) return;
@@ -141,6 +144,7 @@ const DesignSettings = () => {
   const handleTabChange = useCallback((tab) => setActiveTab(tab), []);
 
   const handleSaveDesignSettings = async () => {
+    setIsDesignButtonDisabled(true);
     try {
       const updatedSettings = {
         generalAccessSetting: generalAccessSetting,
@@ -176,6 +180,8 @@ const DesignSettings = () => {
     } catch (error) {
       console.error("Failed to update design settings:", error);
       showToast("error", "Failed to update design settings");
+    } finally {
+      setIsDesignButtonDisabled(false);
     }
   };
 
@@ -232,6 +238,7 @@ const DesignSettings = () => {
         setNotifyDays={setNotifyDays}
         handleSaveDesignSettings={handleSaveDesignSettings}
         allowEdit={allowEdit}
+        isDesignButtonDisabled={isDesignButtonDisabled}
       />
     </div>
   );
@@ -264,6 +271,7 @@ const SettingsContent = ({
   setNotifyDays = () => {},
   handleSaveDesignSettings = () => {},
   allowEdit = false,
+  isDesignButtonDisabled = false,
 }) => (
   <ThemeProvider theme={theme}>
     <div className="settingsContainer">
@@ -372,16 +380,19 @@ const SettingsContent = ({
             sx={{
               background: "var(--gradientButton)",
               borderRadius: "20px",
-              color: "var(--always-white)",
+              color: "var(--always-white) !important",
               fontWeight: "bold",
               textTransform: "none",
               paddingLeft: "100px",
               paddingRight: "100px",
               margin: "0px 10px",
+              opacity: isDesignButtonDisabled ? "0.5" : "1",
+              cursor: isDesignButtonDisabled ? "default" : "pointer",
               "&:hover": {
-                background: "var(--gradientButtonHover)",
+                backgroundImage: !isDesignButtonDisabled && "var(--gradientButtonHover)",
               },
             }}
+            disabled={isDesignButtonDisabled}
           >
             Save
           </Button>
@@ -722,6 +733,7 @@ export const switchStyles = {
 
 // Styles for Select
 export const selectStyles = {
+  fontFamily: '"Inter", sans-serif !important',
   "& .MuiOutlinedInput-notchedOutline": {
     borderColor: "var(--borderInput)",
     borderWidth: 2,
@@ -744,9 +756,13 @@ export const selectStyles = {
   "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
     borderColor: "var(--borderInput)",
   },
+  "& .MuiSvgIcon-root": {
+    marginRight: "8px",
+  },
 };
 
 export const selectStylesDisabled = {
+  fontFamily: '"Inter", sans-serif !important',
   "& .MuiOutlinedInput-notchedOutline": {
     borderColor: "transparent",
     borderWidth: 2,
@@ -770,6 +786,9 @@ export const selectStylesDisabled = {
   },
   "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
     borderColor: "transparent",
+  },
+  "& .MuiSvgIcon-root": {
+    marginRight: "8px",
   },
   "&.Mui-disabled": {
     backgroundColor: "transparent",

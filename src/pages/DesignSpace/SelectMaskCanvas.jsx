@@ -154,6 +154,9 @@ function SelectMaskCanvas({
   const [isChangingMask, setIsChangingMask] = useState(false);
   const [hasCombinedMask, setHasCombinedMask] = useState(false);
   const [option, setOption] = useState(null);
+  const [isGenerateMaskBtnDisabled, setIsGenerateMaskBtnDisabled] = useState(false);
+  const [isPreviewMaskBtnDisabled, setIsPreviewMaskBtnDisabled] = useState(false);
+  const [isApplyMaskBtnDisabled, setIsApplyMaskBtnDisabled] = useState(false);
   // passed form parent:
   // - samMasks, setSamMasks
   // - maskPrompt, setMaskPrompt,
@@ -539,6 +542,43 @@ function SelectMaskCanvas({
     setSamDrawing(initSamDrawing);
   }, []);
 
+  // useEffect(() => {
+  //   const handleResize = (canvasRef) => {
+  //     if (!canvasRef.current || !containerRef.current) return;
+
+  //     // Store current drawing data
+  //     const tempCanvas = document.createElement("canvas");
+  //     const tempCtx = tempCanvas.getContext("2d");
+  //     tempCanvas.width = canvasRef.current.width;
+  //     tempCanvas.height = canvasRef.current.height;
+  //     tempCtx.drawImage(canvasRef.current, 0, 0);
+
+  //     // Resize canvas
+  //     const container = containerRef.current;
+  //     const newWidth = container.offsetWidth;
+  //     const newHeight = container.offsetHeight;
+
+  //     canvasRef.current.width = newWidth;
+  //     canvasRef.current.height = newHeight;
+
+  //     // Restore drawing with proper scaling
+  //     const ctx = canvasRef.current.getContext("2d");
+  //     ctx.drawImage(tempCanvas, 0, 0, newWidth, newHeight);
+
+  //     // Trigger redraw
+  //     if (addDrawing) addDrawing.setNeedsRedraw(true);
+  //     if (removeDrawing) removeDrawing.setNeedsRedraw(true);
+  //   };
+
+  //   const handleResizeAllCanvas = () => {
+  //     handleResize(addCanvasRef);
+  //     handleResize(removeCanvasRef);
+  //   };
+
+  //   window.addEventListener("resize", handleResizeAllCanvas);
+  //   return () => window.removeEventListener("resize", handleResizeAllCanvas);
+  // }, [addDrawing, removeDrawing]);
+
   useEffect(() => {
     const clearAllCanvas = () => {
       addDrawing.clearCanvas();
@@ -571,6 +611,33 @@ function SelectMaskCanvas({
     };
     [addCanvasRef, removeCanvasRef].forEach(initCanvas);
   }, [selectedImage]);
+
+  // Resizing logic
+  // useEffect(() => {
+  //   if (
+  //     !selectedImage ||
+  //     !canvasStackRef.current ||
+  //     !addCanvasRef.current ||
+  //     !removeCanvasRef.current
+  //   )
+  //     return;
+
+  //   const updateCanvasSize = () => {
+  //     // Account for device pixel ratio for sharp rendering
+  //     const scale = window.devicePixelRatio;
+  //     console.log("window.devicePixelRatio", scale);
+  //     [(addCanvasRef, removeCanvasRef)].forEach((ref) => {
+  //       if (!ref.current) return;
+  //       // Scale context
+  //       const ctx = ref.current.getContext("2d");
+  //       ctx.scale(scale, scale);
+  //     });
+  //   };
+
+  //   updateCanvasSize();
+  //   window.addEventListener("resize", updateCanvasSize);
+  //   return () => window.removeEventListener("resize", updateCanvasSize);
+  // }, [selectedImage]);
 
   useEffect(() => {
     if (
@@ -767,6 +834,7 @@ function SelectMaskCanvas({
   };
 
   const handleGenerateMask = async () => {
+    setIsGenerateMaskBtnDisabled(true);
     setErrors((prev) => ({ ...prev, maskPrompt: "", initImage: "" }));
     setCombinedMask(null);
     setPreviewMask(null);
@@ -846,6 +914,7 @@ function SelectMaskCanvas({
         setSamMaskMask(newSamMasks?.[0]?.masked);
         if (samDrawing) samDrawing.setNeedsRedraw(true);
         setSamMaskModalOpen(true);
+        setMaskPrompt("");
       } else {
         console.log(result.message);
         if (result.message !== "Invalid inputs.") showToast("error", result.message);
@@ -858,6 +927,7 @@ function SelectMaskCanvas({
     } finally {
       setIsGeneratingMask(false);
       setStatusMessage("");
+      setIsGenerateMaskBtnDisabled(false);
     }
   };
 
@@ -875,6 +945,7 @@ function SelectMaskCanvas({
 
   const handlePreviewMask = async () => {
     try {
+      setIsPreviewMaskBtnDisabled(true);
       await setShowPreview(true);
       const masks = await validatePreviewMask();
       if (!masks) {
@@ -916,10 +987,12 @@ function SelectMaskCanvas({
     } finally {
       setIsPreviewingMask(false);
       setStatusMessage("");
+      setIsPreviewMaskBtnDisabled(false);
     }
   };
 
   const handleApplyMask = async () => {
+    setIsApplyMaskBtnDisabled(true);
     await setShowPreview(true);
     if (!validateApplyMask) return;
     const masks = await validateApplyMask();
@@ -1007,6 +1080,7 @@ function SelectMaskCanvas({
     } finally {
       setIsPreviewingMask(false);
       setStatusMessage("");
+      setIsApplyMaskBtnDisabled(false);
     }
   };
 
@@ -1107,6 +1181,7 @@ function SelectMaskCanvas({
             <Button
               variant="contained"
               onClick={handleGenerateMask}
+              disabled={isGenerateMaskBtnDisabled}
               sx={{
                 ...gradientButtonStyles,
                 minWidth: "133px",
@@ -1114,6 +1189,11 @@ function SelectMaskCanvas({
                 borderRadius: "0px 8px 8px 0px",
                 marginLeft: "-145px !important",
                 marginTop: "2.5px !important",
+                opacity: isGenerateMaskBtnDisabled ? "0.5" : "1",
+                cursor: isGenerateMaskBtnDisabled ? "default" : "pointer",
+                "&:hover": {
+                  backgroundImage: !isGenerateMaskBtnDisabled && "var(--gradientButtonHover)",
+                },
                 "@media (max-width: 600px)": {
                   borderRadius: "35px",
                   // marginLeft: "0px !important",
@@ -1626,8 +1706,14 @@ function SelectMaskCanvas({
                 }}
                 sx={{
                   ...gradientButtonStyles,
-                  width: "125px",
+                  width: "128px",
                   borderRadius: "8px",
+                  padding: "4px 16px 8px 12px",
+                  opacity: isPreviewMaskBtnDisabled ? "0.5" : "1",
+                  cursor: isPreviewMaskBtnDisabled ? "default" : "pointer",
+                  "&:hover": {
+                    backgroundImage: !isPreviewMaskBtnDisabled && "var(--gradientButtonHover)",
+                  },
                 }}
               >
                 Preview mask
@@ -1640,9 +1726,18 @@ function SelectMaskCanvas({
             className="actualCanvas"
             ref={canvasStackRef}
           >
-            <img ref={initImageRef} src={selectedImage.link} style={styles.baseImage} alt="" />
+            <img
+              ref={initImageRef ?? "/img/transparent-image.png"}
+              src={selectedImage.link}
+              style={styles.baseImage}
+              alt=""
+            />
             <div ref={samCanvasRef} style={styles.samCanvas}>
-              <img src={samMaskMask} alt="" style={styles.samMaskImage} />
+              <img
+                src={samMaskMask ?? "/img/transparent-image.png"}
+                alt=""
+                style={styles.samMaskImage}
+              />
             </div>
             <canvas
               ref={removeCanvasRef}
@@ -1694,10 +1789,17 @@ function SelectMaskCanvas({
                     setShowPreview(true);
                     handleApplyMask();
                   }}
+                  disabled={isApplyMaskBtnDisabled}
                   sx={{
                     ...gradientButtonStyles,
-                    width: "125px",
+                    width: "128px",
                     borderRadius: "8px",
+                    padding: "4px 16px 8px 12px",
+                    opacity: isApplyMaskBtnDisabled ? "0.5" : "1",
+                    cursor: isApplyMaskBtnDisabled ? "default" : "pointer",
+                    "&:hover": {
+                      backgroundImage: !isApplyMaskBtnDisabled && "var(--gradientButtonHover)",
+                    },
                   }}
                 >
                   Apply mask
@@ -1714,9 +1816,17 @@ function SelectMaskCanvas({
               }}
               className="actualCanvas"
             >
-              <img src={selectedImage.link} style={styles.previewBaseImage} alt="" />
+              <img
+                src={selectedImage.link ?? "/img/transparent-image.png"}
+                style={styles.previewBaseImage}
+                alt=""
+              />
               <div ref={previewCanvasRef} style={styles.previewMask}>
-                <img src={previewMask ?? ""} style={styles.previewMaskImage} alt="" />
+                <img
+                  src={previewMask ?? "/img/transparent-image.png"}
+                  style={styles.previewMaskImage}
+                  alt=""
+                />
               </div>
             </Box>
           </div>
@@ -1833,7 +1943,7 @@ const ToggleButton = ({
               <span className="toggleButtonTextLabel">{label}</span>
               <span
                 className="toggleButtonTextValue"
-                style={{ marginTop: isOneLine ? "-6px" : "" }}
+                style={{ marginTop: isOneLine ? "-4px" : "" }}
               >
                 {valuesMap[value]?.label || ""}
               </span>
@@ -1845,7 +1955,7 @@ const ToggleButton = ({
         <div className="toggleButtonContent">
           <div className="toggleButtonText">
             <span className="toggleButtonTextLabel">{label}</span>
-            <span className="toggleButtonTextValue" style={{ marginTop: isOneLine ? "-6px" : "" }}>
+            <span className="toggleButtonTextValue" style={{ marginTop: isOneLine ? "-4px" : "" }}>
               {valuesMap[value]?.label || ""}
             </span>
           </div>

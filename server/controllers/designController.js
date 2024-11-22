@@ -50,32 +50,6 @@ exports.createDesign = async (req, res) => {
       link: `/design/${designId}`,
     });
 
-    // Create associated budget document
-    const budgetData = {
-      designId: designId,
-      budget: {
-        amount: 0,
-        currency: "PHP", //default
-      },
-      items: [],
-      createdAt: new Date(),
-      modifiedAt: new Date(),
-    };
-
-    const budgetRef = await db.collection("budgets").add(budgetData);
-    const budgetId = budgetRef.id;
-    createdDocuments.push({ collection: "budgets", id: budgetId });
-
-    // Update design document with budgetId
-    const designSnapshot = await designRef.get();
-    updatedDocuments.push({
-      ref: designRef,
-      data: { budgetId: designSnapshot.data().budgetId },
-      collection: "budgets",
-      id: designRef.id,
-    });
-    await designRef.update({ budgetId });
-
     // Update user's designs array
     const userRef = db.collection("users").doc(userId);
     const userDoc = await userRef.get();
@@ -93,7 +67,6 @@ exports.createDesign = async (req, res) => {
       id: designId,
       ...designData,
       link: `/design/${designId}`,
-      budgetId,
     });
   } catch (error) {
     console.error("Error creating design:", error);
@@ -1210,12 +1183,30 @@ exports.createDesignVersion = async (req, res) => {
     if (!updatedImages || updatedImages.length === 0) {
       throw new Error("Failed to generate image");
     }
+
+    // Create associated budget document
+    const budgetData = {
+      designVersionId: newVersionId,
+      budget: {
+        amount: 0,
+        currency: "PHP", //default
+      },
+      items: [],
+      createdAt: new Date(),
+      modifiedAt: new Date(),
+    };
+
+    const budgetRef = await db.collection("budgets").add(budgetData);
+    const budgetId = budgetRef.id;
+    createdDocuments.push({ collection: "budgets", id: budgetId });
+
     // Update version with full data
     const fullVersionData = {
       description: prompt,
       images: updatedImages,
       createdBy: userId,
       createdAt: new Date(),
+      budgetId: budgetId,
       copiedDesigns: [],
       isRestored: false,
       isRestoredFrom: null,
@@ -1495,7 +1486,7 @@ exports.updateDesignVersionCombinedMask = async (req, res) => {
   }
 };
 
-// Delete Design
+// Delete Design (TO DO: UPDATE BUDGET REFERENCE)
 exports.deleteDesign = async (req, res) => {
   const deletedDocuments = [];
   const updatedDocuments = [];

@@ -272,14 +272,14 @@ function CommentTabs({
 
       // Filter comments that belong to the current designVersion's images
       const filteredDesignComments = userDesignsComments.filter((comment) =>
-        designVersionImageIds.includes(comment.designVersionImageId)
+        designVersionImageIds?.includes(comment.designVersionImageId)
       );
       setDesignComments(filteredDesignComments);
       console.log("fetch comments - filteredDesignComments", filteredDesignComments);
 
       // Filter user's own comments from the filtered design comments
       const filteredUserComments = userComments.filter((comment) =>
-        designVersionImageIds.includes(comment.designVersionImageId)
+        designVersionImageIds?.includes(comment.designVersionImageId)
       );
       setUserOwnedComments(filteredUserComments);
       console.log("fetch comments - filteredUserComments", filteredUserComments);
@@ -612,7 +612,7 @@ const getPillTabStyle = (isWrapped, selectedTab, index) => {
       color: isSelected ? "var(--color-white)" : "var(--color-white)",
     },
     minHeight: "40px",
-    width: "110px", // Ensures tabs are the same size
+    width: "112px", // Ensures tabs are the same size
   };
 };
 

@@ -50,7 +50,7 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
     const unsubscribeCallbacks = [];
 
     collections.forEach((collectionName) => {
-      if (!generalCollections.includes(collectionName)) {
+      if (!generalCollections?.includes(collectionName)) {
         // console.warn(`Warning: ${collectionName} is not a general collection.`);
         return;
       }
@@ -129,7 +129,7 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
       userDesignVersions: ["userDesigns"],
       userDesignsComments: ["userDesignVersions"],
       userProjectBudgets: ["userProjects"],
-      userBudgets: ["userProjectBudgets", "userDesigns"],
+      userBudgets: ["userProjectBudgets", "userDesignVersions"],
       userItems: ["userBudgets"],
       userPlanMaps: ["userProjects"],
       userPins: ["userPlanMaps"],
@@ -147,8 +147,8 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
       userReplies: (user) => fetchUserReplies(user),
       userNotifications: (user) => fetchUserNotifications(user),
       userProjectBudgets: (projectsSnapshot) => fetchUserProjectBudgets(projectsSnapshot),
-      userBudgets: (projectBudgetsSnapshot, designsSnapshot) =>
-        fetchUserBudgets(projectBudgetsSnapshot, designsSnapshot),
+      userBudgets: (projectBudgetsSnapshot, designVersionsSnapshot) =>
+        fetchUserBudgets(projectBudgetsSnapshot, designVersionsSnapshot),
       userItems: (budgetsSnapshot) => fetchUserItems(budgetsSnapshot),
       userPlanMaps: (projectsSnapshot) => fetchUserPlanMaps(projectsSnapshot),
       userPins: (planMapsSnapshot) => fetchUserPins(planMapsSnapshot),
@@ -165,7 +165,7 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
     const unsubscribers = [];
 
     const setupListener = (userDataName, fetchFunction) => {
-      if (!userRelatedCollections.includes(userDataName)) {
+      if (!userRelatedCollections?.includes(userDataName)) {
         // console.warn(`Warning: ${collectionName} is not a user-related collection`);
         return;
       }
@@ -297,11 +297,11 @@ const useFirestoreSnapshots = (collections, stateSetterFunctions, user) => {
 
         const { snapshot: budgetsSnapshot, data: budgetsData } = await fetchUserBudgets(
           projectBudgetsSnapshot,
-          designsSnapshot
+          designVersionsSnapshot
         );
         stateSetterFunctions.userBudgets(budgetsData);
         setupListener("userBudgets", () =>
-          fetchUserBudgets(projectBudgetsSnapshot, designsSnapshot)
+          fetchUserBudgets(projectBudgetsSnapshot, designVersionsSnapshot)
         );
 
         const { data: itemsData } = await fetchUserItems(budgetsSnapshot);
@@ -567,17 +567,17 @@ const fetchUserProjectBudgets = async (projectsSnapshot) => {
   return { snapshot, data };
 };
 
-//get all user-related budgets from the budgets array field of userProjectBudgets's documents AND also from the budgetId field of userDesigns's documents in the budgets collection
-const fetchUserBudgets = async (projectBudgetsSnapshot, designsSnapshot) => {
+//get all user-related budgets from the budgets array field of userProjectBudgets's documents AND also from the budgetId field of userDesignVersion's documents in the budgets collection
+const fetchUserBudgets = async (projectBudgetsSnapshot, designVersionsSnapshot) => {
   let budgetIdsFromProjects = [];
   let budgetIdsFromDesigns = [];
   if (projectBudgetsSnapshot && !projectBudgetsSnapshot.empty) {
     budgetIdsFromProjects =
       projectBudgetsSnapshot?.docs.flatMap((doc) => doc.data().budgets || []) || [];
   }
-  if (designsSnapshot && !designsSnapshot.empty) {
+  if (designVersionsSnapshot && !designVersionsSnapshot.empty) {
     budgetIdsFromDesigns =
-      designsSnapshot?.docs.map((doc) => doc.data().budgetId).filter(Boolean) || [];
+      designVersionsSnapshot?.docs.map((doc) => doc.data().budgetId).filter(Boolean) || [];
   }
   const allBudgetIds = [...new Set([...budgetIdsFromProjects, ...budgetIdsFromDesigns])];
   if (allBudgetIds.length === 0) {

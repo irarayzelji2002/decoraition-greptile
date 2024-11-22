@@ -706,7 +706,11 @@ textarea {
 }
 
 .circle-button.rotate {
-  transform: rotate(45deg);
+  transform: rotate(135deg);
+}
+
+.circle-button.add svg {
+  transform: scale(1.1);
 }
 
 /* Container for the smaller buttons */
@@ -721,14 +725,11 @@ textarea {
 .small-circle-button {
   background-image: var(--gradientCircle);
   color: var(--color-white);
-  width: 70px !important;
-  height: 70px !important;
   border-radius: 50%;
   display: flex;
   justify-content: center;
   align-items: center;
   transition: opacity 0.3s ease;
-  cursor: pointer;
 }
 
 /* Flex container to hold both text and button */
@@ -736,6 +737,7 @@ textarea {
   display: flex;
   align-items: center;
   gap: 10px;
+  margin-right: 4.55px;
 }
 
 /* Icons inside small circular buttons */
@@ -748,6 +750,7 @@ textarea {
   color: var(--always-white);
   font-size: var(--font-size-small);
   font-weight: bold;
+  margin-right: 8px;
 }
 
 /* Hover effect for small and main buttons */
@@ -990,6 +993,16 @@ textarea {
   height: 24px;
   transform: translate(0%, -100%);
   /* pointing on bottom left */
+}
+
+.brush-cursor {
+  position: fixed;
+  pointer-events: none;
+  z-index: 9999;
+  width: 24px;
+  height: 24px;
+  transform: translate(-50%, -50%);
+  /* pointing on center */
 }
 
 /* .comment-container.reply-to-reply:before {

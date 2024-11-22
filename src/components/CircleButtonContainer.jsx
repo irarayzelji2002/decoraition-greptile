@@ -1,7 +1,6 @@
 // CircleButtonContainer.js
 import React, { useState } from "react";
-import AddIcon from "@mui/icons-material/Add";
-import CloseIcon from "@mui/icons-material/Close";
+import { AddIcon } from "./svg/DefaultMenuIcons";
 import FolderIcon from "@mui/icons-material/Folder";
 import ImageIcon from "@mui/icons-material/Image";
 import "../css/homepage.css"; // Ensure this path is correct
@@ -31,8 +30,8 @@ const CircleButtonContainer = ({ onCreateProject, onCreateDesign }) => {
           </div>
         </div>
       )}
-      <div className={`circle-button ${menuOpen ? "rotate" : ""}`} onClick={toggleMenu}>
-        {menuOpen ? <CloseIcon /> : <AddIcon />}
+      <div className={`circle-button ${menuOpen ? "rotate" : ""} add`} onClick={toggleMenu}>
+        {menuOpen ? <AddIcon /> : <AddIcon />}
       </div>
     </div>
   );

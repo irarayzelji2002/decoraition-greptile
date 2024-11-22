@@ -1,16 +1,16 @@
 import React, { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { onSnapshot, doc, getDoc } from "firebase/firestore";
-import { getAuth, onAuthStateChanged } from "firebase/auth";
-import { Paper, IconButton, InputBase, List } from "@mui/material";
+import { getAuth } from "firebase/auth";
+import { Paper, IconButton, InputBase, Button } from "@mui/material";
 import {
   Search as SearchIcon,
-  Add as AddIcon,
-  Close as CloseIcon,
+  CloseRounded as CloseRoundedIcon,
   Folder as FolderIcon,
   Image as ImageIcon,
 } from "@mui/icons-material";
-import { ToastContainer, toast } from "react-toastify";
+import { AddIcon } from "../../components/svg/DefaultMenuIcons";
+import { showToast } from "../../functions/utils";
 import { auth, db } from "../../firebase";
 import ProjectHead from "./ProjectHead";
 import Modal from "../../components/Modal";
@@ -18,23 +18,20 @@ import BottomBarDesign from "./BottomBarProject";
 import Loading from "../../components/Loading";
 import DesignIcon from "../../components/DesignIcon";
 import Dropdowns from "../../components/Dropdowns";
-import MoreVertIcon from "@mui/icons-material/MoreVert";
 import "../../css/seeAll.css";
 import "../../css/project.css";
-import { fetchDesigns, handleDeleteDesign, fetchProjectDesigns } from "./backend/ProjectDetails";
-import { Button } from "@mui/material";
+import { fetchProjectDesigns } from "./backend/ProjectDetails";
 import { AddDesign, AddProject } from "../DesignSpace/svg/AddImage";
-import { HorizontalIcon, VerticalIcon } from "./svg/ExportIcon";
+import { HorizontalIcon, TiledIcon, VerticalIcon } from "./svg/ExportIcon";
 import { Typography } from "@mui/material";
 import { ListIcon } from "./svg/ExportIcon";
 import { useSharedProps } from "../../contexts/SharedPropsContext";
-import ItemList from "./ItemList";
-import DesignSvg from "../Homepage/svg/DesignSvg";
 import LoadingPage from "../../components/LoadingPage";
 import { iconButtonStyles } from "../Homepage/DrawerComponent";
 import { formatDateLong, getUsername } from "../Homepage/backend/HomepageActions";
 import axios from "axios";
 import HomepageTable from "../Homepage/HomepageTable";
+import { usePreventNavigation } from "../../hooks/usePreventNavigation";
 
 function Project() {
   const [modalOpen, setModalOpen] = useState(false);
@@ -45,7 +42,7 @@ function Project() {
   const [projectData, setProjectData] = useState(null);
   const [designs, setDesigns] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
-  const { user } = useSharedProps();
+  const { user, userDesign } = useSharedProps();
   const [isVertical, setIsVertical] = useState(false);
   const navigate = useNavigate();
   const [optionsState, setOptionsState] = useState({
@@ -54,8 +51,11 @@ function Project() {
   });
   const [filteredDesignsForTable, setFilteredDesignsForTable] = useState([]);
   const [loadingDesigns, setLoadingDesigns] = useState(true);
-  const [sortBy, setSortBy] = useState("");
-  const [order, setOrder] = useState("");
+  const [sortBy, setSortBy] = useState("none");
+  const [order, setOrder] = useState("none");
+  const [isDesignButtonDisabled, setIsDesignButtonDisabled] = useState(false);
+  const [numToShowMoreDesign, setNumToShowMoreDesign] = useState(0);
+  const [thresholdDesign, setThresholdDesign] = useState(6);
 
   const handleVerticalClick = () => {
     setIsVertical(true);
@@ -80,16 +80,19 @@ function Project() {
   const sortDesigns = (sortBy, order) => {
     const sortedDesigns = [...designs].sort((a, b) => {
       let comparison = 0;
-      if (sortBy === "name") {
-        comparison = a.designName.localeCompare(b.designName);
-      } else if (sortBy === "owner") {
-        comparison = a.owner.localeCompare(b.owner);
-      } else if (sortBy === "created") {
-        comparison = a.createdAtTimestamp - b.createdAtTimestamp;
-      } else if (sortBy === "modified") {
-        comparison = a.modifiedAtTimestamp - b.modifiedAtTimestamp;
+      if (sortBy && sortBy !== "none" && order && order !== "none") {
+        if (sortBy === "name") {
+          comparison = a.designName.localeCompare(b.designName);
+        } else if (sortBy === "owner") {
+          comparison = a.owner.localeCompare(b.owner);
+        } else if (sortBy === "created") {
+          comparison = a.createdAtTimestamp - b.createdAtTimestamp;
+        } else if (sortBy === "modified") {
+          comparison = a.modifiedAtTimestamp - b.modifiedAtTimestamp;
+        }
+        return order === "ascending" ? comparison : -comparison;
       }
-      return order === "ascending" ? comparison : -comparison;
+      return [...designs];
     });
     setFilteredDesignsForTable(sortedDesigns);
   };
@@ -101,13 +104,14 @@ function Project() {
           console.log(`Fetching designs for projectId: ${projectId}`); // Debug log
           await fetchProjectDesigns(projectId, setDesigns);
         } catch (error) {
-          toast.error(`Error fetching project designs: ${error.message}`);
+          showToast("error", `Error fetching project designs: ${error.message}`);
+          setLoadingDesigns(false); // Set loading to false on error
         }
       }
     };
 
     fetchData();
-  }, [user, projectId]);
+  }, [user, projectId, userDesign]);
 
   useEffect(() => {
     const auth = getAuth();
@@ -159,7 +163,7 @@ function Project() {
       const designsByLatest = [...designs].sort((a, b) => {
         const modifiedAtA = a.modifiedAt.toDate ? a.modifiedAt.toDate() : new Date(a.modifiedAt);
         const modifiedAtB = b.modifiedAt.toDate ? b.modifiedAt.toDate() : new Date(b.modifiedAt);
-        return modifiedAtB - modifiedAtA;
+        return modifiedAtB - modifiedAtA; // Modified latest first
       });
       setLoadingDesigns(false);
       const tableData = await Promise.all(
@@ -189,6 +193,7 @@ function Project() {
       setFilteredDesignsForTable(tableData);
     } else {
       setFilteredDesignsForTable([]);
+      setLoadingDesigns(false); // Set loading to false if no designs
     }
   };
 
@@ -217,13 +222,19 @@ function Project() {
         }
       );
       if (response.status === 200) {
-        toast.success("Design created successfully!");
-        // Optionally, navigate to the new design or refresh the designs list
+        showToast("success", "Design created successfully");
+        await fetchProjectDesigns(projectId, setDesigns); // Refresh designs list
       }
     } catch (error) {
       console.error("Error creating design:", error);
-      toast.error("Error creating design! Please try again.");
+      showToast("error", "Error creating design! Please try again.");
     }
+  };
+
+  const handleCreateDesignWithLoading = async (projectId) => {
+    setIsDesignButtonDisabled(true);
+    await handleCreateDesign(projectId);
+    setIsDesignButtonDisabled(false);
   };
 
   if (!projectData) {
@@ -269,12 +280,17 @@ function Project() {
             inputProps={{ "aria-label": "search google maps" }}
           />
         </Paper>
-        <Dropdowns
-          sortBy={sortBy}
-          order={order}
-          onSortByChange={handleSortByChange}
-          onOrderChange={handleOrderChange}
-        />
+        {!isVertical && (
+          <div className="dropdown-container">
+            <Dropdowns
+              sortBy={sortBy}
+              order={order}
+              onSortByChange={handleSortByChange}
+              onOrderChange={handleOrderChange}
+              isDesign={true}
+            />
+          </div>
+        )}
         <div
           style={{
             display: "flex",
@@ -321,12 +337,24 @@ function Project() {
                 <IconButton
                   style={{ marginRight: "10px" }}
                   onClick={handleHorizontalClick}
-                  sx={{ ...iconButtonStyles, padding: "15px", margin: "0px 5px" }}
+                  sx={{
+                    ...iconButtonStyles,
+                    padding: "10px",
+                    marginRight: "10px",
+                    borderRadius: "8px",
+                    backgroundColor: !isVertical ? "var(--nav-card-modal)" : "transparent",
+                  }}
                 >
-                  <HorizontalIcon />
+                  <TiledIcon />
                 </IconButton>
                 <IconButton
-                  sx={{ ...iconButtonStyles, padding: "15px", margin: "0px 5px" }}
+                  sx={{
+                    ...iconButtonStyles,
+                    padding: "10px",
+                    marginRight: "10px",
+                    borderRadius: "8px",
+                    backgroundColor: isVertical ? "var(--nav-card-modal)" : "transparent",
+                  }}
                   onClick={handleVerticalClick}
                 >
                   <ListIcon />
@@ -344,35 +372,57 @@ function Project() {
               flexDirection: "column",
             }}
           >
-            {isVertical
-              ? designs.length > 0 && (
-                  <HomepageTable
-                    isDesign={true}
-                    data={filteredDesignsForTable}
-                    isHomepage={false}
-                    optionsState={optionsState}
-                    setOptionsState={setOptionsState}
-                  />
-                )
-              : filteredDesignsForTable.length > 0 &&
-                filteredDesignsForTable.slice(0, 6).map((design) => (
-                  <DesignIcon
-                    id={design.id}
-                    name={design.designName}
-                    design={design}
-                    onOpen={() =>
-                      navigate(`/design/${design.id}`, {
-                        state: { designId: design.id },
-                      })
-                    }
-                    owner={getUsername(design.owner)}
-                    createdAt={formatDateLong(design.createdAt)}
-                    modifiedAt={formatDateLong(design.modifiedAt)}
-                    optionsState={optionsState}
-                    setOptionsState={setOptionsState}
-                  />
-                ))}
+            {loadingDesigns ? (
+              <Loading />
+            ) : isVertical ? (
+              designs.length > 0 && (
+                <HomepageTable
+                  isDesign={true}
+                  data={filteredDesignsForTable}
+                  isHomepage={false}
+                  optionsState={optionsState}
+                  setOptionsState={setOptionsState}
+                />
+              )
+            ) : (
+              designs.length > 0 &&
+              designs.slice(0, 6 + numToShowMoreDesign).map((design) => (
+                <DesignIcon
+                  key={design.id}
+                  id={design.id}
+                  name={design.designName}
+                  design={design}
+                  onOpen={() =>
+                    navigate(`/design/${design.id}`, {
+                      state: { designId: design.id },
+                    })
+                  }
+                  owner={getUsername(design.owner)}
+                  createdAt={formatDateLong(design.createdAt)}
+                  modifiedAt={formatDateLong(design.modifiedAt)}
+                  optionsState={optionsState}
+                  setOptionsState={setOptionsState}
+                />
+              ))
+            )}
           </div>
+        </div>
+        <div
+          className="center-me"
+          style={{ display: "inline-flex", marginTop: "20px", position: "relative" }}
+        >
+          {designs.length > thresholdDesign && numToShowMoreDesign < designs.length && (
+            <Button
+              variant="contained"
+              onClick={() => setNumToShowMoreDesign(numToShowMoreDesign + thresholdDesign)}
+              className="cancel-button"
+              sx={{
+                width: "200px",
+              }}
+            >
+              Show more
+            </Button>
+          )}
         </div>
         {filteredDesignsForTable.length === 0 && (
           <div className="no-content">
@@ -385,13 +435,27 @@ function Project() {
       <div className="circle-button-container">
         {menuOpen && (
           <div className="small-buttons">
-            <div className="small-button-container" onClick={() => handleCreateDesign(projectId)}>
+            <div
+              className="small-button-container"
+              onClick={() => !isDesignButtonDisabled && handleCreateDesignWithLoading(projectId)}
+              style={{
+                opacity: isDesignButtonDisabled ? "0.5" : "1",
+                cursor: isDesignButtonDisabled ? "default" : "pointer",
+              }}
+            >
               <span className="small-button-text">Import a Design</span>
               <div className="small-circle-button">
                 <AddDesign />
               </div>
             </div>
-            <div className="small-button-container" onClick={() => handleCreateDesign(projectId)}>
+            <div
+              className="small-button-container"
+              onClick={() => !isDesignButtonDisabled && handleCreateDesignWithLoading(projectId)}
+              style={{
+                opacity: isDesignButtonDisabled ? "0.5" : "1",
+                cursor: isDesignButtonDisabled ? "default" : "pointer",
+              }}
+            >
               <span className="small-button-text">Create a Design</span>
               <div className="small-circle-button">
                 <AddProject />
@@ -399,8 +463,8 @@ function Project() {
             </div>
           </div>
         )}
-        <div className={`circle-button ${menuOpen ? "rotate" : ""}`} onClick={toggleMenu}>
-          {menuOpen ? <CloseIcon /> : <AddIcon />}
+        <div className={`circle-button ${menuOpen ? "rotate" : ""} add`} onClick={toggleMenu}>
+          {menuOpen ? <AddIcon /> : <AddIcon />}
         </div>
       </div>
 
@@ -410,5 +474,5 @@ function Project() {
     </>
   );
 }
-//
+
 export default Project;

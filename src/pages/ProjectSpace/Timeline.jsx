@@ -15,13 +15,12 @@ import {
   fetchTimelineId,
   fetchTaskDetails,
 } from "./backend/ProjectDetails";
-import { ToastContainer, toast } from "react-toastify";
+import { showToast } from "../../functions/utils";
 import { auth } from "../../firebase";
 import { Button, IconButton } from "@mui/material";
 import { CalendarIcon, ListIconTimeline, SingleIconTimeline } from "./svg/ExportIcon";
 import { ArrowBackIosNew, ArrowForwardIos } from "@mui/icons-material";
 import { iconButtonStyles } from "../Homepage/DrawerComponent";
-import "react-toastify/dist/ReactToastify.css";
 
 function Timeline() {
   const navigate = useNavigate();
@@ -36,6 +35,7 @@ function Timeline() {
   const [currentTaskIndex, setCurrentTaskIndex] = useState(0);
   const [timelineId, setTimelineId] = useState(null); // Add state for timelineId
   const [taskIdToDelete, setTaskIdToDelete] = useState(null); // Add state for taskId to delete
+  const [loadingTasks, setLoadingTasks] = useState(true); // Add loading state for tasks
 
   const openDeleteModal = (taskId) => {
     setTaskIdToDelete(taskId);
@@ -63,10 +63,12 @@ function Timeline() {
     if (!timelineId) return;
 
     const fetchAndSetTasks = async () => {
+      setLoadingTasks(true); // Set loading to true before fetching tasks
       const currentUser = auth.currentUser;
       if (currentUser) {
         const tasks = await fetchTasks(timelineId);
         setTasks(tasks);
+        setLoadingTasks(false); // Set loading to false after tasks are fetched
       }
     };
 
@@ -101,12 +103,12 @@ function Timeline() {
     if (currentUser && taskIdToDelete) {
       try {
         await deleteTask(currentUser.uid, projectId, taskIdToDelete);
-        console.log("Task deleted successfully"); // Debugging statement
+        showToast("success", "Task deleted successfully"); // Debugging statement
         setTasks((prevTasks) => prevTasks.filter((task) => task.id !== taskIdToDelete));
         closeDeleteModal();
       } catch (error) {
         console.error("Error deleting task:", error); // Debugging statement
-        toast.error("Error deleting task! Please try again.");
+        showToast("error", "Error deleting task! Please try again.");
       }
     }
   };
@@ -118,6 +120,12 @@ function Timeline() {
   };
 
   const handleAddEventClick = () => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0); // Set time to midnight to compare only dates
+    if (date < today) {
+      showToast("error", "Cannot add event for a past date!");
+      return;
+    }
     const formattedDate = new Date(date);
     formattedDate.setDate(formattedDate.getDate() + 1);
     const formattedDateString = formattedDate.toISOString().split("T")[0];
@@ -189,7 +197,6 @@ function Timeline() {
   return (
     <>
       <ProjectHead />
-      <ToastContainer />
       <div className="timeline-container">
         <div className="center-me" style={{ flexDirection: "row", marginBottom: "20px" }}>
           <IconButton
@@ -248,7 +255,9 @@ function Timeline() {
               </div>
               <div className="tasks-list">
                 <h2 style={{ color: "var(--color-white)" }}>All Tasks</h2>
-                {tasks.length === 0 ? (
+                {loadingTasks ? (
+                  <p>Loading tasks...</p>
+                ) : tasks.length === 0 ? (
                   <p>No tasks available</p>
                 ) : (
                   tasks.map((task) => (
@@ -296,7 +305,9 @@ function Timeline() {
               </Button>
             </div>
 
-            {filteredTasks.length === 0 ? (
+            {loadingTasks ? (
+              <p>Loading tasks...</p>
+            ) : filteredTasks.length === 0 ? (
               <p>No tasks available</p>
             ) : (
               filteredTasks.map((task) => (
@@ -361,10 +372,13 @@ function Timeline() {
             </div>{" "}
             <div style={{ padding: "1rem", paddingTop: "0px" }}>
               <p className="label-item">Reminders before the event</p>
-              <p>1 day, 6:00AM 2 days, 10:00AM</p>
-
+              {tasks[currentTaskIndex].reminders.map((reminder, index) => (
+                <p key={index}>
+                  {reminder.timeBeforeEvent} {reminder.unit}, {reminder.time}
+                </p>
+              ))}
               <p className="label-item">Repetition</p>
-              <p>Every week</p>
+              <p>{tasks[currentTaskIndex].repeatEvery.unit}</p>
 
               <p className="label-item">Description</p>
               <p>{tasks[currentTaskIndex].description}</p>

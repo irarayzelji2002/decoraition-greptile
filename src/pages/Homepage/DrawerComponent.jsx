@@ -34,13 +34,7 @@ import LightModeIcon from "@mui/icons-material/LightMode";
 import NotificationsIcon from "@mui/icons-material/Notifications";
 import MoreHorizIcon from "@mui/icons-material/MoreHoriz";
 import NotifTab from "./NotifTab";
-import { auth } from "../../firebase";
-import { onAuthStateChanged, signOut } from "firebase/auth";
 import { ArrowBackIosRounded as ArrowBackIosRoundedIcon } from "@mui/icons-material";
-import OpenInNewIcon from "@mui/icons-material/OpenInNew";
-import DeleteIcon from "@mui/icons-material/Delete";
-import LinkIcon from "@mui/icons-material/Link";
-import { fetchUserData, fetchDesigns, fetchProjects } from "./backend/HomepageFunctions.jsx";
 import { DesignIcn, FAQ, Home, LogoutIcn, ProjectIcn, SettingsIcn } from "./svg/DesignSvg.jsx";
 
 const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
@@ -58,11 +52,11 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
     userDesignVersions,
     projects,
     userProjects,
+    isDarkMode,
   } = useSharedProps();
-  const initDarkMode = userDoc?.theme === 0 ? true : false;
   const [userDesignsLatest, setUserDesignsLatest] = useState([]);
   const [userProjectsLatest, setUserProjectsLatest] = useState([]);
-  const [darkMode, setDarkMode] = useState(initDarkMode);
+  const [darkMode, setDarkMode] = useState(isDarkMode);
 
   // Sorting designs by latest modifiedAt
   useEffect(() => {
@@ -203,8 +197,9 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
               ...iconButtonStyles,
               marginLeft: "5px",
             }}
+            onClick={onClose}
           >
-            <ArrowBackIosRoundedIcon onClick={onClose} />
+            <ArrowBackIosRoundedIcon />
           </IconButton>
           <h2 className="navName drawer">DecorAItion</h2>
           <IconButton

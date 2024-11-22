@@ -32,6 +32,7 @@ import {
 import { set } from "lodash";
 import { switchStyles } from "../DesignSpace/DesignSettings";
 import LoadingPage from "../../components/LoadingPage";
+import { selectStyles, selectStylesDisabled, menuItemStyles } from "../DesignSpace/DesignSettings";
 
 export const theme = createTheme({
   components: {
@@ -62,13 +63,14 @@ const ProjectSettings = () => {
   const {
     user,
     userDoc,
+    projects,
     userProjects,
-    userTimelines,
-    userPlanMaps,
-    userProjectBudgets,
     timelines,
+    userTimelines,
     planMaps,
+    userPlanMaps,
     projectBudgets,
+    userProjectBudgets,
   } = useSharedProps();
   const { projectId } = useParams({}); // Get the projectId parameter from the URL
   const location = useLocation();
@@ -110,11 +112,14 @@ const ProjectSettings = () => {
   const [activeTab, setActiveTab] = useState("Project"); // Default active tab
   const [loading, setLoading] = useState(true);
   const [allowEdit, setAllowEdit] = useState(false);
+  const [isSaveButtonDisabled, setIsSaveButtonDisabled] = useState(false);
 
   // Effect to set the project once userProjects are loaded
   useEffect(() => {
     if (projectId && userProjects.length > 0) {
-      const fetchedProject = userProjects.find((project) => project.id === projectId);
+      const fetchedProject =
+        userProjects.find((project) => project.id === projectId) ||
+        projects.find((project) => project.id === projectId);
 
       if (!fetchedProject) {
         console.error("Project not found.");
@@ -134,13 +139,15 @@ const ProjectSettings = () => {
         );
       }
     }
-  }, [projectId, userProjects]);
+  }, [projectId, projects, userProjects]);
 
   // Effect to update the timeline once userTimelines and project data are available
   useEffect(() => {
     if (project && userTimelines.length > 0) {
       const timelineId = project.timelineId;
-      const fetchedTimeline = userTimelines.find((timeline) => timeline.id === timelineId);
+      const fetchedTimeline =
+        userTimelines.find((timeline) => timeline.id === timelineId) ||
+        timelines.find((timeline) => timeline.id === timelineId);
       if (!fetchedTimeline) {
         console.error("Timeline not found.");
       } else if (Object.keys(timeline).length === 0 || !deepEqual(timeline, fetchedTimeline)) {
@@ -156,13 +163,15 @@ const ProjectSettings = () => {
         );
       }
     }
-  }, [project, userTimelines]);
+  }, [project, timelines, userTimelines]);
 
   // Effect to update the plan map once userPlanMaps and project data are available
   useEffect(() => {
     if (project && userPlanMaps.length > 0) {
       const planMapId = project.planMapId;
-      const fetchedPlanMap = userPlanMaps.find((planMap) => planMap.id === planMapId);
+      const fetchedPlanMap =
+        userPlanMaps.find((planMap) => planMap.id === planMapId) ||
+        planMaps.find((planMap) => planMap.id === planMapId);
       if (!fetchedPlanMap) {
         console.error("Plan Map not found.");
       } else if (Object.keys(planMap).length === 0 || !deepEqual(planMap, fetchedPlanMap)) {
@@ -176,15 +185,15 @@ const ProjectSettings = () => {
         );
       }
     }
-  }, [project, userPlanMaps]);
+  }, [project, planMaps, userPlanMaps]);
 
   // Effect to update the budget once userProjectBudgets and project data are available
   useEffect(() => {
     if (project && userProjectBudgets.length > 0) {
       const projectBudgetId = project.projectBudgetId;
-      const fetchedProjectBudget = userProjectBudgets.find(
-        (budget) => budget.id === projectBudgetId
-      );
+      const fetchedProjectBudget =
+        userProjectBudgets.find((budget) => budget.id === projectBudgetId) ||
+        projectBudgets.find((budget) => budget.id === projectBudgetId);
       if (!fetchedProjectBudget) {
         console.error("Project Budget not found.");
       } else if (
@@ -203,7 +212,7 @@ const ProjectSettings = () => {
         );
       }
     }
-  }, [project, userProjectBudgets]);
+  }, [project, projectBudgets, userProjectBudgets]);
 
   // useEffect to check if all required data is populated
   useEffect(() => {
@@ -312,6 +321,12 @@ const ProjectSettings = () => {
       console.error("Failed to update project settings:", error);
       showToast("error", "Failed to update project settings");
     }
+  };
+
+  const handleSaveProjectSettingsWithLoading = async () => {
+    setIsSaveButtonDisabled(true);
+    await handleSaveProjectSettings();
+    setIsSaveButtonDisabled(false);
   };
 
   if (loading) {
@@ -461,17 +476,20 @@ const ProjectSettings = () => {
             >
               <Button
                 variant="contained"
-                onClick={handleSaveProjectSettings}
+                onClick={handleSaveProjectSettingsWithLoading}
+                disabled={isSaveButtonDisabled}
                 sx={{
                   background: "var(--gradientButton)",
                   borderRadius: "20px",
-                  color: "var(--always-white)",
+                  color: "var(--always-white) !important",
                   fontWeight: "bold",
                   textTransform: "none",
                   width: "230px",
                   margin: "0px 10px",
+                  opacity: isSaveButtonDisabled ? "0.5" : "1",
+                  cursor: isSaveButtonDisabled ? "default" : "pointer",
                   "&:hover": {
-                    background: "var(--gradientButtonHover)",
+                    background: !isSaveButtonDisabled && "var(--gradientButtonHover)",
                   },
                 }}
               >
@@ -817,94 +835,3 @@ const InactivitySetting = ({ label, value, onChange, options, disabled }) => (
     </Select>
   </Box>
 );
-
-// Reusable styles for MenuItem
-const menuItemStyles = {
-  color: "var(--color-white)",
-  backgroundColor: "var(--dropdown)", //bgColor
-  transition: "all 0.3s ease",
-  display: "block",
-  minHeight: "auto",
-  "&:hover": {
-    backgroundColor: "var(--dropdownHover) !important",
-  },
-  "&.Mui-selected": {
-    backgroundColor: "var(--dropdownSelected) !important",
-    color: "var(--color-white)",
-    fontWeight: "bold",
-  },
-  "&.Mui-selected:hover": {
-    backgroundColor: "var(--dropdownSelectedHover) !important",
-  },
-};
-
-// Styles for Select
-const selectStyles = {
-  "& .MuiOutlinedInput-notchedOutline": {
-    borderColor: "var(--borderInput)",
-    borderWidth: 2,
-    borderRadius: "10px",
-  },
-  "&:hover .MuiOutlinedInput-notchedOutline": {
-    borderColor: "var(--borderInput)",
-  },
-  "& .MuiSelect-select": {
-    color: "var(--color-white)",
-    WebkitTextFillColor: "var(--color-white)",
-  },
-  "& .MuiSelect-select.MuiInputBase-input": {
-    padding: "12px 40px 12px 20px",
-  },
-  "& .MuiSelect-icon": {
-    color: "var(--color-white)",
-    WebkitTextFillColor: "var(--color-white)",
-  },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: "var(--borderInput)",
-  },
-};
-
-const selectStylesDisabled = {
-  "& .MuiOutlinedInput-notchedOutline": {
-    borderColor: "transparent",
-    borderWidth: 2,
-    borderRadius: "10px",
-  },
-  "&:hover .MuiOutlinedInput-notchedOutline": {
-    borderColor: "transparent",
-  },
-  "& .MuiSelect-select": {
-    color: "var(--color-white) !important",
-    WebkitTextFillColor: "var(--color-white)",
-    "&:focus": {
-      color: "var(--color-white)",
-    },
-  },
-  "& .MuiSelect-select.MuiInputBase-input": {
-    padding: "12px 40px 12px 20px",
-  },
-  "& .MuiSelect-icon": {
-    color: "var(--color-white)",
-  },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: "transparent",
-  },
-  "&.Mui-disabled": {
-    backgroundColor: "transparent",
-    "& .MuiOutlinedInput-notchedOutline": {
-      borderColor: "transparent",
-    },
-    "& .MuiSelect-icon": {
-      color: "transparent",
-    },
-    "& .MuiSelect-select": {
-      color: "var(--color-white)",
-      WebkitTextFillColor: "var(--color-white)",
-      paddingLeft: 0,
-      paddingRight: 0,
-    },
-    "& .MuiSvgIcon-root": {
-      color: "transparent !important",
-    },
-  },
-};

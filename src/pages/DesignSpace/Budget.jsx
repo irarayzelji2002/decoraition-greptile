@@ -8,24 +8,14 @@ import { showToast } from "../../functions/utils";
 
 import Item from "./Item";
 import IconButton from "@mui/material/IconButton";
-import AddIcon from "@mui/icons-material/Add";
-import EditIcon from "@mui/icons-material/Edit";
-import DeleteIcon from "@mui/icons-material/Delete";
-import CloseIcon from "@mui/icons-material/Close";
+import { AddIcon, EditIcon, DeleteIcon } from "../../components/svg/DefaultMenuIcons";
+import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
 import DesignSpace from "./DesignSpace";
 import Box from "@mui/material/Box";
 import Modal from "@mui/material/Modal";
 import { Divider } from "@mui/material";
 import KeyboardArrowDownRoundedIcon from "@mui/icons-material/KeyboardArrowDownRounded";
-import { onSnapshot } from "firebase/firestore";
 import "../../css/budget.css";
-import { db } from "../../firebase"; // Assuming you have firebase setup
-import { ToastContainer, toast } from "react-toastify";
-import { collection, updateDoc, doc, deleteDoc, getDoc } from "firebase/firestore";
-import Loading from "../../components/Loading";
-import { getAuth, prodErrorMap } from "firebase/auth";
-import { query, where } from "firebase/firestore";
-import CommentTabs from "./CommentTabs";
 import { AddBudget, AddItem, BlankImage } from "./svg/AddImage";
 import { getDesignImage, handleNameChange } from "./backend/DesignActions";
 import LoadingPage from "../../components/LoadingPage";
@@ -42,14 +32,24 @@ const style = {
 };
 
 function Budget() {
-  const { user, designs, userDesigns, userDesignVersions, budgets, userBudgets, items, userItems } =
-    useSharedProps();
+  const {
+    user,
+    designs,
+    userDesigns,
+    designVersions,
+    userDesignVersions,
+    budgets,
+    userBudgets,
+    items,
+    userItems,
+  } = useSharedProps();
   const { designId } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
   const navigateFrom = location.pathname;
 
   const [design, setDesign] = useState({});
+  const [designVersion, setDesignVersion] = useState({});
   const [budget, setBudget] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
   const [isBudgetModalOpen, setIsBudgetModalOpen] = useState(false);
@@ -69,6 +69,7 @@ function Budget() {
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
+  const [isBudgetButtonDisabled, setIsBudgetButtonDisabled] = useState(false);
 
   // Icons
   const GradientAddIcon = () => (
@@ -140,37 +141,12 @@ function Budget() {
 
   const formatNumber = (num) => (typeof num === "number" ? num.toFixed(2) : "0.00");
 
-  // Initialize
-  useEffect(() => {
-    if (Object.keys(design).length > 0) return;
-    const fetchedDesign = userDesigns.find((design) => design.id === designId);
-    setDesign(fetchedDesign || {});
-    setDesignName(fetchedDesign?.designName ?? "Untitled Design");
-
-    if (!fetchedDesign) {
-      console.error("Design not found.");
-      return;
-    }
-
-    const fetchedBudget = userBudgets.find((budget) => budget.designId === designId);
-    setBudget(fetchedBudget || {});
-
-    const fetchedItems =
-      fetchedBudget && fetchedBudget.items
-        ? userItems.filter((item) => fetchedBudget.items.includes(item.id))
-        : [];
-    setDesignItems(fetchedItems);
-
-    if (fetchedBudget && fetchedItems.length > 0) {
-      computeTotalCostAndExceededBudget(fetchedItems, fetchedBudget.budget?.amount);
-    }
-    setLoading(false);
-  }, [userBudgets, userDesigns, userItems]);
-
-  // Updates on Real-time changes on shared props
+  // Get design
   useEffect(() => {
     if (Object.keys(design).length === 0) return;
-    const fetchedDesign = userDesigns.find((design) => design.id === designId);
+    const fetchedDesign =
+      userDesigns.find((design) => design.id === designId) ||
+      designs.find((design) => design.id === designId);
 
     if (!fetchedDesign) {
       console.error("Design not found");
@@ -178,12 +154,55 @@ function Budget() {
       setDesign(fetchedDesign);
       setDesignName(fetchedDesign?.designName ?? "Untitled Design");
     }
-  }, [designs, userDesigns]);
+  }, [designs, designs, userDesigns]);
+
+  // Get latest design version
+  useEffect(() => {
+    if (design?.history && design.history.length > 0) {
+      const latestDesignVersionId = design.history[design.history.length - 1];
+      const fetchedLatestDesignVersion =
+        designVersions.find((v) => v.id === latestDesignVersionId) ||
+        userDesignVersions.find((v) => v.id === latestDesignVersionId);
+
+      if (!fetchedLatestDesignVersion) {
+        console.error("Latest design version not found.");
+      } else if (
+        Object.keys(designVersion).length === 0 ||
+        !deepEqual(designVersion, fetchedLatestDesignVersion)
+      ) {
+        setDesignVersion(fetchedLatestDesignVersion);
+        console.log("fetchedLatestDesignVersion", fetchedLatestDesignVersion);
+      }
+    } else {
+      setDesignVersion({});
+    }
+    setLoading(false);
+  }, [design, designVersions, userDesignVersions]);
+
+  // Get budget and items
+  useEffect(() => {
+    const fetchedBudget =
+      userBudgets.find((budget) => budget?.designVersionId === designVersion.id) ||
+      budgets.find((budget) => budget?.designVersionId === designVersion.id);
+    setBudget(fetchedBudget || {});
+
+    const fetchedItems =
+      fetchedBudget && fetchedBudget.items
+        ? userItems.filter((item) => fetchedBudget.items?.includes(item.id)) ||
+          items.filter((item) => fetchedBudget.items?.includes(item.id))
+        : [];
+    setDesignItems(fetchedItems);
+
+    if (fetchedBudget && fetchedItems.length > 0) {
+      computeTotalCostAndExceededBudget(fetchedItems, fetchedBudget.budget?.amount);
+    }
+    setLoading(false);
+  }, [designVersion, budgets, userBudgets, items, userItems]);
 
   const updateItems = () => {
     if (budget && budget.items) {
       // Keep existing items that are in the budget
-      const updatedItems = designItems.filter((item) => budget.items.includes(item.id));
+      const updatedItems = designItems.filter((item) => budget.items?.includes(item.id));
 
       // Add or update items from userItems
       budget.items.forEach((itemId) => {
@@ -215,7 +234,9 @@ function Budget() {
   };
 
   useEffect(() => {
-    const fetchedBudget = userBudgets.find((budget) => budget.designId === designId);
+    const fetchedBudget =
+      userBudgets.find((budget) => budget?.designVersionId === designId) ||
+      budgets.find((budget) => budget?.designVersionId === designId);
 
     if (fetchedBudget && !deepEqual(budget, fetchedBudget)) {
       setBudget(fetchedBudget);
@@ -247,8 +268,10 @@ function Budget() {
     return <LoadingPage />;
   }
 
-  if (!design) {
-    return <div>Design not found. Please reload or navigate to this design again.</div>;
+  if (!design || !designVersion) {
+    return (
+      <LoadingPage message="Design not found. Please reload or navigate to this design again." />
+    );
   }
 
   const toggleMenu = () => {
@@ -297,9 +320,11 @@ function Budget() {
   };
 
   const handleUpdateBudget = async (budgetAmount, budgetCurrency) => {
+    setIsBudgetButtonDisabled(true);
     const error = handleValidation(budgetAmount);
     if (error !== "") {
       setError(error);
+      setIsBudgetButtonDisabled(false);
       return;
     } else {
       setError("");
@@ -323,6 +348,7 @@ function Budget() {
       console.error("Error adding budget:", error);
       showToast("error", "Failed to add budget");
     }
+    setIsBudgetButtonDisabled(false);
   };
 
   const handleRemoveBudget = async (budgetCurrency) => {
@@ -495,8 +521,8 @@ function Budget() {
               </div>
             </div>
           )}
-          <div className={`circle-button ${menuOpen ? "rotate" : ""}`} onClick={toggleMenu}>
-            {menuOpen ? <CloseIcon /> : <AddIcon />}
+          <div className={`circle-button ${menuOpen ? "rotate" : ""} add`} onClick={toggleMenu}>
+            {menuOpen ? <AddIcon /> : <AddIcon />}
           </div>
         </div>
 
@@ -507,7 +533,7 @@ function Budget() {
               <h2 style={{ color: "var(--color-white)" }}>
                 {setIsEditingBudget ? "Edit the budget" : "Add a Budget"}
               </h2>
-              <CloseIcon
+              <CloseRoundedIcon
                 className="close-icon"
                 onClick={() => toggleBudgetModal(false, isEditingBudget)}
               />
@@ -552,7 +578,7 @@ function Budget() {
                   <span id="modal-modal-title" style={{ fontSize: "18px", fontWeight: "600" }}>
                     {isEditingBudget ? "Edit the budget" : "Add a Budget"}
                   </span>{" "}
-                  <CloseIcon
+                  <CloseRoundedIcon
                     sx={{ marginLeft: "auto" }}
                     onClick={() => toggleBudgetModal(false, isEditingBudget)}
                     cursor={"pointer"}
@@ -617,8 +643,16 @@ function Budget() {
                 )}
                 <button
                   className="add-item-btn"
-                  style={{ margin: "18px" }}
+                  style={{
+                    margin: "18px",
+                    opacity: isBudgetButtonDisabled ? "0.5" : "1",
+                    cursor: isBudgetButtonDisabled ? "default" : "pointer",
+                    "&:hover": {
+                      backgroundImage: !isBudgetButtonDisabled && "var(--gradientButton)",
+                    },
+                  }}
                   onClick={() => handleUpdateBudget(budgetAmountForInput, budgetCurrencyForInput)}
+                  disabled={isBudgetButtonDisabled}
                 >
                   {isEditingBudget ? "Edit budget" : "Add Budget"}
                 </button>
@@ -645,7 +679,7 @@ function Budget() {
                   <span id="modal-modal-title" style={{ fontSize: "18px", fontWeight: "600" }}>
                     Confirm budget removal
                   </span>
-                  <CloseIcon
+                  <CloseRoundedIcon
                     sx={{ marginLeft: "auto" }}
                     onClick={() => setIsRemoveBudgetModalOpen(false)}
                     cursor={"pointer"}

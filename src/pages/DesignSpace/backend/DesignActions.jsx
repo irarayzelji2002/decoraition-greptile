@@ -837,6 +837,7 @@ export const generateNextImage = async (
   let combinedMaskData;
 
   // Apply Mask
+  const imageId = selectedImage?.imageId;
   if (!isSamMaskOnly) {
     console.log("Applying Mask - next image");
     if (!combinedMask) {
@@ -865,7 +866,7 @@ export const generateNextImage = async (
       } else {
         let formErrors = {};
         formErrors.combinedMask = result.message;
-        setMaskErrors((prev) => ({ ...prev, ...formErrors }));
+        setMaskErrors(formErrors);
         return {
           success: false,
           message: result.message,
@@ -885,7 +886,7 @@ export const generateNextImage = async (
     const resultUpdateCombinedMask = await updateDesignVersionCombinedMask(
       design?.id,
       designVersion?.id, //designVersionId,
-      selectedImage?.imageId, //designVersionImageId,
+      imageId, //designVersionImageId,
       combinedMaskData,
       user,
       userDoc
@@ -896,7 +897,6 @@ export const generateNextImage = async (
     }
     setStatusMessage("Uploading images of masks complete");
     const images = resultUpdateCombinedMask?.data || designVersion.images;
-    const imageId = selectedImage?.imageId;
     const image = images.find((i) => i.imageId === imageId) ?? null;
     const newSamMaskImage = image?.masks?.combinedMask?.samMaskImage || samMasks?.[0]?.mask || null;
     const newSamMaskMask =
@@ -914,7 +914,6 @@ export const generateNextImage = async (
     combinedMaskBW = newSamMaskImage;
   } else {
     const image = designVersion?.images.find((i) => i.imageId === imageId) ?? null;
-    const imageId = selectedImage?.imageId;
     const samMaskImage =
       image?.masks?.combinedMask?.samMaskImage?.trim() || samMasks?.[0]?.mask?.trim() || null;
     combinedMaskBW = samMaskImage;

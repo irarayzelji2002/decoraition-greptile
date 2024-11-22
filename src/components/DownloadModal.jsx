@@ -27,6 +27,11 @@ import {
   dialogContentStyles,
   dialogActionsStyles,
 } from "./RenameModal";
+import {
+  selectStyles,
+  selectStylesDisabled,
+  menuItemStyles,
+} from "../pages/DesignSpace/DesignSettings";
 
 const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
   // object is a design if isDesign is true else its a project object
@@ -38,6 +43,7 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
   const [selectedDesignCategory, setSelectedDesignCategory] = useState("Design");
   const [selectedDesignVersionId, setSelectedDesignVersionId] = useState("");
   const [selectedDesignVersionDate, setSelectedDesignVersionDate] = useState("");
+  const [selectedDesignVersionBudgetId, setSelectedDesignVersionBudgetId] = useState("");
   const [versionDetails, setVersionDetails] = useState([]);
   const [designFileType, setDesignFileType] = useState(
     selectedDesignCategory === "Design" ? "PDF" : selectedDesignCategory === "Budget" ? "XLSX" : ""
@@ -75,6 +81,7 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
     onClose();
     setSelectedDesignVersionId("");
     setSelectedDesignVersionDate("");
+    setSelectedDesignVersionBudgetId("");
     setVersionDetails([]);
     setDesignFileType(
       selectedDesignCategory === "Design"
@@ -170,9 +177,10 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
       const selectedVersion = versionDetails.find((version) => version.id === selectedId);
       if (selectedVersion) {
         setSelectedDesignVersionDate(formatDateDetailComma(selectedVersion.createdAt));
+        setSelectedDesignVersionBudgetId(selectedVersion?.budgetId);
       }
     } else {
-      setSelectedDesignVersionDate("");
+      setSelectedDesignVersionDate("");setSelectedDesignVersionBudgetId("");
     }
   };
 
@@ -184,6 +192,7 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
         console.error("Error:", result.message);
         setSelectedDesignVersionId("");
         setSelectedDesignVersionDate("");
+        setSelectedDesignVersionBudgetId("");
         setVersionDetails([]);
         return;
       }
@@ -193,7 +202,8 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
       const latestVersion = versionDetails[0];
       if (latestVersion) {
         setSelectedDesignVersionId(latestVersion.id);
-        setSelectedDesignVersionDate(formatDateDetailComma(latestVersion.createdAt));
+        setSelectedDesignVersionDate(formatDateDetailComma(latestVersion?.createdAt));
+        setSelectedDesignVersionBudgetId(latestVersion?.budgetId);
       }
     }
   };
@@ -219,7 +229,7 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
       // Design: has a design version
       if (design.history && design.history.length > 0) {
         getVersionDetails(design);
-        if (!filteredOptions.includes("Design")) {
+        if (!filteredOptions?.includes("Design")) {
           filteredOptions.push("Design");
         }
       }
@@ -228,7 +238,7 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
       setProject(project);
       // Designs: has related designs
       if (project.designs.length > 0) {
-        if (!filteredOptions.includes("Designs")) {
+        if (!filteredOptions?.includes("Designs")) {
           filteredOptions.push("Designs");
         }
       }
@@ -240,9 +250,9 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
 
   // Budget useEffect
   useEffect(() => {
-    if (!design?.budgetId || !userBudgets) return;
+    if (!selectedDesignVersionBudgetId || !userBudgets) return;
 
-    const budgetId = design.budgetId;
+    const budgetId = selectedDesignVersionBudgetId;
     const fetchedBudget = userBudgets.find((budget) => budget.id === budgetId);
     if (!fetchedBudget) {
       console.error("Budget not found.");
@@ -250,14 +260,14 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
       if (fetchedBudget.budget?.amount > 0 || fetchedBudget.items?.length > 0) {
         setDownloadOptions((prev) => {
           const newOptions = [...prev];
-          if (!newOptions.includes("Budget")) {
+          if (!newOptions?.includes("Budget")) {
             newOptions.push("Budget");
           }
           return sortDownloadOptions(newOptions, true); // true for design
         });
       }
     }
-  }, [design, userBudgets]);
+  }, [selectedDesignVersionBudgetId, userBudgets]);
 
   // Timeline useEffect
   useEffect(() => {
@@ -271,7 +281,7 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
       if (fetchedTimeline.events.length > 0) {
         setDownloadOptions((prev) => {
           const newOptions = [...prev];
-          if (!newOptions.includes("Timeline")) {
+          if (!newOptions?.includes("Timeline")) {
             newOptions.push("Timeline");
           }
           return sortDownloadOptions(newOptions, false); // false for project
@@ -292,7 +302,7 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
       if (fetchedPlanMap.venuePlan) {
         setDownloadOptions((prev) => {
           const newOptions = [...prev];
-          if (!newOptions.includes("Plan Map")) {
+          if (!newOptions?.includes("Plan Map")) {
             newOptions.push("Plan Map");
           }
           return sortDownloadOptions(newOptions, false);
@@ -313,7 +323,7 @@ const DownloadModal = ({ isOpen, onClose, isDesign, object }) => {
       if (fetchedProjectBudget.budgets?.length > 0 || fetchedProjectBudget.budget?.amount > 0) {
         setDownloadOptions((prev) => {
           const newOptions = [...prev];
-          if (!newOptions.includes("Budget")) {
+          if (!newOptions?.includes("Budget")) {
             newOptions.push("Budget");
           }
           return sortDownloadOptions(newOptions, false);
@@ -645,95 +655,5 @@ const formControlStyles = {
   },
   "& .MuiSvgIcon-root": {
     color: "var(--color-white)", // Set the arrow color to white
-  },
-};
-
-const menuItemStyles = {
-  color: "var(--color-white)",
-  backgroundColor: "var(--dropdown)", //bgColor
-  transition: "all 0.3s ease",
-  display: "block",
-  minHeight: "auto",
-  "&:hover": {
-    backgroundColor: "var(--dropdownHover) !important",
-  },
-  "&.Mui-selected": {
-    backgroundColor: "var(--dropdownSelected) !important",
-    color: "var(--color-white)",
-    fontWeight: "bold",
-  },
-  "&.Mui-selected:hover": {
-    backgroundColor: "var(--dropdownSelectedHover) !important",
-  },
-};
-
-// Styles for Select
-const selectStyles = {
-  "& .MuiOutlinedInput-notchedOutline": {
-    borderColor: "var(--borderInput)",
-    borderWidth: 2,
-    borderRadius: "10px",
-  },
-  "&:hover .MuiOutlinedInput-notchedOutline": {
-    borderColor: "var(--borderInput)",
-  },
-  "& .MuiSelect-select": {
-    color: "var(--color-white)",
-    WebkitTextFillColor: "var(--color-white)",
-  },
-  "& .MuiSelect-select.MuiInputBase-input": {
-    padding: "12px 40px 12px 20px",
-  },
-  "& .MuiSelect-icon": {
-    color: "var(--color-white)",
-    WebkitTextFillColor: "var(--color-white)",
-  },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: "var(--borderInput)",
-  },
-};
-
-const selectStylesDisabled = {
-  "& .MuiOutlinedInput-notchedOutline": {
-    borderColor: "transparent",
-    borderWidth: 2,
-    borderRadius: "10px",
-  },
-  "&:hover .MuiOutlinedInput-notchedOutline": {
-    borderColor: "transparent",
-  },
-  "& .MuiSelect-select": {
-    color: "var(--color-white) !important",
-    WebkitTextFillColor: "var(--color-white)",
-    "&:focus": {
-      color: "var(--color-white)",
-    },
-  },
-  "& .MuiSelect-select.MuiInputBase-input": {
-    padding: "12px 40px 12px 20px",
-  },
-  "& .MuiSelect-icon": {
-    color: "var(--color-white)",
-  },
-  "&.Mui-focused .MuiOutlinedInput-notchedOutline": {
-    borderColor: "transparent",
-  },
-  "&.Mui-disabled": {
-    backgroundColor: "transparent",
-    "& .MuiOutlinedInput-notchedOutline": {
-      borderColor: "transparent",
-    },
-    "& .MuiSelect-icon": {
-      color: "transparent",
-    },
-    "& .MuiSelect-select": {
-      color: "var(--color-white)",
-      WebkitTextFillColor: "var(--color-white)",
-      paddingLeft: 0,
-      paddingRight: 0,
-    },
-    "& .MuiSvgIcon-root": {
-      color: "transparent !important",
-    },
   },
 };

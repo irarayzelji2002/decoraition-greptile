@@ -8,7 +8,20 @@ html {
   overflow-x: hidden;
 }
 
-span {
+span,
+input,
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+div,
+button,
+select,
+option,
+p,
+text {
   font-family: "Inter", sans-serif !important;
 }
 
@@ -114,7 +127,7 @@ select:-webkit-autofill {
 }
 
 .see-dropdown {
-  width: 140px;
+  width: fit-content;
 }
 
 .custom-select {

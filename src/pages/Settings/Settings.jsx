@@ -1,7 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { useSharedProps } from "../../contexts/SharedPropsContext";
-import { auth } from "../../firebase";
 import axios from "axios";
 import {
   handleSetError,
@@ -407,7 +406,7 @@ function Settings() {
       // Image validation
       let message = "";
       const acceptedTypes = ["image/png", "image/jpeg", "image/jpg", "image/gif", "image/webp"];
-      if (!acceptedTypes.includes(file.type)) {
+      if (!acceptedTypes?.includes(file.type)) {
         message = "Please upload an image file of png, jpg, jpeg, gif, or webp type";
         showToast("error", message);
       } else {
@@ -812,6 +811,10 @@ function Settings() {
     }
   };
 
+  const handleSwitchToAccountTab = () => {
+    setSelectedTab("Account");
+  };
+
   return (
     <>
       <TopBar state="Settings" navigateTo={navigateTo} navigateFrom={navigateFrom} />
@@ -1032,7 +1035,7 @@ function Settings() {
         {/* Notification Tab Content */}
         {selectedTab === "Notification" && (
           <Box mt={4} className="notification-settings">
-            <Notifications />
+            <Notifications onCancel={handleSwitchToAccountTab} />
           </Box>
         )}
       </div>{" "}

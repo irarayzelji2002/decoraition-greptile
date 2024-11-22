@@ -9,8 +9,7 @@ import Dropdowns from "../../components/Dropdowns.jsx";
 import DesignIcon from "../../components/DesignIcon.jsx";
 import HomepageTable from "./HomepageTable.jsx";
 import ImageIcon from "@mui/icons-material/Image";
-import AddIcon from "@mui/icons-material/Add";
-import CloseIcon from "@mui/icons-material/Close";
+import { AddIcon } from "../../components/svg/DefaultMenuIcons.jsx";
 import {
   ArrowForwardIosRounded as ArrowForwardIosRoundedIcon,
   ArrowBackIosRounded as ArrowBackIosRoundedIcon,
@@ -30,7 +29,7 @@ import { AddDesign } from "../DesignSpace/svg/AddImage.jsx";
 
 export default function SeeAllDesigns() {
   const navigate = useNavigate();
-  const { user, userDoc, designs, userDesigns } = useSharedProps();
+  const { user, users, userDoc, designs, userDesigns } = useSharedProps();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredDesigns, setFilteredDesigns] = useState([]);
@@ -51,46 +50,50 @@ export default function SeeAllDesigns() {
   const [owners, setOwners] = useState([]);
   const [selectedOwner, setSelectedOwner] = useState("");
   const [dateRange, setDateRange] = useState({ start: null, end: null });
-  const [sortBy, setSortBy] = useState("");
-  const [order, setOrder] = useState("");
+  const [sortBy, setSortBy] = useState("none");
+  const [order, setOrder] = useState("none");
 
   const loadDesignDataForView = async () => {
     if (userDesigns.length > 0) {
-      const designsByLatest = [...userDesigns].sort((a, b) => {
-        return b.modifiedAt.toMillis() - a.modifiedAt.toMillis();
-      });
+      try {
+        setLoadingDesigns(true);
 
-      const filteredDesigns = designsByLatest.filter((design) =>
-        design.designName.toLowerCase().includes(searchQuery.trim().toLowerCase())
-      );
-      setFilteredDesigns(filteredDesigns);
+        // Sort designs by latest modified date
+        const designsByLatest = [...userDesigns].sort(
+          (a, b) => b.modifiedAt?.toMillis() - a.modifiedAt?.toMillis()
+        );
 
-      const tableData = await Promise.all(
-        filteredDesigns.map(async (design) => {
-          const username = await getUsername(design.owner);
-          return {
+        // Filter designs based on search query
+        const filteredDesigns = designsByLatest.filter((design) =>
+          design.designName?.toLowerCase()?.includes(searchQuery?.trim()?.toLowerCase())
+        );
+        setFilteredDesigns(filteredDesigns);
+
+        // Process table data
+        const tableData = await Promise.all(
+          filteredDesigns.map(async (design) => ({
             ...design,
             ownerId: design.owner,
-            owner: username,
-            formattedCreatedAt: formatDate(design.createdAt),
-            createdAtTimestamp: design.createdAt.toMillis(),
-            formattedModifiedAt: formatDate(design.modifiedAt),
-            modifiedAtTimestamp: design.modifiedAt.toMillis(),
-          };
-        })
-      );
-      setFilteredDesignsForTable(tableData);
+            owner: users?.find((user) => user?.id === design?.owner)?.username || "",
+            formattedCreatedAt: formatDate(design?.createdAt),
+            createdAtTimestamp: design.createdAt?.toMillis(),
+            formattedModifiedAt: formatDate(design?.modifiedAt),
+            modifiedAtTimestamp: design.modifiedAt?.toMillis(),
+          }))
+        );
 
-      const uniqueOwners = await Promise.all(
-        [...new Set(userDesigns.map((design) => design.owner))].map(async (ownerId) => {
-          const username = await getUsername(ownerId);
-          return username;
-        })
-      );
-      setOwners(uniqueOwners);
+        setFilteredDesignsForTable(tableData);
+        setOwners([]);
+      } catch (error) {
+        console.error("Error loading design data:", error);
+      } finally {
+        setLoadingDesigns(false);
+      }
     } else {
       setFilteredDesigns([]);
       setFilteredDesignsForTable([]);
+      setOwners([]);
+      setLoadingDesigns(false);
     }
   };
 
@@ -99,7 +102,7 @@ export default function SeeAllDesigns() {
       await loadDesignDataForView();
     };
     loadData();
-  }, []);
+  }, [userDesigns]);
 
   const handleOwnerChange = (owner) => {
     setSelectedOwner(owner);
@@ -125,13 +128,18 @@ export default function SeeAllDesigns() {
       return matchesSearchQuery && matchesOwner && matchesDateRange;
     });
 
-    if (sortBy) {
+    // sorting logic for tiled view
+    filteredDesigns.sort((a, b) => b.modifiedAt.toMillis() - a.modifiedAt.toMillis());
+
+    if (sortBy && sortBy !== "none" && order && order !== "none") {
       filteredDesigns = filteredDesigns.sort((a, b) => {
         let comparison = 0;
         if (sortBy === "name") {
           comparison = a.designName.localeCompare(b.designName);
         } else if (sortBy === "owner") {
-          comparison = a.owner.localeCompare(b.owner);
+          comparison = users
+            .find((user) => user.id === a.owner)
+            ?.username.localeCompare(users.find((user) => user.id === b.owner)?.username);
         } else if (sortBy === "created") {
           comparison = a.createdAt.toMillis() - b.createdAt.toMillis();
         } else if (sortBy === "modified") {
@@ -164,11 +172,11 @@ export default function SeeAllDesigns() {
     setLoadingDesigns(true);
     if (filteredDesigns.length > 0) {
       // Set number of pages
-      const totalPages = Math.ceil(filteredDesigns.length / 25);
+      const totalPages = Math.ceil(filteredDesigns.length / 18);
       setTotalPages(totalPages);
 
       // Set contents of the page
-      const itemsPerPage = 25;
+      const itemsPerPage = 18;
       const startIndex = (page - 1) * itemsPerPage;
       const endIndex = startIndex + itemsPerPage;
       const paginatedDesigns = filteredDesigns.slice(startIndex, endIndex);
@@ -209,24 +217,27 @@ export default function SeeAllDesigns() {
     <>
       <SearchAppBar onSearchChange={(value) => setSearchQuery(value)} searchQuery={searchQuery} />
 
-      <div className="bg" style={{ background: "none" }}>
+      <div className="bg" style={{ background: "none", paddingBottom: "50px" }}>
         <div className="dropdown-container">
-          <Dropdowns
-            owners={owners}
-            onOwnerChange={handleOwnerChange}
-            onDateRangeChange={handleDateRangeChange}
-            sortBy={sortBy}
-            order={order}
-            onSortByChange={setSortBy}
-            onOrderChange={setOrder}
-          />
+          {view === 0 && (
+            <Dropdowns
+              owners={owners}
+              onOwnerChange={handleOwnerChange}
+              onDateRangeChange={handleDateRangeChange}
+              sortBy={sortBy}
+              order={order}
+              onSortByChange={setSortBy}
+              onOrderChange={setOrder}
+              isDesign={true}
+            />
+          )}
         </div>
         {menuOpen && <div className="overlay" onClick={toggleMenu}></div>}
 
         <section className="recent-section">
           <div className="recent-designs">
-            <div className="separator">
-              <h2>Designs</h2>
+            <div className="separator see-all">
+              <h2>{`${searchQuery ? "Searched " : ""}Designs`}</h2>
               <div style={{ marginLeft: "auto", display: "inline-flex", marginBottom: "10px" }}>
                 {filteredDesigns.length > 0 && (
                   <div>
@@ -287,10 +298,7 @@ export default function SeeAllDesigns() {
                   view === 0 ? (
                     <div className="layout">
                       {displayedDesigns.map((design) => (
-                        <div
-                          key={design.id}
-                          style={{ width: "100%", display: "flex", justifyContent: "center" }}
-                        >
+                        <div key={design.id} className="layoutBox">
                           <DesignIcon
                             id={design.id}
                             name={design.designName}
@@ -406,8 +414,8 @@ export default function SeeAllDesigns() {
             ></div>
           </div>
         )}
-        <div className={`circle-button ${menuOpen ? "rotate" : ""}`} onClick={toggleMenu}>
-          {menuOpen ? <CloseIcon /> : <AddIcon />}
+        <div className={`circle-button ${menuOpen ? "rotate" : ""} add`} onClick={toggleMenu}>
+          {menuOpen ? <AddIcon /> : <AddIcon />}
         </div>
       </div>
     </>

@@ -257,7 +257,14 @@ export const formatDateLong = (timestamp) => {
 
 // For Details Modal
 export const formatDateDetail = (timestamp) => {
-  const date = new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+  // Handle both formats of timestamp (_seconds and seconds)
+  const seconds = timestamp._seconds || timestamp.seconds;
+  const nanoseconds = timestamp._nanoseconds || timestamp.nanoseconds;
+  if (seconds === undefined || nanoseconds === undefined) {
+    console.error("Invalid timestamp:", timestamp);
+    return "Invalid date";
+  }
+  const date = new Date(seconds * 1000 + nanoseconds / 1000000);
 
   const dateAgo = formatDateAgo(date);
   if (dateAgo) return dateAgo;
@@ -285,7 +292,14 @@ export const formatDateDetail = (timestamp) => {
 
 // For Restore and History Modal
 export const formatDateDetailComma = (timestamp) => {
-  const date = new Date(timestamp.seconds * 1000 + timestamp.nanoseconds / 1000000);
+  // Handle both formats of timestamp (_seconds and seconds)
+  const seconds = timestamp._seconds || timestamp.seconds;
+  const nanoseconds = timestamp._nanoseconds || timestamp.nanoseconds;
+  if (seconds === undefined || nanoseconds === undefined) {
+    console.error("Invalid timestamp:", timestamp);
+    return "Invalid date";
+  }
+  const date = new Date(seconds * 1000 + nanoseconds / 1000000);
 
   const dateAgo = formatDateAgo(date);
   if (dateAgo) return dateAgo;
@@ -302,7 +316,7 @@ export const formatDateDetailComma = (timestamp) => {
   // If more than a day, return the date in "Month Day, Year" format with time
   return (
     date.toLocaleDateString("en-US", {
-      month: "long",
+      month: "short",
       day: "numeric",
       year: "numeric",
     }) +
@@ -363,7 +377,10 @@ export const getUser = async (userId) => {
 
 export const getUsernames = async (userIds) => {
   try {
-    const response = await axios.post("/api/user/get-usernames", { userIds });
+    const response = await axios.post(
+      "/api/user/get-usernames",
+      Array.isArray(userIds) ? userIds : [userIds]
+    );
 
     if (response.status === 200) {
       const usernames = response.data.usernames;

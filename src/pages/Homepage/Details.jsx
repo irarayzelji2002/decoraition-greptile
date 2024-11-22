@@ -7,7 +7,7 @@ import { useSharedProps } from "../../contexts/SharedPropsContext";
 import { getUsername, getUsernames, formatDateDetail } from "./backend/HomepageActions";
 import { capitalizeFieldName } from "../../functions/utils";
 import Button from "@mui/material/Button";
-import ChevronRightRoundedIcon from "@mui/icons-material/ChevronRightRounded";
+import KeyboardArrowRightRoundedIcon from "@mui/icons-material/KeyboardArrowRightRounded";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 const theme = createTheme({
@@ -49,7 +49,7 @@ function Details() {
   const navigateFrom = location.pathname;
 
   const { id, type } = useParams();
-  const { user, userDoc, designs, userDesigns, projects, userProjects } = useSharedProps();
+  const { user, users, userDoc, designs, userDesigns, projects, userProjects } = useSharedProps();
   const [loading, setLoading] = useState(true);
   const [design, setDesign] = useState({});
   const [designId, setDesignId] = useState("");
@@ -65,13 +65,15 @@ function Details() {
       const designId = id;
       setDesignId(designId);
       setLoading(true);
-      const fetchedDesign = userDesigns.find((design) => design.id === designId);
+      const fetchedDesign =
+        userDesigns.find((design) => design.id === designId) ||
+        designs.find((design) => design.id === designId);
 
       if (!fetchedDesign) {
         console.error("Design not found.");
       } else {
         setDesign(fetchedDesign);
-        getUsername(fetchedDesign.owner).then((username) => setOwnerName(username));
+        setOwnerName(users.find((user) => user.id === design.owner)?.username);
         console.log("fetchedDesign", fetchedDesign);
         setCreatedAtDisplay(formatDateDetail(fetchedDesign.createdAt));
         setModifiedAtDisplay(formatDateDetail(fetchedDesign.modifiedAt));
@@ -81,13 +83,18 @@ function Details() {
       const projectId = id;
       setProjectId(projectId);
       setLoading(true);
-      const fetchedProject = userDesigns.find((project) => project.id === projectId);
+      const fetchedProject =
+        userProjects.find((project) => project.id === projectId) ||
+        projects.find((project) => project.id === projectId);
 
       if (!fetchedProject) {
         console.error("Project not found.");
       } else {
         setProject(fetchedProject);
-        getUsernames(fetchedProject.managers).then((usernames) => setManagerNames(usernames));
+        const projectManagers = (fetchedProject.managers || []).map(
+          (id) => users.find((user) => user.id === id)?.username
+        );
+        setManagerNames(projectManagers.join(", "));
         console.log("fetchedProject", fetchedProject);
         setCreatedAtDisplay(formatDateDetail(fetchedProject.createdAt));
         setModifiedAtDisplay(formatDateDetail(fetchedProject.modifiedAt));
@@ -97,11 +104,13 @@ function Details() {
       console.log("Type:", type);
       console.log("ID:", id);
     }
-  }, []);
+  }, [designs, projects, userDesigns, userProjects]);
 
   useEffect(() => {
     if (type === "design" && designId && userDesigns.length > 0) {
-      const fetchedDesign = userDesigns.find((design) => design.id === designId);
+      const fetchedDesign =
+        userDesigns.find((design) => design.id === designId) ||
+        designs.find((design) => design.id === designId);
 
       if (!fetchedDesign) {
         console.error("Design not found.");
@@ -113,11 +122,13 @@ function Details() {
         setModifiedAtDisplay(formatDateDetail(fetchedDesign.modifiedAt));
       }
     }
-  }, [designId, userDesigns]);
+  }, [designId, designs, userDesigns]);
 
   useEffect(() => {
     if (type === "project" && projectId && userProjects.length > 0) {
-      const fetchedProject = userProjects.find((project) => project.id === projectId);
+      const fetchedProject =
+        userProjects.find((project) => project.id === projectId) ||
+        projects.find((project) => project.id === projectId);
 
       if (!fetchedProject) {
         console.error("Project not found.");
@@ -129,7 +140,7 @@ function Details() {
         setModifiedAtDisplay(formatDateDetail(fetchedProject.modifiedAt));
       }
     }
-  }, [projectId, userProjects]);
+  }, [projectId, projects, userProjects]);
 
   return (
     <ThemeProvider theme={theme}>
@@ -187,7 +198,7 @@ function Details() {
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                 >
                   Who has access{" "}
-                  <ChevronRightRoundedIcon
+                  <KeyboardArrowRightRoundedIcon
                     sx={{
                       color: "var(--color-white)",
                       fontSize: "2rem",
@@ -206,7 +217,7 @@ function Details() {
                   style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}
                 >
                   Who has access{" "}
-                  <ChevronRightRoundedIcon
+                  <KeyboardArrowRightRoundedIcon
                     sx={{
                       color: "var(--color-white)",
                       fontSize: "2rem",

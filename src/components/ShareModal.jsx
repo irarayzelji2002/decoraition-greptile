@@ -65,6 +65,7 @@ const ShareModal = ({ isOpen, onClose, handleShare, isDesign, object }) => {
       return;
     }
     const result = await handleShare(object, emails, role, message, notifyPeople);
+    console.log("sharedata", { object, emails, role, message, notifyPeople });
     if (!result.success) {
       if (result.message === "No email addresses added" || result.message === "Select a role")
         setError(result.message);

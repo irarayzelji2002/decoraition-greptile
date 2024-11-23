@@ -351,12 +351,13 @@ export const handleAddCollaborators = async (
   role,
   message,
   notifyPeople,
-  user
+  user,
+  userDoc
 ) => {
   try {
     const response = await axios.post(
       `/api/project/${project.id}/share`,
-      { userId: user.id, emails, role, message, notifyPeople },
+      { userId: userDoc.id, emails, role, message, notifyPeople },
       {
         headers: {
           Authorization: `Bearer ${await user.getIdToken()}`,
@@ -384,11 +385,17 @@ export const handleAddCollaborators = async (
   }
 };
 
-export const handleAccessChange = async (project, initEmailsWithRole, emailsWithRole, user) => {
+export const handleAccessChange = async (
+  project,
+  initEmailsWithRole,
+  emailsWithRole,
+  user,
+  userDoc
+) => {
   try {
     const response = await axios.post(
       `/api/project/${project.id}/change-access`,
-      { userId: user.id, initEmailsWithRole, emailsWithRole },
+      { userId: userDoc.id, initEmailsWithRole, emailsWithRole },
       {
         headers: {
           Authorization: `Bearer ${await user.getIdToken()}`,

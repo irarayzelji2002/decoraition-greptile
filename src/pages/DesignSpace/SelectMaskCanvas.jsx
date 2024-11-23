@@ -136,7 +136,7 @@ function SelectMaskCanvas({
   const containerRef = useRef(null);
 
   // Show/Hide States
-  const [showAllOptions, setShowAllOptions] = useState(true);
+  const [showAllOptions, setShowAllOptions] = useState(false);
   const [showGeneralOptions, setShowGeneralOptions] = useState(true);
   const [showAddRemoveOptions, setShowAddRemoveOptions] = useState(true);
   const [showSamOptions, setShowSamOptions] = useState(true);
@@ -1165,6 +1165,10 @@ function SelectMaskCanvas({
                 sx={{
                   ...textFieldStyles,
                   flexGrow: 1,
+                  "& input": {
+                    ...textFieldStyles["& input"],
+                    padding: 0,
+                  },
                   "& .MuiOutlinedInput-root": {
                     ...textFieldStyles["& .MuiOutlinedInput-root"],
                     padding: "11.8px 146px 11.8px 14px",

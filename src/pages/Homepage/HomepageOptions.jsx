@@ -210,7 +210,13 @@ function HomepageOptions({
       return { success: false, message: "Select a version to copy" };
     }
     try {
-      const result = await handleCopyDesign(design, designVersionId, shareWithCollaborators, user);
+      const result = await handleCopyDesign(
+        design,
+        designVersionId,
+        shareWithCollaborators,
+        user,
+        userDoc
+      );
       if (result.success) {
         closeCopyModal();
         return { success: true, message: "Design copied" };

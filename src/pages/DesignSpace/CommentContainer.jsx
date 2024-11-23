@@ -102,6 +102,8 @@ const CommentContainer = ({
   const [mentionOptions, setMentionOptions] = useState([]);
   const [originalMentionOptions, setOriginalMentionOptions] = useState([]);
   const [mentionOptionClicked, setMentionOptionClicked] = useState(null);
+  const [selectedMentionIndex, setSelectedMentionIndex] = useState(-1);
+  const [selectedReplyMentionIndex, setSelectedReplyMentionIndex] = useState(-1);
   const mentionOptionsRef = useRef(null);
   const mentionOptionsReplyRef = useRef(null);
 
@@ -232,6 +234,13 @@ const CommentContainer = ({
     }
     setOpenMentionOptions(true);
   };
+
+  useEffect(() => {
+    if (!openMentionOptions) {
+      setSelectedMentionIndex(-1);
+      setSelectedReplyMentionIndex(-1);
+    }
+  }, [openMentionOptions]);
 
   useEffect(() => {
     const handleMentionOptionClick = (content, setContent, mentions, setMentions, user, ref) => {
@@ -980,6 +989,23 @@ const CommentContainer = ({
                       }
                     }
                   }
+
+                  // Arrow key navigation
+                  if (openMentionOptions && mentionOptions.length > 0 && isEditingComment) {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setSelectedMentionIndex((prev) =>
+                        prev < mentionOptions.length - 1 ? prev + 1 : prev
+                      );
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setSelectedMentionIndex((prev) => (prev > 0 ? prev - 1 : 0));
+                    } else if (e.key === "Enter" && selectedMentionIndex >= 0) {
+                      e.preventDefault();
+                      setMentionOptionClicked(mentionOptions[selectedMentionIndex]);
+                      setSelectedMentionIndex(-1);
+                    }
+                  }
                 }}
                 disabled={!isEditingComment}
                 fullWidth
@@ -1114,8 +1140,12 @@ const CommentContainer = ({
                     borderRadius: "10px",
                   }}
                 >
-                  {mentionOptions.slice(0, 5).map((user) => (
-                    <CustomMenuItem key={user.id} onClick={() => setMentionOptionClicked(user)}>
+                  {mentionOptions.slice(0, 5).map((user, index) => (
+                    <CustomMenuItem
+                      key={user.id}
+                      onClick={() => setMentionOptionClicked(user)}
+                      selected={index === selectedMentionIndex}
+                    >
                       <UserInfoTooltip {...user} />
                     </CustomMenuItem>
                   ))}
@@ -1314,6 +1344,23 @@ const CommentContainer = ({
                       }
                     }
                   }
+
+                  // Arrow key navigation
+                  if (openMentionOptions && mentionOptions.length > 0 && isAddingReply) {
+                    if (e.key === "ArrowDown") {
+                      e.preventDefault();
+                      setSelectedReplyMentionIndex((prev) =>
+                        prev < mentionOptions.length - 1 ? prev + 1 : prev
+                      );
+                    } else if (e.key === "ArrowUp") {
+                      e.preventDefault();
+                      setSelectedReplyMentionIndex((prev) => (prev > 0 ? prev - 1 : 0));
+                    } else if (e.key === "Enter" && selectedReplyMentionIndex >= 0) {
+                      e.preventDefault();
+                      setMentionOptionClicked(mentionOptions[selectedReplyMentionIndex]);
+                      setSelectedReplyMentionIndex(-1);
+                    }
+                  }
                 }}
                 onClick={() => setIsAddingReply(true)}
                 margin="normal"
@@ -1432,7 +1479,7 @@ const CommentContainer = ({
                     borderRadius: "10px",
                   }}
                 >
-                  {mentionOptions.slice(0, 5).map((user) => (
+                  {mentionOptions.slice(0, 5).map((user, index) => (
                     <CustomMenuItem
                       key={user.id}
                       onClick={(e) => {
@@ -1440,6 +1487,7 @@ const CommentContainer = ({
                         console.log("user", user);
                         setMentionOptionClicked(user);
                       }}
+                      selected={index === selectedReplyMentionIndex}
                     >
                       <UserInfoTooltip {...user} />
                     </CustomMenuItem>

@@ -284,7 +284,8 @@ function ProjectHead() {
         role,
         message,
         notifyPeople,
-        user
+        user,
+        userDoc
       );
       if (result.success) {
         handleClose();
@@ -322,7 +323,8 @@ function ProjectHead() {
         project,
         changedInitEmailsWithRole,
         changedEmailsWithRole,
-        user
+        user,
+        userDoc
       );
       if (result.success) {
         handleClose();

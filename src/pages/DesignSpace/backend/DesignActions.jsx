@@ -144,11 +144,17 @@ export const handleRestoreDesignVersion = async (design, designVersionId, user, 
   }
 };
 
-export const handleCopyDesign = async (design, designVersionId, shareWithCollaborators, user) => {
+export const handleCopyDesign = async (
+  design,
+  designVersionId,
+  shareWithCollaborators,
+  user,
+  userDoc
+) => {
   try {
     const response = await axios.post(
       `/api/design/${design.id}/copy/${designVersionId}`,
-      { userId: user.id, shareWithCollaborators },
+      { userId: userDoc.id, shareWithCollaborators },
       {
         headers: {
           Authorization: `Bearer ${await user.getIdToken()}`,
@@ -176,11 +182,19 @@ export const handleCopyDesign = async (design, designVersionId, shareWithCollabo
   }
 };
 
-export const handleAddCollaborators = async (design, emails, role, message, notifyPeople, user) => {
+export const handleAddCollaborators = async (
+  design,
+  emails,
+  role,
+  message,
+  notifyPeople,
+  user,
+  userDoc
+) => {
   try {
     const response = await axios.post(
       `/api/design/${design.id}/share`,
-      { userId: user.id, emails, role, message, notifyPeople },
+      { userId: userDoc.id, emails, role, message, notifyPeople },
       {
         headers: {
           Authorization: `Bearer ${await user.getIdToken()}`,
@@ -200,7 +214,7 @@ export const handleAddCollaborators = async (design, emails, role, message, noti
       };
     }
   } catch (error) {
-    console.error("Error sharing design:", error);
+    console.error("Error sharing design:", error.message);
     return {
       success: false,
       message: error.response?.data?.error || "Failed to share design",
@@ -208,11 +222,17 @@ export const handleAddCollaborators = async (design, emails, role, message, noti
   }
 };
 
-export const handleAccessChange = async (design, initEmailsWithRole, emailsWithRole, user) => {
+export const handleAccessChange = async (
+  design,
+  initEmailsWithRole,
+  emailsWithRole,
+  user,
+  userDoc
+) => {
   try {
     const response = await axios.post(
       `/api/design/${design.id}/change-access`,
-      { userId: user.id, initEmailsWithRole, emailsWithRole },
+      { userId: userDoc.id, initEmailsWithRole, emailsWithRole },
       {
         headers: {
           Authorization: `Bearer ${await user.getIdToken()}`,
@@ -249,6 +269,7 @@ export const handleEditDescription = async (
   userDoc
 ) => {
   try {
+    console.log("editdesc - data", { description, imageId, userId: userDoc.id });
     const response = await axios.put(
       `/api/design/${designId}/design-version/${designVersionId}/update-desc`,
       { description, imageId, userId: userDoc.id },

@@ -312,7 +312,8 @@ function DesignHead({
         role,
         message,
         notifyPeople,
-        user
+        user,
+        userDoc
       );
       if (result.success) {
         handleClose();
@@ -350,7 +351,8 @@ function DesignHead({
         design,
         changedInitEmailsWithRole,
         changedEmailsWithRole,
-        user
+        user,
+        userDoc
       );
       if (result.success) {
         handleClose();
@@ -371,7 +373,13 @@ function DesignHead({
       return { success: false, message: "Select a version to copy" };
     }
     try {
-      const result = await handleCopyDesign(design, designVersionId, shareWithCollaborators, user);
+      const result = await handleCopyDesign(
+        design,
+        designVersionId,
+        shareWithCollaborators,
+        user,
+        userDoc
+      );
       if (result.success) {
         handleClose();
         handleCloseMakeCopyModal();

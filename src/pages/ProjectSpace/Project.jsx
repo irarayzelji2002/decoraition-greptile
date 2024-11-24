@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useParams, useNavigate, useLocation } from "react-router-dom";
 import { onSnapshot, doc, getDoc } from "firebase/firestore";
 import { getAuth } from "firebase/auth";
@@ -11,6 +11,11 @@ import {
   InputLabel,
   Select,
   MenuItem,
+  Box,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
 } from "@mui/material";
 import {
   Search as SearchIcon,
@@ -33,6 +38,7 @@ import {
   handleCreateDesign as handleCreateDesignBackend,
   fetchUserDesigns,
   updateDesignProjectId,
+  removeDesignFromProject,
 } from "./backend/ProjectDetails";
 import { AddDesign, AddProject } from "../DesignSpace/svg/AddImage";
 import { HorizontalIcon, TiledIcon, VerticalIcon } from "./svg/ExportIcon";
@@ -48,15 +54,31 @@ import {
   handleDeleteDesign,
 } from "../Homepage/backend/HomepageActions";
 import HomepageTable from "../Homepage/HomepageTable";
-import ImportDesignModal from "../../components/ImportDesignModal";
+import ImportDesignModal, { DesignInfoTooltip } from "../../components/ImportDesignModal";
 import deepEqual from "deep-equal";
-import { gradientButtonStyles } from "../DesignSpace/PromptBar";
+import { gradientButtonStyles, outlinedButtonStyles } from "../DesignSpace/PromptBar";
 import { set } from "lodash";
+import { circleButtonStyles } from "../Homepage/Homepage";
+import {
+  dialogActionsStyles,
+  dialogContentStyles,
+  dialogStyles,
+  dialogTitleStyles,
+} from "../../components/RenameModal";
 
 function Project() {
   const { projectId } = useParams();
-  const { user, users, designs, userDesigns, userProjects, projects, isDarkMode, userDoc } =
-    useSharedProps();
+  const {
+    user,
+    users,
+    designs,
+    userDesigns,
+    userProjects,
+    projects,
+    isDarkMode,
+    userDoc,
+    userDesignVersions,
+  } = useSharedProps();
   const location = useLocation();
   const navigate = useNavigate();
   const [changeMode, setChangeMode] = useState(location?.state?.changeMode || "");
@@ -82,6 +104,7 @@ function Project() {
   const [order, setOrder] = useState("none");
 
   const [isDesignButtonDisabled, setIsDesignButtonDisabled] = useState(false);
+  const [isRemoveDesignBtnDisabled, setIsRemoveDesignBtnDisabled] = useState(false);
   const [numToShowMoreDesign, setNumToShowMoreDesign] = useState(0);
   const [thresholdDesign, setThresholdDesign] = useState(6);
 
@@ -91,6 +114,10 @@ function Project() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(0);
   const [importModalOpen, setImportModalOpen] = useState(false);
+
+  const [openConfirmRemove, setOpenConfirmRemove] = useState(false);
+  const [designIdToRemove, setDesignIdToRemove] = useState(null);
+
   const userDesignsWithoutProject = userDesigns.filter((design) => !design.projectId);
 
   // Get project
@@ -185,62 +212,98 @@ function Project() {
     applyFilters(searchQuery, selectedOwner, range);
   };
 
-  const applyFilters = (searchQuery, owner, dateRange, sortBy, order) => {
-    let filteredDesigns = origFilteredDesigns.filter((design) => {
-      const matchesSearchQuery = design.designName
-        .toLowerCase()
-        .includes(searchQuery.trim().toLowerCase());
-      const matchesOwner = owner ? design.owner === owner : true;
-      const matchesDateRange =
-        dateRange.start && dateRange.end
-          ? design.modifiedAt.toMillis() >= new Date(dateRange.start).getTime() &&
-            design.modifiedAt.toMillis() <= new Date(dateRange.end).getTime()
-          : true;
-      return matchesSearchQuery && matchesOwner && matchesDateRange;
-    });
-
-    // sorting logic for tiled view
-    filteredDesigns.sort((a, b) => b.modifiedAt.toMillis() - a.modifiedAt.toMillis());
-
-    if (sortBy && sortBy !== "none" && order && order !== "none") {
-      filteredDesigns = filteredDesigns.sort((a, b) => {
-        let comparison = 0;
-        if (sortBy === "name") {
-          comparison = a.designName.localeCompare(b.designName);
-        } else if (sortBy === "owner") {
-          comparison = users
-            .find((user) => user.id === a.owner)
-            ?.username.localeCompare(users.find((user) => user.id === b.owner)?.username);
-        } else if (sortBy === "created") {
-          comparison = a.createdAt.toMillis() - b.createdAt.toMillis();
-        } else if (sortBy === "modified") {
-          comparison = a.modifiedAt.toMillis() - b.modifiedAt.toMillis();
-        }
-        return order === "ascending" ? comparison : -comparison;
-      });
-    }
-
-    setDisplayedDesigns(filteredDesigns);
-    setPage(1); // Reset to the first page after filtering
+  // Add handler for search input
+  const handleSearchChange = (event) => {
+    setSearchQuery(event.target.value);
   };
+
+  const applyFilters = useCallback(
+    (searchQuery, owner, dateRange, sortBy, order) => {
+      if (!filteredDesigns) return;
+      let filtered = [...filteredDesigns];
+      // Apply search filter
+      if (searchQuery.trim()) {
+        filtered = filtered.filter((design) =>
+          design.designName.toLowerCase().includes(searchQuery.trim().toLowerCase())
+        );
+      }
+      // Apply owner filter
+      if (owner) {
+        filtered = filtered.filter((design) => design.owner === owner);
+      }
+      // Apply date range filter
+      if (dateRange.start && dateRange.end) {
+        filtered = filtered.filter(
+          (design) =>
+            design.modifiedAt?.toMillis() >= new Date(dateRange.start).getTime() &&
+            design.modifiedAt?.toMillis() <= new Date(dateRange.end).getTime()
+        );
+      }
+      // Apply sorting
+      if (sortBy && sortBy !== "none" && order && order !== "none") {
+        filtered.sort((a, b) => {
+          let comparison = 0;
+          switch (sortBy) {
+            case "name":
+              comparison = a.designName.localeCompare(b.designName);
+              break;
+            case "owner":
+              comparison = (
+                users.find((user) => user.id === a.owner)?.username || ""
+              ).localeCompare(users.find((user) => user.id === b.owner)?.username || "");
+              break;
+            case "created":
+              comparison = (a.createdAt?.toMillis() || 0) - (b.createdAt?.toMillis() || 0);
+              break;
+            case "modified":
+              comparison = (a.modifiedAt?.toMillis() || 0) - (b.modifiedAt?.toMillis() || 0);
+              break;
+            default:
+              comparison = 0;
+          }
+          return order === "ascending" ? comparison : -comparison;
+        });
+      } else {
+        // Default sort by latest modified
+        filtered.sort((a, b) => (b.modifiedAt?.toMillis() || 0) - (a.modifiedAt?.toMillis() || 0));
+      }
+
+      setDisplayedDesigns(filtered);
+      console.log("Applied filters:", {
+        searchQuery,
+        owner,
+        dateRange,
+        sortBy,
+        order,
+        filteredCount: filtered.length,
+      });
+    },
+    [filteredDesigns, users]
+  );
 
   useEffect(() => {
     applyFilters(searchQuery, selectedOwner, dateRange, sortBy, order);
-  }, [designs, userDesigns, searchQuery, selectedOwner, dateRange, sortBy, order]);
+  }, [searchQuery, selectedOwner, dateRange, sortBy, order, applyFilters]);
 
   useEffect(() => {
     setLoadingDesigns(true);
     if (filteredDesigns.length > 0) {
       // Set number of pages
-      const totalPages = Math.ceil(filteredDesigns.length / 18);
+      const itemsPerPage = 18;
+      const totalPages = Math.ceil(filteredDesigns.length / itemsPerPage);
       setTotalPages(totalPages);
 
       // Set contents of the page
-      const itemsPerPage = 18;
       const startIndex = (page - 1) * itemsPerPage;
       const endIndex = startIndex + itemsPerPage;
       const paginatedDesigns = filteredDesigns.slice(startIndex, endIndex);
+
+      // Update displayed designs
       setDisplayedDesigns(paginatedDesigns);
+
+      console.log("Project Design - page", page);
+      console.log("Project Design - filteredDesigns", filteredDesigns);
+      console.log("Project Design - displayedDesigns", paginatedDesigns);
     } else {
       setTotalPages(0);
       setDisplayedDesigns([]);
@@ -253,6 +316,12 @@ function Project() {
     console.log("Project Design - Available userDesigns:", userDesigns);
     console.log("Project Design - Available designs:", designs);
   }, [project, userDesigns, designs]);
+
+  useEffect(() => {
+    console.log("Project Design - filteredDesigns", filteredDesigns);
+    console.log("Project Design - displayedDesigns", displayedDesigns);
+    console.log("Project Design - page", page);
+  }, [displayedDesigns, filteredDesigns, page]);
 
   const handlePageClick = (pageNumber) => {
     setPage(pageNumber);
@@ -306,6 +375,33 @@ function Project() {
       showToast("error", "Failed to create design for this project.");
     } finally {
       setIsDesignButtonDisabled(false);
+      setMenuOpen(false);
+    }
+  };
+
+  const openConfirmRemoveModal = (designId) => {
+    console.log("Opening confirm remove modal for design:", designId);
+    setOpenConfirmRemove(true);
+    setDesignIdToRemove(designId);
+  };
+
+  const handleRemoveDesign = async (e, designId) => {
+    e.stopPropagation();
+    if (!designId) return;
+    setIsRemoveDesignBtnDisabled(true);
+    try {
+      const result = await removeDesignFromProject(projectId, designId, user, userDoc);
+      if (!result) {
+        showToast("error", "Failed to remove design from project");
+        return;
+      }
+      showToast("success", "Design removed from project");
+    } catch (error) {
+      console.error("Error removing design from project:", error);
+      showToast("error", "Failed to remove design from project");
+    } finally {
+      setOpenConfirmRemove(false);
+      setDesignIdToRemove(null);
     }
   };
 
@@ -370,7 +466,9 @@ function Project() {
           <InputBase
             sx={{ ml: 1, flex: 1, color: "var(--color-white)" }}
             placeholder="Search designs on this project"
-            inputProps={{ "aria-label": "search google maps" }}
+            inputProps={{ "aria-label": "search designs" }}
+            value={searchQuery}
+            onChange={handleSearchChange}
           />
         </Paper>
         {!isVertical && (
@@ -483,6 +581,8 @@ function Project() {
                         page={page}
                         optionsState={optionsState}
                         setOptionsState={setOptionsState}
+                        isProjectSpace={true}
+                        openConfirmRemove={openConfirmRemoveModal}
                       />
                     </div>
                   ) : (
@@ -505,6 +605,8 @@ function Project() {
                             modifiedAt={formatDateLong(design.modifiedAt)}
                             optionsState={optionsState}
                             setOptionsState={setOptionsState}
+                            isProjectSpace={true}
+                            openConfirmRemove={openConfirmRemoveModal}
                           />
                         </div>
                       ))}
@@ -601,18 +703,31 @@ function Project() {
                 <AddDesign />
               </div>
             </div>
-            <div
-              className="small-button-container"
-              onClick={() => !isDesignButtonDisabled && handleCreateDesign()}
-              style={{
-                opacity: isDesignButtonDisabled ? "0.5" : "1",
-                cursor: isDesignButtonDisabled ? "default" : "pointer",
-              }}
-            >
+            <div className="small-button-container">
               <span className="small-button-text">Create a Design</span>
-              <div className="small-circle-button">
+              <div className="small-circle-button"></div>
+              <Box
+                onClick={() => !isDesignButtonDisabled && handleCreateDesign()}
+                sx={{
+                  ...circleButtonStyles,
+                  opacity: isDesignButtonDisabled ? "0.5" : "1",
+                  cursor: isDesignButtonDisabled ? "default" : "pointer",
+                  "&:hover": {
+                    backgroundImage: isDesignButtonDisabled
+                      ? "var(--gradientCircle)"
+                      : "var(--gradientCircleHover)",
+                  },
+                  "& svg": {
+                    marginRight: "-2px",
+                  },
+                  "@media (max-width: 768px)": {
+                    width: "50px",
+                    height: "50px",
+                  },
+                }}
+              >
                 <AddProject />
-              </div>
+              </Box>
             </div>
           </div>
         )}
@@ -622,8 +737,103 @@ function Project() {
       </div>
 
       {modalOpen && <Modal onClose={closeModal} />}
+      <ConfirmRemoveDesign
+        openConfirmRemove={openConfirmRemove}
+        setOpenConfirmRemove={setOpenConfirmRemove}
+        designIdToRemove={designIdToRemove}
+        handleRemove={handleRemoveDesign}
+        userDesigns={userDesigns}
+        userDesignVersions={userDesignVersions}
+        users={users}
+      />
     </ProjectSpace>
   );
 }
 
 export default Project;
+
+const ConfirmRemoveDesign = ({
+  openConfirmRemove,
+  setOpenConfirmRemove,
+  designIdToRemove,
+  handleRemove,
+  userDesigns,
+  userDesignVersions,
+  users,
+}) => {
+  <Dialog
+    open={openConfirmRemove}
+    onClose={() => setOpenConfirmRemove(false)}
+    sx={{
+      ...dialogStyles,
+      zIndex: "13002",
+    }}
+  >
+    <DialogTitle sx={dialogTitleStyles}>
+      <Typography
+        variant="body1"
+        sx={{
+          fontWeight: "bold",
+          fontSize: "1.15rem",
+          flexGrow: 1,
+          maxWidth: "80%",
+          whiteSpace: "normal",
+        }}
+      >
+        Confirm Restore
+      </Typography>
+      <IconButton
+        onClick={(e) => {
+          if (e) e.stopPropagation();
+          setOpenConfirmRemove(false);
+        }}
+        sx={{
+          ...iconButtonStyles,
+          flexShrink: 0,
+          marginLeft: "auto",
+        }}
+      >
+        <CloseRoundedIcon />
+      </IconButton>
+    </DialogTitle>
+    <DialogContent sx={dialogContentStyles}>
+      <Typography variant="body1" sx={{ textAlign: "center", maxWidth: "500px" }}>
+        {`Are you sure you want to remove this design from the prject ?`}
+      </Typography>
+      <DesignInfoTooltip
+        designId={designIdToRemove}
+        userDesigns={userDesigns}
+        userDesignVersions={userDesignVersions}
+        users={users}
+      />
+    </DialogContent>
+    <DialogActions sx={dialogActionsStyles}>
+      {/* Yes Button */}
+      <Button
+        variant="contained"
+        onClick={(e) => handleRemove(e, designIdToRemove)}
+        sx={gradientButtonStyles}
+      >
+        Yes
+      </Button>
+
+      {/* No Button */}
+      <Button
+        variant="contained"
+        onClick={(e) => {
+          if (e) e.stopPropagation();
+          setOpenConfirmRemove(false);
+        }}
+        sx={outlinedButtonStyles}
+        onMouseOver={(e) =>
+          (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButtonHover)")
+        }
+        onMouseOut={(e) =>
+          (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButton)")
+        }
+      >
+        No
+      </Button>
+    </DialogActions>
+  </Dialog>;
+};

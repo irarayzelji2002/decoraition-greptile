@@ -527,6 +527,8 @@ export default function HomepageTable({
   handleOpenMenu = () => {},
   optionsState = {},
   setOptionsState = () => {},
+  isProjectSpace = false,
+  openConfirmRemove = () => {},
 }) {
   const columns = [
     {

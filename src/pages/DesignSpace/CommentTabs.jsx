@@ -43,6 +43,7 @@ function CommentTabs({
   commentTypeTab,
   setCommentTypeTab,
   setSelectedImage,
+  isOwnerEditorCommenter,
 }) {
   const { user, userDoc, userComments, userReplies, userDesignsComments } = useSharedProps();
   const [commentForTab, setCommentForTab] = useState(true); // true for All Comments, false for For You
@@ -59,6 +60,16 @@ function CommentTabs({
   });
 
   const [isLess768, setIsLess768] = useState(false);
+  const [isViewOnly, setIsViewOnly] = useState(false);
+
+  useEffect(() => {
+    if (!isOwnerEditorCommenter) setIsViewOnly(true);
+    else setIsViewOnly(false);
+  }, [isOwnerEditorCommenter]);
+
+  useEffect(() => {
+    console.log("isViewOnly", isViewOnly);
+  }, [isViewOnly]);
 
   const handleCommentForTabChange = () => {
     setCommentForTab(!commentForTab);
@@ -558,6 +569,7 @@ function CommentTabs({
               setSelectedId={setSelectedId}
               activeComment={activeComment}
               setActiveComment={setActiveComment}
+              isViewOnly={isViewOnly}
             />
           ))}
           {filteredAndSortedComments.length === 0 && (
@@ -593,7 +605,7 @@ function CommentTabs({
       )}
 
       {/* Add a comment button */}
-      {!isAddingComment && (
+      {!isAddingComment && !isViewOnly && (
         <Box sx={{ margin: "0px 20px 0px 20px" }}>
           <Button
             fullWidth

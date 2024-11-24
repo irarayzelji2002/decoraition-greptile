@@ -32,6 +32,7 @@ import { handleDeleteProject } from "../Homepage/backend/HomepageActions.jsx";
 import { useSharedProps } from "../../contexts/SharedPropsContext.js";
 import { handleNameChange } from "./backend/ProjectDetails";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus.js";
+import deepEqual from "deep-equal";
 
 function ProjectHead() {
   const location = useLocation();
@@ -301,41 +302,40 @@ function ProjectHead() {
   };
 
   // Manage Access Modal Action
-  const handleAccessChange = async (project, initEmailsWithRole, emailsWithRole) => {
-    // Filter emails with role changes and create synchronized lists
-    const changedEmailsWithRole = emailsWithRole.filter((email) => {
-      const initialEmail = initEmailsWithRole.find(
-        (initEmail) => initEmail.userId === email.userId
-      );
-      return initialEmail && initialEmail.role !== email.role;
-    });
-
-    const changedInitEmailsWithRole = initEmailsWithRole.filter((initEmail) =>
-      changedEmailsWithRole.some((email) => email.userId === initEmail.userId)
-    );
-
-    // If no roles have changed, return early
-    if (changedEmailsWithRole.length === 0) {
-      return { success: false, message: "No email addresses changed" };
+  const handleAccessChange = async (
+    project,
+    initEmailsWithRole,
+    emailsWithRole,
+    generalAccessSetting,
+    generalAccessRole
+  ) => {
+    if (
+      deepEqual(initEmailsWithRole, emailsWithRole) &&
+      generalAccessSetting === project?.projectSettings?.generalAccessSetting &&
+      generalAccessRole === project?.projectSettings?.generalAccessRole
+    ) {
+      return { success: false, message: "Nothing changed" };
     }
     try {
       const result = await handleAccessChangeProject(
         project,
-        changedInitEmailsWithRole,
-        changedEmailsWithRole,
+        initEmailsWithRole,
+        emailsWithRole,
+        generalAccessSetting,
+        generalAccessRole,
         user,
         userDoc
       );
       if (result.success) {
         handleClose();
         handleCloseManageAccessModal();
-        return { success: true, message: "Project collaborators' access changed" };
+        return { success: true, message: "Project access changed" };
       } else {
-        return { success: false, message: "Failed to change access of collaborators" };
+        return { success: false, message: "Failed to change access of project" };
       }
     } catch (error) {
-      console.error("Error changing access of collaborators:", error);
-      return { success: false, message: "Failed to change access of collaborators" };
+      console.error("Error changing access of project:", error);
+      return { success: false, message: "Failed to change access of project" };
     }
   };
 
@@ -610,6 +610,10 @@ function ProjectHead() {
         handleShare={handleShare}
         isDesign={false}
         object={project}
+        onShowViewCollab={() => {
+          handleCloseShareModal();
+          setIsViewCollabModalOpen(true);
+        }}
       />
       <ManageAccessModal
         isOpen={isManageAccessModalOpen}
@@ -618,6 +622,10 @@ function ProjectHead() {
         isDesign={false}
         object={project}
         isViewCollab={false}
+        onShowViewCollab={() => {
+          handleCloseManageAccessModal();
+          setIsViewCollabModalOpen(true);
+        }}
       />
       <ManageAccessModal
         isOpen={isViewCollabModalOpen}

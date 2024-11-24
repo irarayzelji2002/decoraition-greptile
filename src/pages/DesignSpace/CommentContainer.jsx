@@ -81,6 +81,7 @@ const CommentContainer = ({
   replyTo,
   setReplyTo,
   rootComment = null,
+  isViewOnly,
 }) => {
   const { designId } = useParams();
   const { user, users, userDoc } = useSharedProps();
@@ -726,7 +727,7 @@ const CommentContainer = ({
             </div>
           </div>
           <div className="profile-status">
-            {!isReply && !status && (
+            {!isReply && !status && !isViewOnly && (
               <IconButton
                 sx={{
                   ...iconButtonStylesBrighter,
@@ -743,7 +744,7 @@ const CommentContainer = ({
                 <CheckIconSmallGradient />
               </IconButton>
             )}
-            {isReply && (
+            {isReply && !status && !isViewOnly && (
               <IconButton
                 sx={{
                   ...iconButtonStylesBrighter,
@@ -794,7 +795,7 @@ const CommentContainer = ({
                 )}
               </IconButton>
             )}
-            {(commenterUserId === userDoc.id || (!isReply && status)) && (
+            {(commenterUserId === userDoc.id || (!isReply && status)) && !isViewOnly && (
               <div>
                 <IconButton
                   sx={{ ...iconButtonStylesBrighter, padding: 0, height: "38px", width: "38px" }}
@@ -918,260 +919,262 @@ const CommentContainer = ({
               })}
             </div>
           ) : (
-            <>
-              <TextField
-                label=""
-                type="text"
-                multiline
-                ref={textFieldRef}
-                inputRef={textFieldInputRef}
-                placeholder="Comment or mention someone"
-                value={updatedCommentContent}
-                onChange={(e) => {
-                  const newValue = e.target.value;
-                  const cursorPosition = e.target.selectionStart;
-                  setUpdatedCommentContent(newValue);
+            !isViewOnly && (
+              <>
+                <TextField
+                  label=""
+                  type="text"
+                  multiline
+                  ref={textFieldRef}
+                  inputRef={textFieldInputRef}
+                  placeholder="Comment or mention someone"
+                  value={updatedCommentContent}
+                  onChange={(e) => {
+                    const newValue = e.target.value;
+                    const cursorPosition = e.target.selectionStart;
+                    setUpdatedCommentContent(newValue);
 
-                  // Clear errors
-                  clearFieldError("editComment");
-                  clearFieldError("editReply");
+                    // Clear errors
+                    clearFieldError("editComment");
+                    clearFieldError("editReply");
 
-                  // Get text before cursor and find the last @ before cursor
-                  const textBeforeCursor = newValue.substring(0, cursorPosition);
-                  const lastAtIndex = textBeforeCursor.lastIndexOf("@");
+                    // Get text before cursor and find the last @ before cursor
+                    const textBeforeCursor = newValue.substring(0, cursorPosition);
+                    const lastAtIndex = textBeforeCursor.lastIndexOf("@");
 
-                  if (lastAtIndex !== -1) {
-                    // Get text between @ and cursor
-                    const textBetweenAtAndCursor = textBeforeCursor.slice(lastAtIndex + 1);
-                    // Check if there's a space between @ and cursor
-                    if (textBetweenAtAndCursor.startsWith(" ")) {
-                      setOpenMentionOptions(false);
-                      return;
-                    }
+                    if (lastAtIndex !== -1) {
+                      // Get text between @ and cursor
+                      const textBetweenAtAndCursor = textBeforeCursor.slice(lastAtIndex + 1);
+                      // Check if there's a space between @ and cursor
+                      if (textBetweenAtAndCursor.startsWith(" ")) {
+                        setOpenMentionOptions(false);
+                        return;
+                      }
 
-                    // Get text after @ until next space or cursor
-                    const searchText = textBetweenAtAndCursor.split(/\s/)[0];
+                      // Get text after @ until next space or cursor
+                      const searchText = textBetweenAtAndCursor.split(/\s/)[0];
 
-                    // Check if there's any text between @ and next space/cursor
-                    if (searchText) {
-                      const filtered = mentionOptions
-                        .map((user) => ({
-                          ...user,
-                          score: calculateMatchScore(user, searchText),
-                        }))
-                        .filter((user) => user.score > 0)
-                        .sort((a, b) => b.score - a.score);
-                      setOpenMentionOptions(filtered.length > 0);
-                      setMentionOptions(filtered);
+                      // Check if there's any text between @ and next space/cursor
+                      if (searchText) {
+                        const filtered = mentionOptions
+                          .map((user) => ({
+                            ...user,
+                            score: calculateMatchScore(user, searchText),
+                          }))
+                          .filter((user) => user.score > 0)
+                          .sort((a, b) => b.score - a.score);
+                        setOpenMentionOptions(filtered.length > 0);
+                        setMentionOptions(filtered);
+                      } else {
+                        setOpenMentionOptions(true);
+                        setMentionOptions(originalMentionOptions);
+                      }
                     } else {
+                      setOpenMentionOptions(false);
+                    }
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === "@") {
                       setOpenMentionOptions(true);
                       setMentionOptions(originalMentionOptions);
-                    }
-                  } else {
-                    setOpenMentionOptions(false);
-                  }
-                }}
-                onKeyDown={(e) => {
-                  if (e.key === "@") {
-                    setOpenMentionOptions(true);
-                    setMentionOptions(originalMentionOptions);
-                  } else if (e.key === "Backspace") {
-                    const cursorPosition = e.target.selectionStart;
-                    const textBeforeCursor = updatedCommentContent.substring(0, cursorPosition);
-                    const mentionMatch = textBeforeCursor.match(/@(\w+)$/);
+                    } else if (e.key === "Backspace") {
+                      const cursorPosition = e.target.selectionStart;
+                      const textBeforeCursor = updatedCommentContent.substring(0, cursorPosition);
+                      const mentionMatch = textBeforeCursor.match(/@(\w+)$/);
 
-                    if (mentionMatch) {
-                      const username = mentionMatch[1];
-                      const userId = users.find((opt) => opt.username === username)?.id;
-                      if (userId && updatedMentions?.includes(userId)) {
-                        setUpdatedMentions((prev) => prev.filter((id) => id !== userId));
-                        setOpenMentionOptions(true);
+                      if (mentionMatch) {
+                        const username = mentionMatch[1];
+                        const userId = users.find((opt) => opt.username === username)?.id;
+                        if (userId && updatedMentions?.includes(userId)) {
+                          setUpdatedMentions((prev) => prev.filter((id) => id !== userId));
+                          setOpenMentionOptions(true);
+                        }
                       }
                     }
-                  }
 
-                  // Arrow key navigation
-                  if (openMentionOptions && mentionOptions.length > 0 && isEditingComment) {
-                    if (e.key === "ArrowDown") {
-                      e.preventDefault();
-                      setSelectedMentionIndex((prev) =>
-                        prev < mentionOptions.length - 1 ? prev + 1 : prev
-                      );
-                    } else if (e.key === "ArrowUp") {
-                      e.preventDefault();
-                      setSelectedMentionIndex((prev) => (prev > 0 ? prev - 1 : 0));
-                    } else if (e.key === "Enter" && selectedMentionIndex >= 0) {
-                      e.preventDefault();
-                      setMentionOptionClicked(mentionOptions[selectedMentionIndex]);
-                      setSelectedMentionIndex(-1);
+                    // Arrow key navigation
+                    if (openMentionOptions && mentionOptions.length > 0 && isEditingComment) {
+                      if (e.key === "ArrowDown") {
+                        e.preventDefault();
+                        setSelectedMentionIndex((prev) =>
+                          prev < mentionOptions.length - 1 ? prev + 1 : prev
+                        );
+                      } else if (e.key === "ArrowUp") {
+                        e.preventDefault();
+                        setSelectedMentionIndex((prev) => (prev > 0 ? prev - 1 : 0));
+                      } else if (e.key === "Enter" && selectedMentionIndex >= 0) {
+                        e.preventDefault();
+                        setMentionOptionClicked(mentionOptions[selectedMentionIndex]);
+                        setSelectedMentionIndex(-1);
+                      }
                     }
-                  }
-                }}
-                disabled={!isEditingComment}
-                fullWidth
-                margin="normal"
-                helperText={!isReply ? errors?.editComment : errors?.editReply}
-                minRows={1}
-                sx={{
-                  ...textFieldStyles,
-                  margin: 0,
-                  backgroundColor: "transparent",
-                  "& .MuiOutlinedInput-root": {
-                    ...textFieldStyles["& .MuiOutlinedInput-root"],
+                  }}
+                  disabled={!isEditingComment}
+                  fullWidth
+                  margin="normal"
+                  helperText={!isReply ? errors?.editComment : errors?.editReply}
+                  minRows={1}
+                  sx={{
+                    ...textFieldStyles,
+                    margin: 0,
                     backgroundColor: "transparent",
-                    padding: "15px",
-                    paddingBottom: isSingleLine ? "15px" : "45px",
-                    paddingRight: isSingleLine ? "125px" : "15px",
-                    "& textarea": {
-                      scrollbarWidth: "thin",
-                      color: "var(--color-white)",
-                      minHeight: "0px",
-                      "& .mention": {
-                        color: "var(--brightFont)",
-                        fontWeight: "bold",
+                    "& .MuiOutlinedInput-root": {
+                      ...textFieldStyles["& .MuiOutlinedInput-root"],
+                      backgroundColor: "transparent",
+                      padding: "15px",
+                      paddingBottom: isSingleLine ? "15px" : "45px",
+                      paddingRight: isSingleLine ? "125px" : "15px",
+                      "& textarea": {
+                        scrollbarWidth: "thin",
+                        color: "var(--color-white)",
+                        minHeight: "0px",
+                        "& .mention": {
+                          color: "var(--brightFont)",
+                          fontWeight: "bold",
+                        },
+                        "&::-webkit-scrollbar": {
+                          width: "8px",
+                        },
                       },
-                      "&::-webkit-scrollbar": {
-                        width: "8px",
+                      "& fieldset": {
+                        borderColor: `${
+                          selectedId === commentId
+                            ? "var(--borderInputBrighter)"
+                            : "var(--borderInput)"
+                        }`,
+                        borderWidth: "2px",
+                      },
+                      "&:hover fieldset": {
+                        borderColor: `${
+                          selectedId === commentId
+                            ? "var(--borderInputBrighter)"
+                            : "var(--borderInput)"
+                        }`,
+                        borderWidth: "2px",
+                      },
+                      "&.Mui-focused fieldset": {
+                        borderColor: `${
+                          selectedId === commentId
+                            ? "var(--borderInputBrighter2)"
+                            : "var(--borderInputBrighter)"
+                        }`,
+                        borderWidth: "2px",
                       },
                     },
-                    "& fieldset": {
-                      borderColor: `${
-                        selectedId === commentId
-                          ? "var(--borderInputBrighter)"
-                          : "var(--borderInput)"
-                      }`,
-                      borderWidth: "2px",
-                    },
-                    "&:hover fieldset": {
-                      borderColor: `${
-                        selectedId === commentId
-                          ? "var(--borderInputBrighter)"
-                          : "var(--borderInput)"
-                      }`,
-                      borderWidth: "2px",
-                    },
-                    "&.Mui-focused fieldset": {
-                      borderColor: `${
-                        selectedId === commentId
-                          ? "var(--borderInputBrighter2)"
-                          : "var(--borderInputBrighter)"
-                      }`,
-                      borderWidth: "2px",
-                    },
-                  },
-                  "& input": {
-                    color: "var(--color-white)",
-                    padding: "15px",
-                  },
-                  "& .MuiFormHelperText-root": {
-                    color: "var(--color-quaternary)",
-                    marginLeft: 0,
-                  },
-                  "& .Mui-disabled": {
-                    WebkitTextFillColor: "inherit !important",
-                    opacity: 1,
-                  },
-                  "& .MuiInputAdornment-root": {
-                    alignSelf: "flex-end",
-                    marginBottom: "8px",
-                  },
-                  "@media (max-width: 560px)": {
                     "& input": {
+                      color: "var(--color-white)",
                       padding: "15px",
                     },
-                  },
-                }}
-                InputProps={{
-                  endAdornment: (
-                    <InputAdornment
-                      position="end"
-                      sx={{
-                        position: "absolute",
-                        bottom: isSingleLine ? "18px" : "15px",
-                        right: "5px",
-                      }}
-                    >
-                      {isEditingComment && (
-                        <>
-                          <IconButton
-                            onClick={() => {
-                              openCollaboratorsSelect(
-                                updatedCommentContent,
-                                setUpdatedCommentContent
-                              );
-                              textFieldInputRef?.current?.focus();
-                            }}
-                            sx={{ ...iconButtonStylesBrighter, padding: "10.5px" }}
-                          >
-                            <MentionIconSmallGradient />
-                          </IconButton>
-                          {isEditingComment && (
+                    "& .MuiFormHelperText-root": {
+                      color: "var(--color-quaternary)",
+                      marginLeft: 0,
+                    },
+                    "& .Mui-disabled": {
+                      WebkitTextFillColor: "inherit !important",
+                      opacity: 1,
+                    },
+                    "& .MuiInputAdornment-root": {
+                      alignSelf: "flex-end",
+                      marginBottom: "8px",
+                    },
+                    "@media (max-width: 560px)": {
+                      "& input": {
+                        padding: "15px",
+                      },
+                    },
+                  }}
+                  InputProps={{
+                    endAdornment: (
+                      <InputAdornment
+                        position="end"
+                        sx={{
+                          position: "absolute",
+                          bottom: isSingleLine ? "18px" : "15px",
+                          right: "5px",
+                        }}
+                      >
+                        {isEditingComment && (
+                          <>
                             <IconButton
-                              onClick={handleCancelEditComment}
+                              onClick={() => {
+                                openCollaboratorsSelect(
+                                  updatedCommentContent,
+                                  setUpdatedCommentContent
+                                );
+                                textFieldInputRef?.current?.focus();
+                              }}
                               sx={{ ...iconButtonStylesBrighter, padding: "10.5px" }}
                             >
-                              <CancelIconSmallGradient />
+                              <MentionIconSmallGradient />
                             </IconButton>
-                          )}
-                          <IconButton
-                            onClick={!isReply ? handleEditComment : handleEditReply}
-                            sx={{ ...iconButtonStylesBrighter, padding: "9.5px" }}
-                          >
-                            <SaveIconSmallGradient sx={{ color: "#FF894D" }} />
-                          </IconButton>
-                        </>
-                      )}
-                    </InputAdornment>
-                  ),
-                }}
-              />
-              {openMentionOptions && mentionOptions.length > 0 && isEditingComment && (
-                <Paper
-                  ref={mentionOptionsRef}
-                  sx={{
-                    position: "absolute",
-                    zIndex: 1000,
-                    maxHeight: "200px",
-                    overflow: "auto",
-                    width: "calc(100% - 60px)",
-                    left: "30px",
-                    backgroundColor: "var(--iconBg)",
-                    boxShadow: "-4px 4px 10px rgba(0, 0, 0, 0.2)",
-                    borderRadius: "10px",
+                            {isEditingComment && (
+                              <IconButton
+                                onClick={handleCancelEditComment}
+                                sx={{ ...iconButtonStylesBrighter, padding: "10.5px" }}
+                              >
+                                <CancelIconSmallGradient />
+                              </IconButton>
+                            )}
+                            <IconButton
+                              onClick={!isReply ? handleEditComment : handleEditReply}
+                              sx={{ ...iconButtonStylesBrighter, padding: "9.5px" }}
+                            >
+                              <SaveIconSmallGradient sx={{ color: "#FF894D" }} />
+                            </IconButton>
+                          </>
+                        )}
+                      </InputAdornment>
+                    ),
                   }}
-                >
-                  {mentionOptions.slice(0, 5).map((user, index) => (
-                    <CustomMenuItem
-                      key={user.id}
-                      onClick={() => setMentionOptionClicked(user)}
-                      selected={index === selectedMentionIndex}
-                    >
-                      <UserInfoTooltip {...user} />
-                    </CustomMenuItem>
-                  ))}
-                </Paper>
-              )}
-              {updatedMentions.length > 0 && (
-                <div className="editingMentionsCont">
-                  <span className="editingMentionsText">Mentions:</span>
-                  {updatedMentions.map((mention, index) => {
-                    const userId = mention;
-                    const username = users.find((user) => user.id === userId)?.username;
-                    return (
-                      <CustomTooltip
-                        key={index}
-                        title={
-                          <UserInfoTooltip username={username} {...getUserDetails(username)} />
-                        }
-                        arrow
+                />
+                {openMentionOptions && mentionOptions.length > 0 && isEditingComment && (
+                  <Paper
+                    ref={mentionOptionsRef}
+                    sx={{
+                      position: "absolute",
+                      zIndex: 1000,
+                      maxHeight: "200px",
+                      overflow: "auto",
+                      width: "calc(100% - 60px)",
+                      left: "30px",
+                      backgroundColor: "var(--iconBg)",
+                      boxShadow: "-4px 4px 10px rgba(0, 0, 0, 0.2)",
+                      borderRadius: "10px",
+                    }}
+                  >
+                    {mentionOptions.slice(0, 5).map((user, index) => (
+                      <CustomMenuItem
+                        key={user.id}
+                        onClick={() => setMentionOptionClicked(user)}
+                        selected={index === selectedMentionIndex}
                       >
-                        <span className="editingMentionsUsername">@{username}</span>
-                      </CustomTooltip>
-                    );
-                  })}
-                </div>
-              )}
-            </>
+                        <UserInfoTooltip {...user} />
+                      </CustomMenuItem>
+                    ))}
+                  </Paper>
+                )}
+                {updatedMentions.length > 0 && (
+                  <div className="editingMentionsCont">
+                    <span className="editingMentionsText">Mentions:</span>
+                    {updatedMentions.map((mention, index) => {
+                      const userId = mention;
+                      const username = users.find((user) => user.id === userId)?.username;
+                      return (
+                        <CustomTooltip
+                          key={index}
+                          title={
+                            <UserInfoTooltip username={username} {...getUserDetails(username)} />
+                          }
+                          arrow
+                        >
+                          <span className="editingMentionsUsername">@{username}</span>
+                        </CustomTooltip>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )
           )}
         </div>
         {!isRepliesExpanded ? (
@@ -1247,7 +1250,7 @@ const CommentContainer = ({
           </div>
         )}
         {/* Reply input field */}
-        {(isRepliesExpanded || replyCount === 0) && !isReply && !status && (
+        {(isRepliesExpanded || replyCount === 0) && !isReply && !status && !isViewOnly && (
           <>
             <div style={{ marginTop: "10px" }}>
               {replyTo && (

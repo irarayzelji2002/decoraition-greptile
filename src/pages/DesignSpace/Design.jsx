@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from "react";
-import { useParams } from "react-router-dom";
+import { useParams, useLocation } from "react-router-dom";
 import axios from "axios";
 import deepEqual from "deep-equal";
 import Draggable from "react-draggable";
@@ -54,6 +54,9 @@ function Design() {
   } = useSharedProps();
   const { designId } = useParams(); // Get designId from the URL
   const { isDarkMode } = useSharedProps();
+  const location = useLocation();
+  const [changeMode, setChangeMode] = useState(location?.state?.changeMode || "");
+
   const [design, setDesign] = useState({});
 
   const [isOwner, setIsOwner] = useState(false);
@@ -133,75 +136,6 @@ function Design() {
   const [generatedImages, setGeneratedImages] = useState([]);
   const [generationErrors, setGenerationErrors] = useState({});
 
-  // Check if user is owner (manage)
-  const isOwnerDesign = (design, userId) => {
-    const isOwner = design.owner === userId;
-    return isOwner;
-  };
-
-  // Check if user is owner or editor in design (editing)
-  const isOwnerEditorDesign = (design, userId) => {
-    if (design.designSettings.generalAccessSetting === 0) {
-      // Restricted Access
-      const isOwner = design.owner === userId;
-      const isEditor = design.editors.includes(userId);
-      return isOwner || isEditor;
-    } else {
-      // Anyone with the link
-      if (design.designSettings.generalAccessRole === 1) return true;
-      const isOwner = design.owner === userId;
-      const isEditor = design.editors.includes(userId);
-      return isOwner || isEditor;
-    }
-  };
-
-  // Check if user is owner, editor, commenter (commenting)
-  const isOwnerEditorCommenterDesign = (design, userId) => {
-    if (design.designSettings.generalAccessSetting === 0) {
-      // Restricted Access
-      const isOwner = design.owner === userId;
-      const isEditor = design.editors.includes(userId);
-      const isCommenter = design.commenters.includes(userId);
-      return isOwner || isEditor || isCommenter;
-    } else {
-      // Anyone with the link
-      if (
-        design.designSettings.generalAccessRole === 2 ||
-        design.designSettings.generalAccessRole === 1
-      )
-        return true;
-      const isOwner = design.owner === userId;
-      const isEditor = design.editors.includes(userId);
-      const isCommenter = design.commenters.includes(userId);
-      return isOwner || isEditor || isCommenter;
-    }
-  };
-
-  // Check if user is owner, editor, commenter, viewer (viewing)
-  const isCollaboratorDesign = (design, userId) => {
-    if (design.designSettings.generalAccessSetting === 0) {
-      // Restricted Access
-      const isOwner = design.owner === userId;
-      const isEditor = design.editors.includes(userId);
-      const isCommenter = design.commenters.includes(userId);
-      const isViewer = design.viewers.includes(userId);
-      return isOwner || isEditor || isCommenter || isViewer;
-    } else {
-      // Anyone with the link
-      if (
-        design.designSettings.generalAccessRole === 0 ||
-        design.designSettings.generalAccessRole === 1 ||
-        design.designSettings.generalAccessRole === 2
-      )
-        return true;
-      const isOwner = design.owner === userId;
-      const isEditor = design.editors.includes(userId);
-      const isCommenter = design.commenters.includes(userId);
-      const isViewer = design.viewers.includes(userId);
-      return isOwner || isEditor || isCommenter || isViewer;
-    }
-  };
-
   // Initialize access rights
   useEffect(() => {
     if (!design?.designSettings || !userDoc?.id) return;
@@ -219,10 +153,27 @@ function Design() {
       setShowPromptBar(false);
       setShowComments(true); // initially show comments
     }
+    if (!changeMode) {
+      if (isOwner) setChangeMode("Editing");
+      else if (isOwnerEditor) setChangeMode("Editing");
+      else if (isOwnerEditorCommenter) setChangeMode("Commenting");
+      else if (isCollaborator) setChangeMode("Viewing");
+    }
     console.log(
       `commentCont - isOwner: ${isOwner}, isOwnerEditor: ${isOwnerEditor}, isOwnerEditorCommenter: ${isOwnerEditorCommenter}, isCollaborator: ${isCollaborator}`
     );
   }, [isOwner, isOwnerEditor, isOwnerEditorCommenter, isCollaborator]);
+
+  useEffect(() => {
+    console.log(`commentCont - changeMode: ${changeMode}`);
+    if (changeMode === "Editing") {
+      setShowPromptBar(true);
+      setShowComments(false); // initially hide comments
+    } else if (changeMode === "Commenting" || changeMode === "Viewing") {
+      setShowPromptBar(false);
+      setShowComments(true); // initially show comments
+    }
+  }, [changeMode]);
 
   const handleEdit = async (imageId, description) => {
     console.log("got imageId", imageId);
@@ -593,11 +544,13 @@ function Design() {
         designId={designId}
         setShowComments={setShowComments}
         isSelectingMask={isSelectingMask}
+        changeMode={changeMode}
+        setChangeMode={setChangeMode}
       >
         <div className="create-design">
           <div className="workspace">
             <div className={isMobileLayout ? "hiddenHeaders open" : ""}>
-              {showPromptBar && isOwnerEditor && (
+              {showPromptBar && isOwnerEditor && changeMode === "Editing" && (
                 <div
                   style={{
                     paddingBottom: isMobileLayout && !showComments ? "61px" : "0px",
@@ -668,7 +621,6 @@ function Design() {
                     samMasks={samMasks}
                     validateApplyMask={validateApplyMask}
                     isGenerating={isGenerating}
-                    isOwnerEditor={isOwnerEditor}
                   />
                 </div>
               )}
@@ -678,7 +630,9 @@ function Design() {
                 <div
                   style={{
                     paddingBottom:
-                      isMobileLayout && !showPromptBar && isOwnerEditor ? "61px" : "0px",
+                      isMobileLayout && !showPromptBar && isOwnerEditor && changeMode === "Editing"
+                        ? "61px"
+                        : "0px",
                     height: "100%",
                   }}
                 >
@@ -715,13 +669,14 @@ function Design() {
                     setSelectedImage={setSelectedImage}
                     isOwnerEditorCommenter={isOwnerEditorCommenter}
                     isCollaborator={isCollaborator}
+                    changeMode={changeMode}
                   />
                 </div>
               )}
             </div>
 
             <div className="hiddenHeaders">
-              {!showPromptBar && isOwnerEditor && (
+              {!showPromptBar && isOwnerEditor && changeMode === "Editing" && (
                 <div
                   className="promptBarHiddenHeader"
                   style={{ cursor: "pointer" }}
@@ -815,7 +770,7 @@ function Design() {
 
             <div className="working-area" ref={workingAreaRef} onClick={handleWorkingAreaClick}>
               {/* Hide/Show PromptBar and CommentTabs IconButtons */}
-              {isOwnerEditor && (
+              {isOwnerEditor && changeMode === "Editing" && (
                 <IconButton
                   sx={{
                     color: "var(--color-white)",
@@ -1090,7 +1045,7 @@ function Design() {
                                         </Typography>
                                       )}
                                     </div>
-                                    {isOwnerEditor && (
+                                    {isOwnerEditor && changeMode === "Editing" && (
                                       <IconButton
                                         sx={{
                                           ...iconButtonStyles,
@@ -1294,6 +1249,7 @@ function Design() {
                     setSelectedImage={setSelectedImage}
                     isOwnerEditorCommenter={isOwnerEditorCommenter}
                     isCollaborator={isCollaborator}
+                    changeMode={changeMode}
                   />
                 </div>
               </div>
@@ -1619,6 +1575,75 @@ export const DescriptionTooltip = ({ description = "", createdAt = "" }) => {
       </Box>
     </Box>
   );
+};
+
+// Check if user is owner (manage)
+export const isOwnerDesign = (design, userId) => {
+  const isOwner = design.owner === userId;
+  return isOwner;
+};
+
+// Check if user is owner or editor in design (editing)
+export const isOwnerEditorDesign = (design, userId) => {
+  if (design.designSettings.generalAccessSetting === 0) {
+    // Restricted Access
+    const isOwner = design.owner === userId;
+    const isEditor = design.editors.includes(userId);
+    return isOwner || isEditor;
+  } else {
+    // Anyone with the link
+    if (design.designSettings.generalAccessRole === 1) return true;
+    const isOwner = design.owner === userId;
+    const isEditor = design.editors.includes(userId);
+    return isOwner || isEditor;
+  }
+};
+
+// Check if user is owner, editor, commenter (commenting)
+export const isOwnerEditorCommenterDesign = (design, userId) => {
+  if (design.designSettings.generalAccessSetting === 0) {
+    // Restricted Access
+    const isOwner = design.owner === userId;
+    const isEditor = design.editors.includes(userId);
+    const isCommenter = design.commenters.includes(userId);
+    return isOwner || isEditor || isCommenter;
+  } else {
+    // Anyone with the link
+    if (
+      design.designSettings.generalAccessRole === 2 ||
+      design.designSettings.generalAccessRole === 1
+    )
+      return true;
+    const isOwner = design.owner === userId;
+    const isEditor = design.editors.includes(userId);
+    const isCommenter = design.commenters.includes(userId);
+    return isOwner || isEditor || isCommenter;
+  }
+};
+
+// Check if user is owner, editor, commenter, viewer (viewing)
+export const isCollaboratorDesign = (design, userId) => {
+  if (design.designSettings.generalAccessSetting === 0) {
+    // Restricted Access
+    const isOwner = design.owner === userId;
+    const isEditor = design.editors.includes(userId);
+    const isCommenter = design.commenters.includes(userId);
+    const isViewer = design.viewers.includes(userId);
+    return isOwner || isEditor || isCommenter || isViewer;
+  } else {
+    // Anyone with the link
+    if (
+      design.designSettings.generalAccessRole === 0 ||
+      design.designSettings.generalAccessRole === 1 ||
+      design.designSettings.generalAccessRole === 2
+    )
+      return true;
+    const isOwner = design.owner === userId;
+    const isEditor = design.editors.includes(userId);
+    const isCommenter = design.commenters.includes(userId);
+    const isViewer = design.viewers.includes(userId);
+    return isOwner || isEditor || isCommenter || isViewer;
+  }
 };
 
 // <BorderLinearProgress variant="determinate" value={50} />;

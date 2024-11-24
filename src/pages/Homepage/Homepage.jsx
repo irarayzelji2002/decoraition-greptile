@@ -592,15 +592,12 @@ function Homepage() {
                                 },
                               })
                             }
-                            managers={(async () => {
-                              const usernames = getUsernames(project.managers);
-                              return usernames.then((usernames) => {
-                                if (usernames.length > 3) {
-                                  return usernames.slice(0, 3).join(", ") + ", and more";
-                                }
-                                return usernames.join(", ");
-                              });
-                            })()}
+                            managers={getUsernames(project.managers).then((usernames) => {
+                              if (usernames.length > 3) {
+                                return usernames.slice(0, 3).join(", ") + ", and more";
+                              }
+                              return usernames.join(", ");
+                            })}
                             createdAt={formatDateLong(project.createdAt)}
                             modifiedAt={formatDateLong(project.modifiedAt)}
                             optionsState={optionsState}
@@ -747,7 +744,7 @@ function Homepage() {
 
 export default Homepage;
 
-const circleButtonStyles = {
+export const circleButtonStyles = {
   backgroundImage: "var(--gradientCircle)",
   color: "var(--color-white)",
   borderRadius: "50%",

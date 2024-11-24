@@ -82,6 +82,7 @@ const CommentContainer = ({
   setReplyTo,
   rootComment = null,
   isOwnerEditorCommenter,
+  changeMode,
 }) => {
   const { designId } = useParams();
   const { user, users, userDoc } = useSharedProps();
@@ -317,19 +318,34 @@ const CommentContainer = ({
 
   useEffect(() => {
     console.log(
-      `commentCont - isReply: ${isReply}, status: ${status}, isOwnerEditorCommenter: ${isOwnerEditorCommenter}, commenterUserId: ${commenterUserId}, userDoc.id: ${userDoc.id}`
+      `commentCont - isReply: ${isReply}, status: ${status}, isOwnerEditorCommenter: ${isOwnerEditorCommenter}, commenterUserId: ${commenterUserId}, userDoc.id: ${userDoc.id}, changeMode: ${changeMode}`
     );
     console.log(
-      `commentCont - (Reply Btn) isReply && !status && isOwnerEditorCommenter: ${
+      `commentCont - (Reply Btn)1 isReply && !status && isOwnerEditorCommenter: ${
         isReply && !status && isOwnerEditorCommenter
       }`
     );
     console.log(
-      `commentCont - (More Vert Btn) (commenterUserId === userDoc.id || (!isReply && status)) && isOwnerEditorCommenter: ${
+      `commentCont - (Reply Btn)2 isReply && !status && isOwnerEditorCommenter && (changeMode === "Commenting" || changeMode === "Editing"): ${
+        isReply &&
+        !status &&
+        isOwnerEditorCommenter &&
+        (changeMode === "Commenting" || changeMode === "Editing")
+      }`
+    );
+    console.log(
+      `commentCont - (More Vert Btn)1 (commenterUserId === userDoc.id || (!isReply && status)) && isOwnerEditorCommenter: ${
         (commenterUserId === userDoc.id || (!isReply && status)) && isOwnerEditorCommenter
       }`
     );
-  }, [commenterUserId, isOwnerEditorCommenter, isReply, status, userDoc.id]);
+    console.log(
+      `commentCont - (More Vert Btn)2 (commenterUserId === userDoc.id || (!isReply && status)) && isOwnerEditorCommenter && (changeMode === "Commenting" || changeMode === "Editing"): ${
+        (commenterUserId === userDoc.id || (!isReply && status)) &&
+        isOwnerEditorCommenter &&
+        (changeMode === "Commenting" || changeMode === "Editing")
+      }`
+    );
+  }, [changeMode, commenterUserId, isOwnerEditorCommenter, isReply, status, userDoc.id]);
 
   // Get user details from collaborators list
   const getUserDetails = (username) => {
@@ -743,40 +759,46 @@ const CommentContainer = ({
             </div>
           </div>
           <div className="profile-status">
-            {!isReply && !status && isOwnerEditorCommenter && (
-              <IconButton
-                sx={{
-                  ...iconButtonStylesBrighter,
-                  padding: "8px",
-                  marginRight: "-1px",
-                  width: "38px",
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setStatus((prev) => !prev);
-                  handleChangeCommentStatus();
-                }}
-              >
-                <CheckIconSmallGradient />
-              </IconButton>
-            )}
-            {isReply && !status && isOwnerEditorCommenter && (
-              <IconButton
-                sx={{
-                  ...iconButtonStylesBrighter,
-                  padding: "3.5px",
-                  marginRight: "-1px",
-                  width: "38px",
-                }}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setReplyTo({ username, date, replyId: comment.replyId, commentId });
-                  if (textFieldReplyRef.current) textFieldReplyRef.current.focus();
-                }}
-              >
-                <ReplyRoundedIcon sx={{ fontSize: "1.9rem", color: "var(--color-white)" }} />
-              </IconButton>
-            )}
+            {!isReply &&
+              !status &&
+              isOwnerEditorCommenter &&
+              (changeMode === "Commenting" || changeMode === "Editing") && (
+                <IconButton
+                  sx={{
+                    ...iconButtonStylesBrighter,
+                    padding: "8px",
+                    marginRight: "-1px",
+                    width: "38px",
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setStatus((prev) => !prev);
+                    handleChangeCommentStatus();
+                  }}
+                >
+                  <CheckIconSmallGradient />
+                </IconButton>
+              )}
+            {isReply &&
+              !status &&
+              isOwnerEditorCommenter &&
+              (changeMode === "Commenting" || changeMode === "Editing") && (
+                <IconButton
+                  sx={{
+                    ...iconButtonStylesBrighter,
+                    padding: "3.5px",
+                    marginRight: "-1px",
+                    width: "38px",
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setReplyTo({ username, date, replyId: comment.replyId, commentId });
+                    if (textFieldReplyRef.current) textFieldReplyRef.current.focus();
+                  }}
+                >
+                  <ReplyRoundedIcon sx={{ fontSize: "1.9rem", color: "var(--color-white)" }} />
+                </IconButton>
+              )}
             {((!isReply && comment.replies?.length > 0) ||
               (isReply && comment.replies?.length > 0)) && (
               <IconButton
@@ -811,85 +833,87 @@ const CommentContainer = ({
                 )}
               </IconButton>
             )}
-            {(commenterUserId === userDoc.id || (!isReply && status)) && isOwnerEditorCommenter && (
-              <div>
-                <IconButton
-                  sx={{ ...iconButtonStylesBrighter, padding: 0, height: "38px", width: "38px" }}
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    toggleOptions(isReply ? comment.replyId : commentId);
-                  }}
-                >
-                  <MoreVertIcon
-                    sx={{
-                      fontSize: "1.9rem",
-                      color: "var(--color-white)",
-                      transform: "scale(0.9)",
+            {(commenterUserId === userDoc.id || (!isReply && status)) &&
+              isOwnerEditorCommenter &&
+              (changeMode === "Commenting" || changeMode === "Editing") && (
+                <div>
+                  <IconButton
+                    sx={{ ...iconButtonStylesBrighter, padding: 0, height: "38px", width: "38px" }}
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      toggleOptions(isReply ? comment.replyId : commentId);
                     }}
-                  />
-                </IconButton>
-                {optionsState.showOptions &&
-                  optionsState.selectedId === (isReply ? comment.replyId : commentId) && (
-                    <div
-                      ref={dropdownRef}
-                      className="dropdown-menu comment"
-                      style={{
-                        position: "absolute",
-                        top: "0",
-                        marginTop: "10px",
+                  >
+                    <MoreVertIcon
+                      sx={{
+                        fontSize: "1.9rem",
+                        color: "var(--color-white)",
+                        transform: "scale(0.9)",
                       }}
-                    >
-                      {commenterUserId === userDoc.id && (
-                        <>
-                          {/* Can edit only open comments */}
-                          {!status && (
+                    />
+                  </IconButton>
+                  {optionsState.showOptions &&
+                    optionsState.selectedId === (isReply ? comment.replyId : commentId) && (
+                      <div
+                        ref={dropdownRef}
+                        className="dropdown-menu comment"
+                        style={{
+                          position: "absolute",
+                          top: "0",
+                          marginTop: "10px",
+                        }}
+                      >
+                        {commenterUserId === userDoc.id && (
+                          <>
+                            {/* Can edit only open comments */}
+                            {!status && (
+                              <CustomMenuItem
+                                className="dropdown-item"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setEditingState();
+                                }}
+                              >
+                                <ListItemIcon>
+                                  <EditIcon className="icon" />
+                                </ListItemIcon>
+                                <ListItemText primary="Edit" sx={{ color: "var(--color-white)" }} />
+                              </CustomMenuItem>
+                            )}
                             <CustomMenuItem
                               className="dropdown-item"
                               onClick={(e) => {
                                 e.stopPropagation();
-                                setEditingState();
+                                openDeleteModal();
                               }}
                             >
                               <ListItemIcon>
-                                <EditIcon className="icon" />
+                                <DeleteIcon className="icon" />
                               </ListItemIcon>
-                              <ListItemText primary="Edit" sx={{ color: "var(--color-white)" }} />
+                              <ListItemText primary="Delete" sx={{ color: "var(--color-white)" }} />
                             </CustomMenuItem>
-                          )}
+                          </>
+                        )}
+                        {/* false for open, true for resolved */}
+                        {!isReply && status && (
                           <CustomMenuItem
                             className="dropdown-item"
                             onClick={(e) => {
                               e.stopPropagation();
-                              openDeleteModal();
+                              setStatus((prev) => !prev);
+                              handleChangeCommentStatus();
                             }}
                           >
                             <ListItemIcon>
-                              <DeleteIcon className="icon" />
+                              <ReopenIcon className="icon" sx={{ color: "var(--color-white)" }} />
                             </ListItemIcon>
-                            <ListItemText primary="Delete" sx={{ color: "var(--color-white)" }} />
+                            <ListItemText primary="Reopen" sx={{ color: "var(--color-white)" }} />
                           </CustomMenuItem>
-                        </>
-                      )}
-                      {/* false for open, true for resolved */}
-                      {!isReply && status && (
-                        <CustomMenuItem
-                          className="dropdown-item"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setStatus((prev) => !prev);
-                            handleChangeCommentStatus();
-                          }}
-                        >
-                          <ListItemIcon>
-                            <ReopenIcon className="icon" sx={{ color: "var(--color-white)" }} />
-                          </ListItemIcon>
-                          <ListItemText primary="Reopen" sx={{ color: "var(--color-white)" }} />
-                        </CustomMenuItem>
-                      )}
-                    </div>
-                  )}
-              </div>
-            )}
+                        )}
+                      </div>
+                    )}
+                </div>
+              )}
           </div>
         </div>
         <div
@@ -935,7 +959,8 @@ const CommentContainer = ({
               })}
             </div>
           ) : (
-            isOwnerEditorCommenter && (
+            isOwnerEditorCommenter &&
+            (changeMode === "Commenting" || changeMode === "Editing") && (
               <>
                 <TextField
                   label=""
@@ -1235,6 +1260,7 @@ const CommentContainer = ({
                       setReplyTo={setReplyTo}
                       rootComment={rootCommentRoot}
                       isOwnerEditorCommenter={isOwnerEditorCommenter}
+                      changeMode={changeMode}
                     />
                   )
                 );
@@ -1260,6 +1286,7 @@ const CommentContainer = ({
                       setReplyTo={setReplyTo}
                       rootComment={rootCommentRoot}
                       isOwnerEditorCommenter={isOwnerEditorCommenter}
+                      changeMode={changeMode}
                     />
                   )
                 );
@@ -1271,7 +1298,8 @@ const CommentContainer = ({
         {(isRepliesExpanded || replyCount === 0) &&
           !isReply &&
           !status &&
-          isOwnerEditorCommenter && (
+          isOwnerEditorCommenter &&
+          (changeMode === "Commenting" || changeMode === "Editing") && (
             <>
               <div style={{ marginTop: "10px" }}>
                 {replyTo && (

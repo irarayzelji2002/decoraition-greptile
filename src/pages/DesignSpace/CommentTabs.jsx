@@ -44,6 +44,7 @@ function CommentTabs({
   setCommentTypeTab,
   setSelectedImage,
   isOwnerEditorCommenter,
+  changeMode,
 }) {
   const { user, userDoc, userComments, userReplies, userDesignsComments, isDarkMode } =
     useSharedProps();
@@ -561,6 +562,7 @@ function CommentTabs({
               activeComment={activeComment}
               setActiveComment={setActiveComment}
               isOwnerEditorCommenter={isOwnerEditorCommenter}
+              changeMode={changeMode}
             />
           ))}
           {filteredAndSortedComments.length === 0 && (

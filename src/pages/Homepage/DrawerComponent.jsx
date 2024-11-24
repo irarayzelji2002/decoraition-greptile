@@ -309,7 +309,7 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
           <ListItemIcon sx={listItemIconStyles}>
             <DesignIcn />
           </ListItemIcon>
-          <ListItemText primary="Design" />
+          <ListItemText primary="Designs" />
         </ListItemButton>
         <ListItemButton onClick={() => navigate("/seeAllProjects")} sx={listItemStyles}>
           <ListItemIcon sx={listItemIconStyles}>
@@ -350,18 +350,20 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
               }}
               sx={listItemStyles}
             >
-              <div className="miniThumbnail">
-                <img src={getDesignImage(design.id)} alt="" className="" />
+              <div style={{ display: "flex", flexGrow: "1" }}>
+                <div className="miniThumbnail">
+                  <img src={getDesignImage(design.id)} alt="" className="" />
+                </div>
+                <ListItemText
+                  primary={design.designName}
+                  sx={{
+                    maxWidth: "300px",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                />
               </div>
-              <ListItemText
-                primary={design.designName}
-                sx={{
-                  maxWidth: "300px",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              />
               <IconButton
                 edge="end"
                 aria-label="more"
@@ -424,22 +426,26 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
               }
               sx={listItemStyles}
             >
-              <div className="miniThumbnail">
-                <img src={getProjectImage(project.id)} alt="" />
+              <div style={{ display: "flex", flexGrow: "1", alignItems: "center" }}>
+                <div className="miniThumbnail">
+                  <img src={getProjectImage(project.id)} alt="" />
+                </div>
+                <ListItemText
+                  primary={project.projectName}
+                  sx={{
+                    "& span": {
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      display: "block",
+                    },
+                  }}
+                />
               </div>
-              <ListItemText
-                primary={project.projectName}
-                sx={{
-                  maxWidth: "230px",
-                  whiteSpace: "nowrap",
-                  overflow: "hidden",
-                  textOverflow: "ellipsis",
-                }}
-              />
               <IconButton
                 edge="end"
                 aria-label="more"
-                sx={iconButtonStyles}
+                sx={{ ...iconButtonStyles, flexShrink: 0 }}
                 onClick={(e) => handleOptionsClick(project.id, e)}
               >
                 <MoreHorizIcon />
@@ -538,6 +544,7 @@ export const iconButtonStylesBrighter = {
 const listItemStyles = {
   cursor: "pointer",
   padding: "6.5px 20px",
+  justifyContent: "space-between",
   "&:hover": {
     backgroundColor: "var(--iconButtonHover)",
   },

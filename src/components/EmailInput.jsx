@@ -17,6 +17,7 @@ import { AddCollaborators } from "../pages/DesignSpace/svg/AddImage";
 import CancelRoundedIcon from "@mui/icons-material/CancelRounded";
 import { useSharedProps } from "../contexts/SharedPropsContext";
 import { stringAvatarColor, stringAvatarInitials } from "../functions/utils";
+import { priceTextFieldStyles } from "../pages/DesignSpace/AddItem";
 
 const EmailInput = ({ emails, setEmails, error, setError, collaborators }) => {
   const { users } = useSharedProps();
@@ -31,7 +32,12 @@ const EmailInput = ({ emails, setEmails, error, setError, collaborators }) => {
   useEffect(() => {
     // Filter to valid user data
     const trueUsers = users.filter(
-      (user) => user?.email && user?.username && user?.firstName && user?.lastName
+      (user) =>
+        user?.email &&
+        user?.username &&
+        user?.firstName &&
+        user?.lastName &&
+        user?.notifSettings?.allowNotif !== undefined
     );
     // Filter out users that are already collaborators
     const filteredUsers = trueUsers.filter(
@@ -210,19 +216,27 @@ const EmailInput = ({ emails, setEmails, error, setError, collaborators }) => {
 
   return (
     <Box sx={{ width: "100%" }}>
-      <Box display="flex" justifyContent="start" alignItems="center">
+      <Box
+        display="flex"
+        justifyContent="start"
+        alignItems="center"
+        sx={{ "& svg": { minWidth: "25px", minHeight: "25px" } }}
+      >
         <AddCollaborators />
-        <input // Input field at the top
+        <TextField // Input field at the top
           value={inputValue}
           onChange={handleInputChange}
           onKeyDown={handleKeyDown}
           placeholder="Enter email addresses"
-          style={{
+          sx={{
+            ...priceTextFieldStyles,
             backgroundColor: "transparent",
             color: "var(--color-white)",
             border: "none",
             outline: "none",
             fontSize: "1rem",
+            wordWrap: "break-word",
+            width: "100%",
           }}
         />
       </Box>

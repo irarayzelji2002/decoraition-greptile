@@ -357,10 +357,13 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
                 <ListItemText
                   primary={design.designName}
                   sx={{
-                    maxWidth: "300px",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    width: "0px",
+                    "& span": {
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      display: "block",
+                    },
                   }}
                 />
               </div>
@@ -433,6 +436,7 @@ const DrawerComponent = ({ isDrawerOpen = false, onClose }) => {
                 <ListItemText
                   primary={project.projectName}
                   sx={{
+                    width: "0px",
                     "& span": {
                       whiteSpace: "nowrap",
                       overflow: "hidden",

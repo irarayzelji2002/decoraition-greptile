@@ -18,7 +18,7 @@ import {
 } from "./RenameModal";
 import { gradientButtonStyles, outlinedButtonStyles } from "../pages/DesignSpace/PromptBar";
 
-const SimpleDeleteConfirmation = ({ open, handleClose, handleDelete }) => {
+const SimpleDeleteConfirmation = ({ open, handleClose, handleDelete, item, type }) => {
   return (
     <Dialog open={open} onClose={handleClose} sx={dialogStyles}>
       <DialogTitle sx={dialogTitleStyles}>
@@ -32,7 +32,7 @@ const SimpleDeleteConfirmation = ({ open, handleClose, handleDelete }) => {
             whiteSpace: "normal",
           }}
         >
-          Delete
+          Confirm {item} Removal
         </Typography>
         <IconButton
           onClick={handleClose}
@@ -46,16 +46,16 @@ const SimpleDeleteConfirmation = ({ open, handleClose, handleDelete }) => {
         </IconButton>
       </DialogTitle>
       <DialogContent sx={dialogContentStyles}>
-        <Typography variant="body1" sx={{ marginBottom: "10px" }}>
-          Are you sure you want to delete this item?
+        <Typography variant="body1" sx={{ marginBottom: "10px", textAlign: "center" }}>
+          Are you sure you want to delete this {item}?
         </Typography>
       </DialogContent>
       <DialogActions sx={dialogActionsStyles}>
-        <Button fullWidth onClick={handleClose} sx={outlinedButtonStyles}>
-          Cancel
-        </Button>
         <Button fullWidth onClick={handleDelete} sx={gradientButtonStyles}>
           Delete
+        </Button>
+        <Button fullWidth onClick={handleClose} sx={outlinedButtonStyles}>
+          Cancel
         </Button>
       </DialogActions>
     </Dialog>

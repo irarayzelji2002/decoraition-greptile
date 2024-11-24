@@ -239,7 +239,7 @@ function Budget() {
 
   // Get latest design version
   useEffect(() => {
-    console.log("Init Budget page - deisgn", design);
+    console.log("Init Budget page - design", design);
     console.log("Init Budget page - design?.history", design?.history);
     if (design?.history && design.history.length > 0) {
       const latestDesignVersionId = design.history[design.history.length - 1];
@@ -445,9 +445,9 @@ function Budget() {
     setIsBudgetModalOpen(!isBudgetModalOpen);
   };
 
-  const getBudgetColor = (budgetAmount, totalCost) => {
+  const getBudgetColor = (budgetAmount, totalCost, isDarkMode) => {
     if (budgetAmount === 0) {
-      return "var(--inputBg)"; // no budget
+      return isDarkMode ? "var(--inputBg)" : "var(--bright-grey)"; // no budget
     } else if (totalCost <= budgetAmount) {
       return "var(--green)"; // within budget
     } else {
@@ -545,7 +545,7 @@ function Budget() {
           <span
             className="priceSum budget"
             style={{
-              backgroundColor: getBudgetColor(budgetAmount, totalCost),
+              backgroundColor: getBudgetColor(budgetAmount, totalCost, isDarkMode),
             }}
           >
             {(() => {
@@ -623,7 +623,7 @@ function Budget() {
                       style={{ border: index === viewingImage && "2px solid var(--brightFont)" }}
                       onClick={() => setViewingImage(index)}
                     >
-                      <img src={img ?? "/img/transparent-image.png"} alt="" />
+                      <img src={img || "/img/transparent-image.png"} alt="" />
                     </div>
                   </div>
                 );
@@ -635,7 +635,7 @@ function Budget() {
                 <span>No design yet</span>
               </div>
               <img
-                src={imagesLink[viewingImage] ?? "/img/transparent-image.png"}
+                src={imagesLink[viewingImage] || "/img/transparent-image.png"}
                 alt=""
                 className="image-preview"
               />
@@ -680,7 +680,7 @@ function Budget() {
               <div className="small-buttons">
                 {budgetAmount > 0 && (
                   <div
-                    className="small-button-container"
+                    className="small-button-container budget"
                     onClick={() => {
                       setIsRemoveBudgetModalOpen(true);
                       setMenuOpen(false);
@@ -693,7 +693,7 @@ function Budget() {
                   </div>
                 )}
                 <div
-                  className="small-button-container"
+                  className="small-button-container budget"
                   onClick={() => toggleBudgetModal(true, budgetAmount > 0)}
                 >
                   <span className="small-button-text">
@@ -704,7 +704,7 @@ function Budget() {
                   </div>
                 </div>
                 <div
-                  className="small-button-container"
+                  className="small-button-container budget"
                   onClick={() =>
                     navigate(`/addItem/${budget.id}`, {
                       state: { navigateFrom: navigateFrom },

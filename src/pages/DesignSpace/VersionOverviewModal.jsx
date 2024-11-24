@@ -106,9 +106,9 @@ function VersionOverviewModal({
   }, [selectedDesignVersionDetails]);
 
   // Budget & Item Functions
-  const getBudgetColor = (budgetAmount, totalCost) => {
+  const getBudgetColor = (budgetAmount, totalCost, isDarkMode) => {
     if (budgetAmount === 0) {
-      return "var(--inputBg)"; // no budget
+      return isDarkMode ? "var(--inputBg)" : "var(--bright-grey)"; // no budget
     } else if (totalCost <= budgetAmount) {
       return "var(--green)"; // within budget
     } else {
@@ -255,7 +255,7 @@ function VersionOverviewModal({
                         style={{ border: index === viewingImage && "2px solid var(--brightFont)" }}
                         onClick={() => setViewingImage(index)}
                       >
-                        <img src={img ?? "/img/transparent-image.png"} alt="" />
+                        <img src={img || "/img/transparent-image.png"} alt="" />
                       </div>
                     </div>
                   );
@@ -265,7 +265,7 @@ function VersionOverviewModal({
                 <div className="historyImageFrame" key={viewingImage}>
                   <img
                     src={
-                      selectedDesignVersionDetails.imagesLink[viewingImage] ??
+                      selectedDesignVersionDetails.imagesLink[viewingImage] ||
                       "/img/transparent-image.png"
                     }
                     alt=""
@@ -286,7 +286,7 @@ function VersionOverviewModal({
                 <span
                   className="priceSum"
                   style={{
-                    backgroundColor: getBudgetColor(budgetAmount, totalCost),
+                    backgroundColor: getBudgetColor(budgetAmount, totalCost, isDarkMode),
                     marginTop: "0px",
                     marginBottom: "10px",
                   }}
@@ -340,7 +340,7 @@ function VersionOverviewModal({
                               }}
                               onClick={() => setViewingImage(index)}
                             >
-                              <img src={img ?? "/img/transparent-image.png"} alt="" />
+                              <img src={img || "/img/transparent-image.png"} alt="" />
                             </div>
                           </div>
                         );
@@ -353,7 +353,7 @@ function VersionOverviewModal({
                       </div>
                       <img
                         src={
-                          selectedDesignVersionDetails.imagesLink[viewingImage] ??
+                          selectedDesignVersionDetails.imagesLink[viewingImage] ||
                           "/img/transparent-image.png"
                         }
                         alt=""
@@ -375,7 +375,7 @@ function VersionOverviewModal({
                         style={{ display: "flex", flexDirection: "row" }}
                       >
                         <img
-                          src={item.image ?? "/img/transparent-image.png"}
+                          src={item.image || "/img/transparent-image.png"}
                           alt=""
                           className="thumbnail"
                         />

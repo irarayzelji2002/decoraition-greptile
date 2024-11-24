@@ -179,16 +179,18 @@ exports.createDesignProject = async (req, res) => {
     const { projectId } = req.params;
     const { userId, designName } = req.body;
 
-    // Validate input data
-    if (!projectId || !userId || !designName) {
-      return res.status(400).json({ message: "Missing required fields" });
-    }
-
     // Verify the existence of the project
     const projectRef = db.collection("projects").doc(projectId);
     const projectDoc = await projectRef.get();
     if (!projectDoc.exists) {
       return res.status(404).json({ message: "Project not found" });
+    }
+    // Check user role in design
+    const allowAction = isContributorProject(projectDoc, userId);
+    if (!allowAction) {
+      return res
+        .status(403)
+        .json({ error: "User does not have permission to create a design for this project" });
     }
 
     // Create design document
@@ -228,30 +230,15 @@ exports.createDesignProject = async (req, res) => {
       link: `/design/${designId}`,
     });
 
-    // Create associated budget document
-    const budgetData = {
-      designId: designId,
-      budget: {
-        amount: 0,
-        currency: getPHCurrency(), //default
-      },
-      items: [],
-      createdAt: new Date(),
-      modifiedAt: new Date(),
-    };
-
-    const budgetRef = await db.collection("budgets").add(budgetData);
-    const budgetId = budgetRef.id;
-    createdDocuments.push({ collection: "budgets", id: budgetId });
-
-    // Update design document with budgetId
+    // Update project's designs
+    const previousDesigns = projectDoc.data().designs || [];
     updatedDocuments.push({
-      ref: designRef,
-      data: { budgetId: null }, // Correctly reference the rollback data
-      collection: "designs",
-      id: designRef.id,
+      collection: "projects",
+      id: projectId,
+      field: "designs",
+      previousValue: previousDesigns,
     });
-    await designRef.update({ budgetId });
+    await projectRef.update({ designs: [...previousDesigns, designId], modifiedAt: new Date() });
 
     // Update user's designs array
     const userRef = db.collection("users").doc(userId);
@@ -270,10 +257,9 @@ exports.createDesignProject = async (req, res) => {
       id: designId,
       ...designData,
       link: `/design/${designId}`,
-      budgetId,
     });
   } catch (error) {
-    console.error("Error creating design:", error);
+    console.error("Error creating design for the project:", error);
 
     // Rollback updates
     for (const doc of updatedDocuments) {
@@ -295,7 +281,7 @@ exports.createDesignProject = async (req, res) => {
       }
     }
 
-    res.status(500).json({ message: "Error creating design", error: error.message });
+    res.status(500).json({ error: error.message });
   }
 };
 
@@ -984,6 +970,75 @@ exports.changeAccessProject = async (req, res) => {
     res.status(500).json({
       success: false,
       error: "Failed to change access of project collaborators",
+    });
+  }
+};
+
+exports.importDesignToProject = async (req, res) => {
+  const updatedDocuments = [];
+  try {
+    const { projectId } = req.params;
+    const { userId, designId } = req.body;
+
+    // Verify the existence of the project
+    const projectRef = db.collection("projects").doc(projectId);
+    const projectDoc = await projectRef.get();
+    if (!projectDoc.exists) {
+      return res.status(404).json({ message: "Project not found" });
+    }
+    // Check user role in design
+    const allowAction = isContributorProject(projectDoc, userId);
+    if (!allowAction) {
+      return res
+        .status(403)
+        .json({ error: "User does not have permission to create a design for this project" });
+    }
+
+    // Get the design document
+    const designRef = db.collection("designs").doc(designId);
+    const designDoc = await designRef.get();
+    if (!designDoc.exists) {
+      return res.status(404).json({ error: "Design not found" });
+    }
+
+    // Update the project's designs field
+    const previousDesigns = projectDoc.data().designs || [];
+    updatedDocuments.push({
+      collection: "projects",
+      id: projectId,
+      field: "designs",
+      previousValue: previousDesigns,
+    });
+    await projectRef.update({
+      designs: [...previousDesigns, designId],
+      modifiedAt: new Date(),
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Design imported to project",
+    });
+  } catch (error) {
+    console.error("Error importing design to project:", error);
+
+    // Rollback updates to existing documents
+    for (const doc of updatedDocuments) {
+      try {
+        await db
+          .collection(doc.collection)
+          .doc(doc.id)
+          .update({
+            [doc.field]: doc.previousValue,
+          });
+        console.log(`Rolled back ${doc.field} in ${doc.collection} document ${doc.id}`);
+      } catch (rollbackError) {
+        console.error(`Error rolling back ${doc.collection} document ${doc.id}:`, rollbackError);
+      }
+    }
+
+    res.status(500).json({
+      success: false,
+      error: "Failed to import design to project",
     });
   }
 };

@@ -227,9 +227,7 @@ exports.updateDesignName = async (req, res) => {
     // Check user role in design
     const allowAction = isOwnerEditorDesign(designDoc, userId);
     if (!allowAction) {
-      return res
-        .status(403)
-        .json({ error: "User does not have permission to create design version" });
+      return res.status(403).json({ error: "User does not have permission to rename a design" });
     }
 
     const previousName = designDoc.data().designName;
@@ -1792,5 +1790,20 @@ exports.deleteDesign = async (req, res) => {
       error: "Failed to delete design and related documents",
       details: error.message,
     });
+  }
+};
+
+exports.updateDesignProjectId = async (req, res) => {
+  try {
+    const { designId } = req.params;
+    const { projectId } = req.body;
+
+    const designRef = db.collection("designs").doc(designId);
+    await designRef.update({ projectId, modifiedAt: new Date() });
+
+    res.status(200).json({ message: "Design projectId updated successfully" });
+  } catch (error) {
+    console.error("Error updating design projectId:", error);
+    res.status(500).json({ message: "Failed to update design projectId" });
   }
 };

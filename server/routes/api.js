@@ -149,6 +149,11 @@ router.post(
   authenticateUser,
   designController.updateDesignVersionCombinedMask
 );
+router.put(
+  "/design/:designId/update-project",
+  authenticateUser,
+  designController.updateDesignProjectId
+);
 
 // Comment routes
 router.post(
@@ -223,6 +228,11 @@ router.post(
   authenticateUser,
   upload.single("file"),
   planMapController.handlePlanImageUpload
+);
+router.put(
+  "/project/:projectId/import-design",
+  authenticateUser,
+  projectController.importDesignToProject
 );
 
 // Network check

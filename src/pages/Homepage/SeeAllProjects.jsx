@@ -21,6 +21,7 @@ import {
   formatDate,
   formatDateLong,
   getUsernames,
+  handleCreateProject,
 } from "./backend/HomepageActions";
 import { HorizontalIcon, ListIcon, TiledIcon } from "../ProjectSpace/svg/ExportIcon.jsx";
 import { iconButtonStyles } from "./DrawerComponent.jsx";
@@ -225,7 +226,7 @@ export default function SeeAllProjects() {
 
   const handleCreateProjectWithLoading = async () => {
     setIsProjectButtonDisabled(true);
-    // Your create project logic here
+    await handleCreateProject(user, userDoc.id, navigate);
     setIsProjectButtonDisabled(false);
   };
 

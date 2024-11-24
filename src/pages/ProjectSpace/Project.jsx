@@ -54,7 +54,10 @@ import {
   handleDeleteDesign,
 } from "../Homepage/backend/HomepageActions";
 import HomepageTable from "../Homepage/HomepageTable";
-import ImportDesignModal, { DesignInfoTooltip } from "../../components/ImportDesignModal";
+import ImportDesignModal, {
+  DesignInfoBox,
+  DesignInfoTooltip,
+} from "../../components/ImportDesignModal";
 import deepEqual from "deep-equal";
 import { gradientButtonStyles, outlinedButtonStyles } from "../DesignSpace/PromptBar";
 import { set } from "lodash";
@@ -117,6 +120,7 @@ function Project() {
 
   const [openConfirmRemove, setOpenConfirmRemove] = useState(false);
   const [designIdToRemove, setDesignIdToRemove] = useState(null);
+  const [designToRemove, setDesignToRemove] = useState(null);
 
   const userDesignsWithoutProject = userDesigns.filter((design) => !design.projectId);
 
@@ -381,8 +385,15 @@ function Project() {
 
   const openConfirmRemoveModal = (designId) => {
     console.log("Opening confirm remove modal for design:", designId);
-    setOpenConfirmRemove(true);
-    setDesignIdToRemove(designId);
+    const designToRemove = filteredDesigns.find((design) => design.id === designId);
+    if (designToRemove) {
+      setDesignToRemove(designToRemove);
+      setDesignIdToRemove(designId);
+      setOpenConfirmRemove(true);
+    } else {
+      console.error("Design not found:", designId);
+      showToast("error", "Design not found");
+    }
   };
 
   const handleRemoveDesign = async (e, designId) => {
@@ -402,7 +413,16 @@ function Project() {
     } finally {
       setOpenConfirmRemove(false);
       setDesignIdToRemove(null);
+      setDesignToRemove(null);
+      setIsRemoveDesignBtnDisabled(false);
     }
+  };
+
+  const handleCloseConfirmRemoveModal = (e) => {
+    if (e) e.stopPropagation();
+    setOpenConfirmRemove(false);
+    setDesignIdToRemove(null);
+    setDesignToRemove(null);
   };
 
   if (loadingProject || !project) {
@@ -705,7 +725,6 @@ function Project() {
             </div>
             <div className="small-button-container">
               <span className="small-button-text">Create a Design</span>
-              <div className="small-circle-button"></div>
               <Box
                 onClick={() => !isDesignButtonDisabled && handleCreateDesign()}
                 sx={{
@@ -739,12 +758,14 @@ function Project() {
       {modalOpen && <Modal onClose={closeModal} />}
       <ConfirmRemoveDesign
         openConfirmRemove={openConfirmRemove}
-        setOpenConfirmRemove={setOpenConfirmRemove}
+        onClose={handleCloseConfirmRemoveModal}
+        design={designToRemove}
         designIdToRemove={designIdToRemove}
         handleRemove={handleRemoveDesign}
         userDesigns={userDesigns}
         userDesignVersions={userDesignVersions}
         users={users}
+        isRemoveDesignBtnDisabled={isRemoveDesignBtnDisabled}
       />
     </ProjectSpace>
   );
@@ -754,86 +775,97 @@ export default Project;
 
 const ConfirmRemoveDesign = ({
   openConfirmRemove,
-  setOpenConfirmRemove,
+  onClose,
+  design,
   designIdToRemove,
   handleRemove,
   userDesigns,
   userDesignVersions,
   users,
+  isRemoveDesignBtnDisabled,
 }) => {
-  <Dialog
-    open={openConfirmRemove}
-    onClose={() => setOpenConfirmRemove(false)}
-    sx={{
-      ...dialogStyles,
-      zIndex: "13002",
-    }}
-  >
-    <DialogTitle sx={dialogTitleStyles}>
-      <Typography
-        variant="body1"
-        sx={{
-          fontWeight: "bold",
-          fontSize: "1.15rem",
-          flexGrow: 1,
-          maxWidth: "80%",
-          whiteSpace: "normal",
-        }}
-      >
-        Confirm Restore
-      </Typography>
-      <IconButton
-        onClick={(e) => {
-          if (e) e.stopPropagation();
-          setOpenConfirmRemove(false);
-        }}
-        sx={{
-          ...iconButtonStyles,
-          flexShrink: 0,
-          marginLeft: "auto",
-        }}
-      >
-        <CloseRoundedIcon />
-      </IconButton>
-    </DialogTitle>
-    <DialogContent sx={dialogContentStyles}>
-      <Typography variant="body1" sx={{ textAlign: "center", maxWidth: "500px" }}>
-        {`Are you sure you want to remove this design from the prject ?`}
-      </Typography>
-      <DesignInfoTooltip
-        designId={designIdToRemove}
-        userDesigns={userDesigns}
-        userDesignVersions={userDesignVersions}
-        users={users}
-      />
-    </DialogContent>
-    <DialogActions sx={dialogActionsStyles}>
-      {/* Yes Button */}
-      <Button
-        variant="contained"
-        onClick={(e) => handleRemove(e, designIdToRemove)}
-        sx={gradientButtonStyles}
-      >
-        Yes
-      </Button>
+  if (!design) return null;
 
-      {/* No Button */}
-      <Button
-        variant="contained"
-        onClick={(e) => {
-          if (e) e.stopPropagation();
-          setOpenConfirmRemove(false);
-        }}
-        sx={outlinedButtonStyles}
-        onMouseOver={(e) =>
-          (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButtonHover)")
-        }
-        onMouseOut={(e) =>
-          (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButton)")
-        }
-      >
-        No
-      </Button>
-    </DialogActions>
-  </Dialog>;
+  return (
+    <Dialog
+      open={openConfirmRemove}
+      onClose={onClose}
+      sx={{
+        ...dialogStyles,
+        zIndex: "13002",
+      }}
+    >
+      <DialogTitle sx={dialogTitleStyles}>
+        <Typography
+          variant="body1"
+          sx={{
+            fontWeight: "bold",
+            fontSize: "1.15rem",
+            flexGrow: 1,
+            maxWidth: "80%",
+            whiteSpace: "normal",
+          }}
+        >
+          Confirm design removal
+        </Typography>
+        <IconButton
+          onClick={onClose}
+          sx={{
+            ...iconButtonStyles,
+            flexShrink: 0,
+            marginLeft: "auto",
+          }}
+        >
+          <CloseRoundedIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent sx={dialogContentStyles}>
+        <Typography variant="body1" sx={{ textAlign: "center", maxWidth: "500px" }}>
+          {`Are you sure you want to remove this design from the project ?`}
+        </Typography>
+        <DesignInfoBox
+          design={design}
+          userDesigns={userDesigns}
+          userDesignVersions={userDesignVersions}
+          users={users}
+          className="confirm-remove-design-box"
+        />
+      </DialogContent>
+      <DialogActions sx={dialogActionsStyles}>
+        {/* Yes Button */}
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={(e) => handleRemove(e, designIdToRemove)}
+          sx={{
+            ...gradientButtonStyles,
+            opacity: isRemoveDesignBtnDisabled ? "0.5" : "1",
+            cursor: isRemoveDesignBtnDisabled ? "default" : "pointer",
+            "&:hover": {
+              backgroundImage: !isRemoveDesignBtnDisabled && "var(--gradientButtonHover)",
+            },
+          }}
+          disabled={isRemoveDesignBtnDisabled}
+        >
+          Yes
+        </Button>
+
+        {/* No Button */}
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={onClose}
+          sx={outlinedButtonStyles}
+          onMouseOver={(e) =>
+            (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButtonHover)")
+          }
+          onMouseOut={(e) =>
+            (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButton)")
+          }
+        >
+          No
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 };

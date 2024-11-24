@@ -33,8 +33,13 @@ import { CustomMenuItem } from "../pages/DesignSpace/CommentContainer";
 import { formatDateLong } from "../pages/Homepage/backend/HomepageActions";
 import { priceTextFieldStyles } from "../pages/DesignSpace/AddItem";
 import { importDesignToProject } from "../pages/ProjectSpace/backend/ProjectDetails";
+import {
+  menuItemStyles,
+  textFieldInputProps,
+  textFieldStyles,
+} from "../pages/DesignSpace/DesignSettings";
 
-const ImportDesignModal = ({ open, onClose, projectId }) => {
+const ImportDesignModal = ({ open, onClose, project }) => {
   const { user, userDoc, users, userDesigns, userDesignVersions } = useSharedProps();
   const [inputValue, setInputValue] = useState("");
   const [originalDesignOptions, setOriginalDesignOptions] = useState([]);
@@ -49,10 +54,17 @@ const ImportDesignModal = ({ open, onClose, projectId }) => {
 
   const selectDesignRef = useRef(null);
 
+  // Modify handleInputChange
   const handleInputChange = (event) => {
     const value = event.target.value;
     setInputValue(value);
-    filterDesignOptions(value);
+    if (value.trim()) {
+      filterDesignOptions(value);
+      setOpenDesignOptions(true);
+    } else {
+      setDesignOptions(originalDesignOptions);
+      setOpenDesignOptions(false);
+    }
   };
 
   useEffect(() => {
@@ -131,20 +143,16 @@ const ImportDesignModal = ({ open, onClose, projectId }) => {
       }
     }
 
-    if (event.key === "Enter" || event.key === ",") {
+    if (event.key === "Enter") {
       event.preventDefault();
-
       // If there are filtered options, set selected design if there's a selection, otherwise use first option
       if (openDesignOptions && designOptions.length > 0) {
-        const designSelected = selectedIndex >= 0 ? designOptions[selectedIndex] : designOptions[0];
-        setDesignOptionClicked(designSelected);
+        const selectedDesign = selectedIndex >= 0 ? designOptions[selectedIndex] : designOptions[0];
+        setSelectedDesignId(selectedDesign.id);
         setSelectedIndex(-1);
+        setOpenDesignOptions(false);
+        setInputValue("");
         return;
-      }
-    } else if (event.key === "Backspace") {
-      if (inputValue !== "") {
-        // If there's text, filter and show options
-        filterDesignOptions(inputValue.slice(0, -1));
       }
     } else {
       filterDesignOptions(inputValue);
@@ -160,13 +168,18 @@ const ImportDesignModal = ({ open, onClose, projectId }) => {
   };
 
   const handleImportDesign = async () => {
+    if (!selectedDesignId) {
+      setError("Please select a design to import");
+      return;
+    }
+    // Check if design is already in project
+    if (project?.designs?.includes(selectedDesignId)) {
+      setError("This design is already in the project");
+      return;
+    }
     setIsImportBtnDisabled(true);
     try {
-      if (!selectedDesignId) {
-        setError("Please select a design to import");
-        return;
-      }
-      const result = await importDesignToProject(projectId, selectedDesignId, user, userDoc);
+      const result = await importDesignToProject(project.id, selectedDesignId, user, userDoc);
       if (!result.success) {
         showToast("error", result.message);
         return;
@@ -181,7 +194,12 @@ const ImportDesignModal = ({ open, onClose, projectId }) => {
 
   useEffect(() => {
     console.log("clicked design:", designOptionClicked);
-    if (designOptionClicked) setSelectedDesignId(designOptionClicked.id);
+    if (designOptionClicked) {
+      setSelectedDesignId(designOptionClicked.id);
+      setSelectedIndex(-1);
+      setOpenDesignOptions(false);
+      setInputValue("");
+    }
   }, [designOptionClicked]);
 
   return (
@@ -210,59 +228,92 @@ const ImportDesignModal = ({ open, onClose, projectId }) => {
           <CloseRoundedIcon />
         </IconButton>
       </DialogTitle>
-      <DialogContent sx={dialogContentStyles}>
+      <DialogContent
+        sx={{
+          ...dialogContentStyles,
+          minHeight: "300px",
+          justifyContent: "start",
+        }}
+      >
         <Typography variant="body1" sx={{ marginBottom: "10px" }}>
           Select a design to import
         </Typography>
-        <div style={{ display: "flex", justifyContent: "center" }}>
+        <div style={{ display: "flex", justifyContent: "center", flexDirection: "column" }}>
           <TextField // Input field at the top
             value={inputValue}
             onChange={handleInputChange}
             onKeyDown={handleKeyDown}
             placeholder="Search a design"
-            sx={{
-              ...priceTextFieldStyles,
-              backgroundColor: "transparent",
-              color: "var(--color-white)",
-              border: "none",
-              outline: "none",
-              fontSize: "1rem",
-              wordWrap: "break-word",
-              width: "100%",
-            }}
+            sx={{ ...textFieldStyles, width: "100%" }}
+            InputProps={textFieldInputProps}
           />
-          {openDesignOptions && designOptions.length > 0 && (
-            <Paper
-              ref={selectDesignRef}
-              sx={{
-                position: "absolute",
-                zIndex: 1000,
-                maxHeight: "200px",
-                overflow: "auto",
-                width: "calc(100% - 60px)",
-                left: "30px",
-                backgroundColor: "var(--iconBg)",
-                boxShadow: "-4px 4px 10px rgba(0, 0, 0, 0.2)",
-                borderRadius: "10px",
-              }}
-            >
-              {designOptions.slice(0, 5).map((design, index) => (
-                <CustomMenuItem
-                  key={design.id}
-                  onClick={() => setDesignOptionClicked(design)}
-                  selected={index === selectedIndex}
-                >
-                  <DesignInfoTooltip
-                    design={design}
+          {error && <div className="error-text">{error}</div>}
+          <div style={{ position: "relative", width: "100%" }}>
+            {openDesignOptions && designOptions.length > 0 && (
+              <Paper
+                ref={selectDesignRef}
+                sx={{
+                  position: "absolute",
+                  zIndex: 1000,
+                  maxHeight: "200px",
+                  overflow: "auto",
+                  width: "100%",
+                  backgroundColor: "var(--iconBg)",
+                  boxShadow: "-4px 4px 10px rgba(0, 0, 0, 0.2)",
+                  borderRadius: "10px",
+                }}
+              >
+                {designOptions.slice(0, 5).map((design, index) => (
+                  <CustomMenuItem
+                    key={design.id}
+                    onClick={() => setDesignOptionClicked(design)}
+                    selected={index === selectedIndex}
+                    sx={{ ...menuItemStyles }}
+                  >
+                    <DesignInfoTooltip
+                      design={design}
+                      userDesigns={userDesigns}
+                      userDesignVersions={userDesignVersions}
+                      users={users}
+                    />
+                  </CustomMenuItem>
+                ))}
+              </Paper>
+            )}
+          </div>
+          {selectedDesignId &&
+            (() => {
+              const selectedDesign = originalDesignOptions.find(
+                (design) => design.id === selectedDesignId
+              );
+
+              if (!selectedDesign) {
+                return (
+                  <div style={{ marginTop: "20px" }}>
+                    <Typography variant="body1" sx={{ marginBottom: "10px", fontWeight: "bold" }}>
+                      Selected design
+                    </Typography>
+                    <Typography variant="body2" sx={{ color: "var(--color-quaternary)" }}>
+                      Design not found. Please select another design.
+                    </Typography>
+                  </div>
+                );
+              }
+
+              return (
+                <div style={{ marginTop: "20px" }}>
+                  <Typography variant="body1" sx={{ marginBottom: "10px", fontWeight: "bold" }}>
+                    Selected design
+                  </Typography>
+                  <DesignInfoBox
+                    design={selectedDesign}
                     userDesigns={userDesigns}
                     userDesignVersions={userDesignVersions}
                     users={users}
                   />
-                </CustomMenuItem>
-              ))}
-            </Paper>
-          )}
-          {error && <div className="error-text">{error}</div>}
+                </div>
+              );
+            })()}
         </div>
       </DialogContent>
       <DialogActions sx={dialogActionsStyles}>
@@ -320,27 +371,82 @@ export const DesignInfoTooltip = ({ design, userDesigns, userDesignVersions, use
       p: "5px",
     }}
   >
-    <Box
-      sx={{
-        width: 39,
-        height: 39,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        background: "var(--gradientButton)",
-        borderRadius: "50%",
-        padding: "3px",
-        marginRight: "10px",
-        cursor: "auto",
-      }}
-    >
-      <img
-        src={
-          getDesignImage(design.id, userDesigns, userDesignVersions, 0) ||
-          "/img/transparent-image.png"
-        }
-        alt=""
-      />
+    <Box sx={{ wdith: "45px", height: "45px", marginRight: "20px" }}>
+      <div className="select-image-preview" style={{ margin: "0" }}>
+        <img
+          src={
+            getDesignImage(design.id, userDesigns, userDesignVersions, 0) ||
+            "/img/transparent-image.png"
+          }
+          alt=""
+        />
+      </div>
+    </Box>
+    <Box sx={{ flexGrow: "1", minWidth: 0 }}>
+      <Typography
+        sx={{
+          color: "var(--color-white)",
+          fontSize: "0.875rem",
+          fontWeight: "bold",
+          wordBreak: "break-all",
+          overflow: "visible",
+        }}
+      >
+        {design?.designName || "Untitled Design"}
+      </Typography>
+      <Typography
+        sx={{
+          color: "var(--color-white)",
+          fontSize: "0.7rem",
+          wordBreak: "break-all",
+          overflow: "visible",
+        }}
+      >
+        {users.find((user) => user.id === design.owner)?.username || "Unknown User"}
+      </Typography>
+      <Typography
+        sx={{
+          color: "var(--color-white)",
+          fontSize: "0.7rem",
+          wordBreak: "break-all",
+          overflow: "visible",
+        }}
+      >
+        {`Modified: ${formatDateLong(design.modifiedAt)}`}
+      </Typography>
+      <Typography
+        sx={{
+          color: "var(--color-white)",
+          fontSize: "0.7rem",
+          wordBreak: "break-all",
+          overflow: "visible",
+        }}
+      >
+        {`Created: ${formatDateLong(design.createdAt)}`}
+      </Typography>
+    </Box>
+  </Box>
+);
+
+export const DesignInfoBox = ({ design, userDesigns, userDesignVersions, users }) => (
+  <Box
+    sx={{
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      padding: "0",
+    }}
+  >
+    <Box sx={{ marginRight: "20px" }}>
+      <div className="select-image-preview" style={{ margin: "0", width: "63px", height: "63px" }}>
+        <img
+          src={
+            getDesignImage(design.id, userDesigns, userDesignVersions, 0) ||
+            "/img/transparent-image.png"
+          }
+          alt=""
+        />
+      </div>
     </Box>
     <Box sx={{ flexGrow: "1", minWidth: 0 }}>
       <Typography

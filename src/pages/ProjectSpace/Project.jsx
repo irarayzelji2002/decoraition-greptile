@@ -70,6 +70,7 @@ function Project() {
 
   const [project, setProject] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
+  const [origFilteredDesigns, setOrigFilteredDesigns] = useState([]);
   const [filteredDesigns, setFilteredDesigns] = useState([]);
   const [filteredDesignsForTable, setFilteredDesignsForTable] = useState([]);
   const [displayedDesigns, setDisplayedDesigns] = useState([]);
@@ -100,65 +101,78 @@ function Project() {
 
       if (!fetchedProject) {
         console.error("Project not found.");
+        setLoadingProject(false);
       } else if (Object.keys(project).length === 0 || !deepEqual(project, fetchedProject)) {
         setProject(fetchedProject);
         console.log("current project:", fetchedProject);
       }
     }
-    setLoadingProject(false);
   }, [projectId, projects, userProjects]);
 
+  // loading state
+  useEffect(() => {
+    if (project && userDesigns) {
+      setLoadingProject(false);
+    }
+  }, [project, userDesigns]);
+
+  // Load design data
   useEffect(() => {
     const loadData = async () => {
-      await loadDesignDataForView();
-    };
-    loadData();
-  }, [project, designs, userDesigns]);
+      if (project?.designs?.length > 0 && userDesigns?.length > 0) {
+        try {
+          setLoadingDesigns(true);
 
-  // Get project designs
-  const loadDesignDataForView = async () => {
-    if (userDesigns?.length > 0) {
-      try {
-        setLoadingDesigns(true);
+          // Get all designs that belong to this project
+          const projectDesigns = project.designs
+            .map(
+              (designId) =>
+                userDesigns.find((design) => design.id === designId) ||
+                designs.find((design) => design.id === designId)
+            )
+            .filter((design) => design); // Filter out any undefined values
 
-        const designsByLatest = [...userDesigns].sort(
-          (a, b) => b.modifiedAt?.toMillis() - a.modifiedAt?.toMillis()
-        );
+          if (projectDesigns.length > 0) {
+            // Sort designs by latest modified
+            const designsByLatest = [...projectDesigns].sort(
+              (a, b) => b.modifiedAt?.toMillis() - a.modifiedAt?.toMillis()
+            );
 
-        const filteredDesigns = project.designs?.map((designId) =>
-          designsByLatest.find((design) => design.id === designId)
-        );
-        setFilteredDesigns(filteredDesigns);
-        console.log("filteredDesigns", filteredDesigns);
-        setLoadingDesigns(false);
+            setFilteredDesigns(designsByLatest);
+            console.log("Loaded project designs:", designsByLatest);
 
-        console.log("filteredDesigns", filteredDesigns);
-
-        // Process table data
-        const tableData = await Promise.all(
-          filteredDesigns.map(async (design) => ({
-            ...design,
-            ownerId: design.owner,
-            owner: users?.find((user) => user?.id === design?.owner)?.username || "",
-            formattedCreatedAt: formatDate(design?.createdAt),
-            createdAtTimestamp: design.createdAt?.toMillis(),
-            formattedModifiedAt: formatDate(design?.modifiedAt),
-            modifiedAtTimestamp: design.modifiedAt?.toMillis(),
-          }))
-        );
-        setFilteredDesignsForTable(tableData);
-      } catch (error) {
-        console.error("Error loading design data:", error);
-      } finally {
+            // Process table data
+            const tableData = await Promise.all(
+              designsByLatest.map(async (design) => ({
+                ...design,
+                ownerId: design.owner,
+                owner: users?.find((user) => user?.id === design?.owner)?.username || "",
+                formattedCreatedAt: formatDate(design?.createdAt),
+                createdAtTimestamp: design.createdAt?.toMillis(),
+                formattedModifiedAt: formatDate(design?.modifiedAt),
+                modifiedAtTimestamp: design.modifiedAt?.toMillis(),
+              }))
+            );
+            setFilteredDesignsForTable(tableData);
+          } else {
+            setFilteredDesigns([]);
+            setFilteredDesignsForTable([]);
+          }
+        } catch (error) {
+          console.error("Error loading design data:", error);
+          showToast("error", "Failed to load designs for this project");
+        } finally {
+          setLoadingDesigns(false);
+        }
+      } else {
+        setFilteredDesigns([]);
+        setFilteredDesignsForTable([]);
         setLoadingDesigns(false);
       }
-    } else {
-      setFilteredDesigns([]);
-      setFilteredDesignsForTable([]);
-      setOwners([]);
-      setLoadingDesigns(false);
-    }
-  };
+    };
+
+    loadData();
+  }, [project, designs, userDesigns, users]);
 
   // Sorting and filtering
   const handleOwnerChange = (owner) => {
@@ -172,7 +186,7 @@ function Project() {
   };
 
   const applyFilters = (searchQuery, owner, dateRange, sortBy, order) => {
-    let filteredDesigns = userDesigns.filter((design) => {
+    let filteredDesigns = origFilteredDesigns.filter((design) => {
       const matchesSearchQuery = design.designName
         .toLowerCase()
         .includes(searchQuery.trim().toLowerCase());
@@ -206,7 +220,7 @@ function Project() {
       });
     }
 
-    setFilteredDesigns(filteredDesigns);
+    setDisplayedDesigns(filteredDesigns);
     setPage(1); // Reset to the first page after filtering
   };
 
@@ -233,6 +247,12 @@ function Project() {
     }
     setLoadingDesigns(false);
   }, [filteredDesigns, page]);
+
+  useEffect(() => {
+    console.log("Project Design - Project designs:", project?.designs);
+    console.log("Project Design - Available userDesigns:", userDesigns);
+    console.log("Project Design - Available designs:", designs);
+  }, [project, userDesigns, designs]);
 
   const handlePageClick = (pageNumber) => {
     setPage(pageNumber);
@@ -290,7 +310,15 @@ function Project() {
   };
 
   if (loadingProject || !project) {
-    return <LoadingPage message="Fetching designs for this project." />;
+    return <LoadingPage message="Loading project details." />;
+  }
+
+  if (!project.designs) {
+    return <LoadingPage message="Loading project details." />;
+  }
+
+  if (loadingDesigns) {
+    return <LoadingPage message="Loading project designs." />;
   }
 
   const openImportModal = () => {
@@ -319,16 +347,16 @@ function Project() {
         <Paper
           component="form"
           sx={{
-            p: "2px 4px",
             display: "flex",
             alignItems: "center",
-            width: "90%",
-            marginTop: "40px",
+            margin: "20px",
             backgroundColor: "var(--bgMain)",
             border: "2px solid var(--borderInput)",
-            borderRadius: "20px",
+            borderRadius: "30px",
+            width: "calc(100% - 49px)",
+            padding: 0,
             "&:focus-within": {
-              borderColor: "var(--brightFont)",
+              borderColor: "var(--borderInputBrighter)",
             },
           }}
         >
@@ -379,7 +407,6 @@ function Project() {
       </div>
       <section
         style={{
-          paddingBottom: "20%",
           display: "flex",
           justifyContent: "center",
           flexDirection: "column",
@@ -395,16 +422,9 @@ function Project() {
             flexDirection: "column",
           }}
         >
-          <div style={{ width: "90%" }}>
+          <div style={{ width: "98%" }}>
             <div style={{ display: "flex" }}>
-              <span
-                className="SubtitlePrice"
-                style={{
-                  backgroundColor: "transparent",
-                }}
-              >
-                <h2>{`${searchQuery ? "Searched " : ""}Designs`}</h2>
-              </span>
+              <h2>{`${searchQuery ? "Searched " : ""}Designs`}</h2>
               <div className="button-container" style={{ display: "flex", marginLeft: "auto" }}>
                 <IconButton
                   style={{ marginRight: "10px" }}
@@ -415,6 +435,8 @@ function Project() {
                     marginRight: "10px",
                     borderRadius: "8px",
                     backgroundColor: !isVertical ? "var(--nav-card-modal)" : "transparent",
+                    height: "37px",
+                    width: "37px",
                   }}
                 >
                   <TiledIcon />
@@ -426,6 +448,8 @@ function Project() {
                     marginRight: "10px",
                     borderRadius: "8px",
                     backgroundColor: isVertical ? "var(--nav-card-modal)" : "transparent",
+                    height: "37px",
+                    width: "37px",
                   }}
                   onClick={handleVerticalClick}
                 >
@@ -439,13 +463,15 @@ function Project() {
             {!loadingDesigns && !loadingProject && project ? (
               displayedDesigns.length > 0 ? (
                 <div
-                  className={`layout ${isVertical ? "vertical" : ""}`}
+                  className={`${isVertical ? "vertical" : ""}`}
                   style={{
                     width: "100%",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "center",
                     flexDirection: "column",
+                    gap: "20px",
+                    flexWrap: "wrap",
                   }}
                 >
                   {isVertical ? (
@@ -503,7 +529,7 @@ function Project() {
 
       {/* Pagination Section */}
       {totalPages > 0 && (
-        <div className="pagination-controls">
+        <div className="pagination-controls" style={{ marginBottom: "183px" }}>
           {/* Previous Page Button */}
           <IconButton onClick={handlePreviousPage} disabled={page === 1} sx={iconButtonStyles}>
             <ArrowBackIosRounded
@@ -551,8 +577,11 @@ function Project() {
 
       <ImportDesignModal
         open={importModalOpen}
-        onClose={() => setImportModalOpen(false)}
-        projectId={projectId}
+        onClose={() => {
+          setImportModalOpen(false);
+          setMenuOpen(false);
+        }}
+        project={project}
       />
 
       {/* Action Buttons */}

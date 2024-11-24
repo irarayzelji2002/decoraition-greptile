@@ -53,6 +53,7 @@ function Design() {
     comments,
   } = useSharedProps();
   const { designId } = useParams(); // Get designId from the URL
+  const { isDarkMode } = useSharedProps();
   const [design, setDesign] = useState({});
 
   const [isOwner, setIsOwner] = useState(false);
@@ -218,6 +219,9 @@ function Design() {
       setShowPromptBar(false);
       setShowComments(true); // initially show comments
     }
+    console.log(
+      `commentCont - isOwner: ${isOwner}, isOwnerEditor: ${isOwnerEditor}, isOwnerEditorCommenter: ${isOwnerEditorCommenter}, isCollaborator: ${isCollaborator}`
+    );
   }, [isOwner, isOwnerEditor, isOwnerEditorCommenter, isCollaborator]);
 
   const handleEdit = async (imageId, description) => {
@@ -673,7 +677,8 @@ function Design() {
               {isMobileLayout && showComments && (
                 <div
                   style={{
-                    paddingBottom: isMobileLayout && !showPromptBar ? "61px" : "0px",
+                    paddingBottom:
+                      isMobileLayout && !showPromptBar && isOwnerEditor ? "61px" : "0px",
                     height: "100%",
                   }}
                 >
@@ -709,6 +714,7 @@ function Design() {
                     setCommentTypeTab={setCommentTypeTab}
                     setSelectedImage={setSelectedImage}
                     isOwnerEditorCommenter={isOwnerEditorCommenter}
+                    isCollaborator={isCollaborator}
                   />
                 </div>
               )}
@@ -1235,7 +1241,11 @@ function Design() {
                 </>
               ) : (
                 <div className="noDesignVersionsCont">
-                  <img src={"../../img/design-placeholder.png"} style={{ width: "100px" }} alt="" />
+                  <img
+                    src={`/img/design-placeholder${!isDarkMode ? "-dark" : ""}.png`}
+                    style={{ width: "100px" }}
+                    alt=""
+                  />
                   <p className="grey-text">No images generated yet.</p>
                   <p className="grey-text">Start generating.</p>
                 </div>
@@ -1283,6 +1293,7 @@ function Design() {
                     setCommentTypeTab={setCommentTypeTab}
                     setSelectedImage={setSelectedImage}
                     isOwnerEditorCommenter={isOwnerEditorCommenter}
+                    isCollaborator={isCollaborator}
                   />
                 </div>
               </div>

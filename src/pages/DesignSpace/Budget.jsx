@@ -80,6 +80,7 @@ function Budget() {
     userItems,
   } = useSharedProps();
   const { designId } = useParams();
+  const { isDarkMode } = useSharedProps();
   const navigate = useNavigate();
   const location = useLocation();
   const navigateFrom = location.pathname;
@@ -619,7 +620,11 @@ function Budget() {
               ))
             ) : (
               <div className="placeholderDiv">
-                <img src={"../../img/design-placeholder.png"} style={{ width: "100px" }} alt="" />
+                <img
+                  src={`/img/design-placeholder${!isDarkMode ? "-dark" : ""}.png`}
+                  style={{ width: "100px" }}
+                  alt=""
+                />
                 <p className="grey-text center">No items added yet.</p>
                 <p className="grey-text center">Start adding.</p>
               </div>

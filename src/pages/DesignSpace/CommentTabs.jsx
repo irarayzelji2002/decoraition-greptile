@@ -45,7 +45,8 @@ function CommentTabs({
   setSelectedImage,
   isOwnerEditorCommenter,
 }) {
-  const { user, userDoc, userComments, userReplies, userDesignsComments } = useSharedProps();
+  const { user, userDoc, userComments, userReplies, userDesignsComments, isDarkMode } =
+    useSharedProps();
   const [commentForTab, setCommentForTab] = useState(true); // true for All Comments, false for For You
   const [userOwnedComments, setUserOwnedComments] = useState([]);
   const [userOwnedReplies, setUserOwnedReplies] = useState([]);
@@ -60,16 +61,6 @@ function CommentTabs({
   });
 
   const [isLess768, setIsLess768] = useState(false);
-  const [isViewOnly, setIsViewOnly] = useState(false);
-
-  useEffect(() => {
-    if (!isOwnerEditorCommenter) setIsViewOnly(true);
-    else setIsViewOnly(false);
-  }, [isOwnerEditorCommenter]);
-
-  useEffect(() => {
-    console.log("isViewOnly", isViewOnly);
-  }, [isViewOnly]);
 
   const handleCommentForTabChange = () => {
     setCommentForTab(!commentForTab);
@@ -569,12 +560,16 @@ function CommentTabs({
               setSelectedId={setSelectedId}
               activeComment={activeComment}
               setActiveComment={setActiveComment}
-              isViewOnly={isViewOnly}
+              isOwnerEditorCommenter={isOwnerEditorCommenter}
             />
           ))}
           {filteredAndSortedComments.length === 0 && (
             <div className="placeholderDiv">
-              <img src={"/img/design-placeholder.png"} style={{ width: "100px" }} alt="" />
+              <img
+                src={`/img/design-placeholder${!isDarkMode ? "-dark" : ""}.png`}
+                style={{ width: "100px" }}
+                alt=""
+              />
               {commentForTab && commentTypeTab && (
                 <>
                   <p className="grey-text center">No opened comments yet.</p>
@@ -605,7 +600,7 @@ function CommentTabs({
       )}
 
       {/* Add a comment button */}
-      {!isAddingComment && !isViewOnly && (
+      {!isAddingComment && isOwnerEditorCommenter && (
         <Box sx={{ margin: "0px 20px 0px 20px" }}>
           <Button
             fullWidth

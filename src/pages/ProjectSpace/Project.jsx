@@ -122,6 +122,12 @@ function Project() {
   const [designIdToRemove, setDesignIdToRemove] = useState(null);
   const [designToRemove, setDesignToRemove] = useState(null);
 
+  const [isManager, setIsManager] = useState(false);
+  const [isManagerContentManager, setIsManagerContentManager] = useState(false);
+  const [isManagerContentManagerContributor, setIsManagerContentManagerContributor] =
+    useState(false);
+  const [isCollaborator, setIsCollaborator] = useState(false);
+
   const userDesignsWithoutProject = userDesigns.filter((design) => !design.projectId);
 
   // Get project
@@ -138,14 +144,8 @@ function Project() {
         console.log("current project:", fetchedProject);
       }
     }
+    setLoadingProject(false);
   }, [projectId, projects, userProjects]);
-
-  // loading state
-  useEffect(() => {
-    if (project && userDesigns) {
-      setLoadingProject(false);
-    }
-  }, [project, userDesigns]);
 
   // Load design data
   useEffect(() => {
@@ -204,6 +204,43 @@ function Project() {
 
     loadData();
   }, [project, designs, userDesigns, users]);
+
+  // Initialize access rights
+  useEffect(() => {
+    if (!project?.projectSettings || !userDoc?.id) return;
+    // Check if user has any access
+    const hasAccess = isCollaboratorProject(project, userDoc.id);
+    if (!hasAccess) {
+      showToast("error", "You don't have access to this project");
+      navigate("/");
+      return;
+    }
+    // If they have access, proceed with setting roles
+    setIsManager(isManagerProject(project, userDoc.id));
+    setIsManagerContentManager(isManagerContentManagerProject(project, userDoc.id));
+    setIsManagerContentManagerContributor(
+      isManagerContentManagerContributorProject(project, userDoc.id)
+    );
+    setIsCollaborator(isCollaboratorProject(project, userDoc.id));
+  }, [project, userDoc]);
+
+  useEffect(() => {
+    if (!changeMode) {
+      if (isManager) setChangeMode("Managing");
+      else if (isManagerContentManager) setChangeMode("Managing Content");
+      else if (isManagerContentManagerContributor) setChangeMode("Contributing");
+      else if (isCollaborator) setChangeMode("Viewing");
+    }
+    console.log(
+      `commentCont - isManager: ${isManager}, isManagerContentManager: ${isManagerContentManager}, isManagerContentManagerContributor: ${isManagerContentManagerContributor}, isCollaborator: ${isCollaborator}`
+    );
+  }, [
+    isManager,
+    isManagerContentManager,
+    isManagerContentManagerContributor,
+    isCollaborator,
+    changeMode,
+  ]);
 
   // Sorting and filtering
   const handleOwnerChange = (owner) => {
@@ -542,7 +579,7 @@ function Project() {
         >
           <div style={{ width: "98%" }}>
             <div style={{ display: "flex" }}>
-              <h2>{`${searchQuery ? "Searched " : ""}Designs`}</h2>
+              <h2 className="projecth2">{`${searchQuery ? "Searched " : ""}Designs`}</h2>
               <div className="button-container" style={{ display: "flex", marginLeft: "auto" }}>
                 <IconButton
                   style={{ marginRight: "10px" }}
@@ -651,7 +688,7 @@ function Project() {
 
       {/* Pagination Section */}
       {totalPages > 0 && (
-        <div className="pagination-controls" style={{ marginBottom: "183px" }}>
+        <div className="pagination-controls" style={{ paddingBottom: "183px" }}>
           {/* Previous Page Button */}
           <IconButton onClick={handlePreviousPage} disabled={page === 1} sx={iconButtonStyles}>
             <ArrowBackIosRounded
@@ -868,4 +905,74 @@ const ConfirmRemoveDesign = ({
       </DialogActions>
     </Dialog>
   );
+};
+
+// 0 for viewer (default), 1 for contributor, 2 for content manager, 3 for manager
+// Check if user is manager (manage)
+export const isManagerProject = (project, userId) => {
+  const isManager = project.managers?.includes(userId);
+  return isManager;
+};
+
+// Check if user is manager or content manager in project (adding, editing, deleting)
+export const isManagerContentManagerProject = (project, userId) => {
+  if (project.projectSettings.generalAccessSetting === 0) {
+    // Restricted Access
+    const isManager = project.managers?.includes(userId);
+    const isContentManager = project.contentManagers?.includes(userId);
+    return isManager || isContentManager;
+  } else {
+    // Anyone with the link
+    if (project.projectSettings.generalAccessRole === 2) return true;
+    const isManager = project.managers?.includes(userId);
+    const isContentManager = project.contentManagers?.includes(userId);
+    return isManager || isContentManager;
+  }
+};
+
+// Check if user is manager, content manager, contributor (adding, editing)
+export const isManagerContentManagerContributorProject = (project, userId) => {
+  if (project.projectSettings.generalAccessSetting === 0) {
+    // Restricted Access
+    const isManager = project.managers?.includes(userId);
+    const isContentManager = project.contentManagers?.includes(userId);
+    const isContributor = project.contributors?.includes(userId);
+    return isManager || isContentManager || isContributor;
+  } else {
+    // Anyone with the link
+    if (
+      project.projectSettings.generalAccessRole === 1 ||
+      project.projectSettings.generalAccessRole === 2
+    )
+      return true;
+    const isManager = project.managers?.includes(userId);
+    const isContentManager = project.contentManagers?.includes(userId);
+    const isContributor = project.contributors?.includes(userId);
+    return isManager || isContentManager || isContributor;
+  }
+};
+
+// Check if user is manager, contentManager, contributor, viewer (viewing)
+export const isCollaboratorProject = (project, userId) => {
+  if (project.projectSettings.generalAccessSetting === 0) {
+    // Restricted Access
+    const isManager = project.managers?.includes(userId);
+    const isContentManager = project.contentManagers?.includes(userId);
+    const isContributor = project.contributors?.includes(userId);
+    const isViewer = project.viewers?.includes(userId);
+    return isManager || isContentManager || isContributor || isViewer;
+  } else {
+    // Anyone with the link
+    if (
+      project.projectSettings.generalAccessRole === 0 ||
+      project.projectSettings.generalAccessRole === 1 ||
+      project.projectSettings.generalAccessRole === 2
+    )
+      return true;
+    const isManager = project.managers?.includes(userId);
+    const isContentManager = project.contentManagers?.includes(userId);
+    const isContributor = project.contributors?.includes(userId);
+    const isViewer = project.viewers?.includes(userId);
+    return isManager || isContentManager || isContributor || isViewer;
+  }
 };

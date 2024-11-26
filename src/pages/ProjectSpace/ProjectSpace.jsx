@@ -54,7 +54,13 @@ function ProjectSpace({
     // Set role and all dependent flags
     if (!location.state?.changeMode)
       setChangeMode(
-        newRole === 1 || newRole === 3 ? "Editing" : newRole === 2 ? "Commenting" : "Viewing"
+        newRole === 3
+          ? "Managing"
+          : newRole === 2
+          ? "Managing Content"
+          : newRole === 1
+          ? "Contributing"
+          : "Viewing"
       );
   }, [project, user, userDoc]);
 

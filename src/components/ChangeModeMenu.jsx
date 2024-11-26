@@ -25,8 +25,14 @@ const ChangeModeMenu = ({
   const location = useLocation();
   const isDesignPath = location.pathname.startsWith("/design");
 
+  // In ChangeModeMenu.jsx
   const handleClose = (mode) => {
-    if (changeMode !== mode) setChangeMode(mode);
+    console.log("ChangeModeMenu - Previous mode:", changeMode);
+    console.log("ChangeModeMenu - New mode:", mode);
+
+    if (mode !== changeMode) {
+      setChangeMode(mode);
+    }
     onClose();
   };
   return (

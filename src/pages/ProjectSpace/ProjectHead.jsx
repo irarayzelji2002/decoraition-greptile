@@ -112,7 +112,23 @@ function ProjectHead({ project, changeMode, setChangeMode }) {
     setIsDeleteVisible(newRole === 3);
     // Set visibility based on project settings
     setIsDownloadVisible(!!project?.projectSettings?.allowDownload || newRole > 0);
+
+    // Only set if not already set
+    if (newRole === 3) {
+      setChangeMode("Managing");
+    } else if (newRole === 2) {
+      setChangeMode("Managing Content");
+    } else if (newRole === 1) {
+      setChangeMode("Contributing");
+    } else {
+      setChangeMode("Viewing");
+    }
   }, [project, user, userDoc]);
+
+  useEffect(() => {
+    console.log("ProjectHead - role:", role);
+    console.log("ProjectHead - changeMode:", changeMode);
+  }, [role, changeMode]);
 
   useEffect(() => {
     if (shouldOpenViewCollab && !isManageAccessModalOpen) {

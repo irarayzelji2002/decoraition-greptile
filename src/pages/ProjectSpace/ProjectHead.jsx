@@ -572,17 +572,31 @@ function ProjectHead({ project, changeMode, setChangeMode }) {
               isViewCollab={isViewCollab}
             />
           ) : isChangeModeMenuOpen ? (
-            <ChangeModeMenu onClose={handleClose} onBackToMenu={handleBackToMenu} />
+            <ChangeModeMenu
+              onClose={handleClose}
+              onBackToMenu={handleBackToMenu}
+              role={role}
+              changeMode={changeMode}
+              setChangeMode={setChangeMode}
+              isDesign={false}
+            />
           ) : (
             <DefaultMenu
               isDesign={false}
               onOpenShareModal={handleShareClick}
               onCopyLink={handleCopyLink}
               onSetting={handleSettings}
+              onChangeMode={handleChangeModeClick}
               onOpenDownloadModal={handleOpenDownloadModal}
               onOpenRenameModal={handleOpenRenameModal}
               onDelete={handleOpenDeleteModal}
               onOpenInfoModal={handleOpenInfoModal}
+              projectSettingsVisibility={{
+                isDownloadVisible,
+                isRenameVisible,
+                isDeleteVisible,
+                isChangeModeVisible,
+              }}
             />
           )}
         </Menu>

@@ -20,6 +20,7 @@ const ChangeModeMenu = ({
   role = 0,
   changeMode,
   setChangeMode = () => {},
+  isDesign = false,
 }) => {
   const location = useLocation();
   const isDesignPath = location.pathname.startsWith("/design");
@@ -39,36 +40,86 @@ const ChangeModeMenu = ({
         </ListItemIcon>
         <ListItemText primary="Change Mode" />
       </CustomMenuItem>
-      {(role === 1 || role === 3) && ( // editor/owner
-        <CustomMenuItem onClick={() => handleClose("Editing")}>
-          <ListItemText primary="Editing" sx={listItemTextStyles} />
-          {changeMode === "Editing" && (
-            <ListItemIcon sx={listItemIconEndStyles}>
-              <CheckIcon />
-            </ListItemIcon>
+      {isDesign ? (
+        <>
+          {(role === 1 || role === 3) && ( // editor/owner
+            <CustomMenuItem onClick={() => handleClose("Editing")}>
+              <ListItemText primary="Editing" sx={listItemTextStyles} />
+              {changeMode === "Editing" && (
+                <ListItemIcon sx={listItemIconEndStyles}>
+                  <CheckIcon />
+                </ListItemIcon>
+              )}
+            </CustomMenuItem>
           )}
-        </CustomMenuItem>
-      )}
-      {(role === 1 || role === 2 || role === 3) && isDesignPath && (
-        // editor/commenter/owner
-        <CustomMenuItem onClick={() => handleClose("Commenting")}>
-          <ListItemText primary="Commenting" sx={listItemTextStyles} />
-          {changeMode === "Commenting" && (
-            <ListItemIcon sx={listItemIconEndStyles}>
-              <CheckIcon />
-            </ListItemIcon>
+          {(role === 1 || role === 2 || role === 3) && isDesignPath && (
+            // editor/commenter/owner
+            <CustomMenuItem onClick={() => handleClose("Commenting")}>
+              <ListItemText primary="Commenting" sx={listItemTextStyles} />
+              {changeMode === "Commenting" && (
+                <ListItemIcon sx={listItemIconEndStyles}>
+                  <CheckIcon />
+                </ListItemIcon>
+              )}
+            </CustomMenuItem>
           )}
-        </CustomMenuItem>
-      )}
-      {(role === 0 || role === 1 || role === 2 || role === 3) && ( // viewer/editor/commenter/owner
-        <CustomMenuItem onClick={() => handleClose("Viewing")}>
-          <ListItemText primary="Viewing" sx={listItemTextStyles} />
-          {changeMode === "Viewing" && (
-            <ListItemIcon sx={listItemIconEndStyles}>
-              <CheckIcon />
-            </ListItemIcon>
+          {(role === 0 || role === 1 || role === 2 || role === 3) && ( // viewer/editor/commenter/owner
+            <CustomMenuItem onClick={() => handleClose("Viewing")}>
+              <ListItemText primary="Viewing" sx={listItemTextStyles} />
+              {changeMode === "Viewing" && (
+                <ListItemIcon sx={listItemIconEndStyles}>
+                  <CheckIcon />
+                </ListItemIcon>
+              )}
+            </CustomMenuItem>
           )}
-        </CustomMenuItem>
+        </>
+      ) : (
+        <>
+          {role === 3 && ( // manager
+            <CustomMenuItem onClick={() => handleClose("Managing")}>
+              <ListItemText primary="Managing" sx={listItemTextStyles} />
+              {changeMode === "Managing" && (
+                <ListItemIcon sx={listItemIconEndStyles}>
+                  <CheckIcon />
+                </ListItemIcon>
+              )}
+            </CustomMenuItem>
+          )}
+          {(role === 2 || role === 3) && (
+            // content manager/manager
+            <CustomMenuItem onClick={() => handleClose("Managing Content")}>
+              <ListItemText primary="Managing Content" sx={listItemTextStyles} />
+              {changeMode === "Managing Content" && (
+                <ListItemIcon sx={listItemIconEndStyles}>
+                  <CheckIcon />
+                </ListItemIcon>
+              )}
+            </CustomMenuItem>
+          )}
+          {(role === 1 || role === 2 || role === 3) && (
+            // contributor/content manager/manager
+            <CustomMenuItem onClick={() => handleClose("Contributing")}>
+              <ListItemText primary="Contributing" sx={listItemTextStyles} />
+              {changeMode === "Contributing" && (
+                <ListItemIcon sx={listItemIconEndStyles}>
+                  <CheckIcon />
+                </ListItemIcon>
+              )}
+            </CustomMenuItem>
+          )}
+          {(role === 0 || role === 1 || role === 2 || role === 3) && (
+            // viewer/contributor/content manager/manager
+            <CustomMenuItem onClick={() => handleClose("Viewing")}>
+              <ListItemText primary="Viewing" sx={listItemTextStyles} />
+              {changeMode === "Viewing" && (
+                <ListItemIcon sx={listItemIconEndStyles}>
+                  <CheckIcon />
+                </ListItemIcon>
+              )}
+            </CustomMenuItem>
+          )}
+        </>
       )}
     </>
   );

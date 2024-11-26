@@ -33,8 +33,9 @@ import { useSharedProps } from "../../contexts/SharedPropsContext.js";
 import { handleNameChange } from "./backend/ProjectDetails";
 import { useNetworkStatus } from "../../hooks/useNetworkStatus.js";
 import deepEqual from "deep-equal";
+import _ from "lodash";
 
-function ProjectHead({ project, changeMode, setChangeMode }) {
+function ProjectHead({ project, changeMode = "Viewing", setChangeMode }) {
   const { user, userDoc, handleLogout } = useSharedProps();
   const { projectId } = useParams();
   const isOnline = useNetworkStatus();
@@ -113,22 +114,29 @@ function ProjectHead({ project, changeMode, setChangeMode }) {
     // Set visibility based on project settings
     setIsDownloadVisible(!!project?.projectSettings?.allowDownload || newRole > 0);
 
-    // Only set if not already set
-    if (newRole === 3) {
-      setChangeMode("Managing");
-    } else if (newRole === 2) {
-      setChangeMode("Managing Content");
-    } else if (newRole === 1) {
-      setChangeMode("Contributing");
-    } else {
-      setChangeMode("Viewing");
-    }
+    handleDefaultChangeMode(newRole);
   }, [project, user, userDoc]);
 
   useEffect(() => {
     console.log("ProjectHead - role:", role);
     console.log("ProjectHead - changeMode:", changeMode);
   }, [role, changeMode]);
+
+  const handleDefaultChangeMode = (role) => {
+    if (role === 3) {
+      setChangeMode("Managing");
+    } else if (role === 2) {
+      setChangeMode("Managing Content");
+    } else if (role === 1) {
+      setChangeMode("Contributing");
+    } else {
+      setChangeMode("Viewing");
+    }
+  };
+
+  useEffect(() => {
+    handleDefaultChangeMode(role);
+  }, [role]);
 
   useEffect(() => {
     if (shouldOpenViewCollab && !isManageAccessModalOpen) {
@@ -603,6 +611,7 @@ function ProjectHead({ project, changeMode, setChangeMode }) {
               onCopyLink={handleCopyLink}
               onSetting={handleSettings}
               onChangeMode={handleChangeModeClick}
+              changeMode={changeMode}
               onOpenDownloadModal={handleOpenDownloadModal}
               onOpenRenameModal={handleOpenRenameModal}
               onDelete={handleOpenDeleteModal}

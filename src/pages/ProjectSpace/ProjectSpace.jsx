@@ -17,7 +17,6 @@ function ProjectSpace({
 }) {
   const { user, userDoc } = useSharedProps();
   const location = useLocation();
-  const [showBudget, setShowBudget] = useState(false);
 
   useEffect(() => {
     if (!project || !user || !userDoc) return;
@@ -27,28 +26,24 @@ function ProjectSpace({
     // First check if restricted access
     if (project?.projectSettings?.generalAccessSetting === 0) {
       // Only check explicit roles
-      if (userDoc.id === project.owner) newRole = 3;
-      else if (project.editors?.includes(userDoc.id)) newRole = 1;
-      else if (project.commenters?.includes(userDoc.id)) newRole = 2;
+      if (project.managers?.includes(userDoc.id)) newRole = 3;
+      else if (project.contentManagers?.includes(userDoc.id)) newRole = 2;
+      else if (project.contributors?.includes(userDoc.id)) newRole = 1;
       else if (project.viewers?.includes(userDoc.id)) newRole = 0;
     } else {
       // Anyone with link - check both explicit roles and general access
-      if (userDoc.id === project.owner) newRole = 3;
+      if (project.managers?.includes(userDoc.id)) newRole = 3;
       else if (
-        project.editors?.includes(userDoc.id) ||
-        project?.projectSettings?.generalAccessRole === 1
+        project.contentManagers?.includes(userDoc.id) ||
+        project?.projectSettings?.generalAccessRole === 2
       )
         newRole = 1;
       else if (
-        project.commenters?.includes(userDoc.id) ||
-        project?.projectSettings?.generalAccessRole === 2
+        project.contributors?.includes(userDoc.id) ||
+        project?.projectSettings?.generalAccessRole === 1
       )
         newRole = 2;
       else newRole = project?.projectSettings?.generalAccessRole ?? 0;
-    }
-
-    if (project?.history?.length > 0) {
-      setShowBudget(true);
     }
 
     // Set role and all dependent flags

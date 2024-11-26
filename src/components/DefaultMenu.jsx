@@ -74,6 +74,7 @@ const DefaultMenu = ({
 
   useEffect(() => {
     console.log("DefaultMenu - changeMode:", changeMode);
+    if (!changeMode) return;
     if (isDesign) {
       console.log("changeMode - design", changeMode);
       if (changeMode === "Editing") {

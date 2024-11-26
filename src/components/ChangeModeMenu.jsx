@@ -27,13 +27,15 @@ const ChangeModeMenu = ({
 
   // In ChangeModeMenu.jsx
   const handleClose = (mode) => {
-    console.log("ChangeModeMenu - Previous mode:", changeMode);
-    console.log("ChangeModeMenu - New mode:", mode);
-
     if (mode !== changeMode) {
+      console.log("Changing mode to:", mode);
       setChangeMode(mode);
+      setTimeout(() => {
+        onClose();
+      }, 0);
+    } else {
+      onClose();
     }
-    onClose();
   };
   return (
     <>

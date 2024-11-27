@@ -234,8 +234,12 @@ function Budget() {
         console.error("Design not found.");
       } else if (Object.keys(design).length === 0 || !deepEqual(design, fetchedDesign)) {
         // Check if user has access
-        if (!isCollaborator) {
-          console.error("No access to project.");
+        const hasAccess = isCollaboratorDesign(fetchedDesign, userDoc?.id);
+        if (!hasAccess) {
+          console.error("No access to design.");
+          setLoading(false);
+          showToast("error", "You don't have access to this design");
+          navigate("/");
           return;
         }
         setDesign(fetchedDesign);

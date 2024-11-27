@@ -23,6 +23,7 @@ import {
   ArrowForwardIosRounded as ArrowForwardIosRoundedIcon,
   ArrowBackIosRounded as ArrowBackIosRoundedIcon,
   KeyboardArrowDownRounded as KeyboardArrowDownRoundedIcon,
+  Download as DownloadIcon,
 } from "@mui/icons-material";
 import DesignSpace from "./DesignSpace";
 import PromptBar from "./PromptBar";
@@ -233,11 +234,14 @@ function Design() {
         console.error("Design not found.");
       } else if (Object.keys(design).length === 0 || !deepEqual(design, fetchedDesign)) {
         // Check if user has access
-        if (!isCollaborator) {
+        const hasAccess = isCollaboratorDesign(fetchedDesign, userDoc?.id);
+        if (!hasAccess) {
           console.error("No access to design.");
+          setLoading(false);
+          showToast("error", "You don't have access to this design");
+          navigate("/");
           return;
         }
-
         setDesign(fetchedDesign);
         console.log("current design:", fetchedDesign);
       }
@@ -540,6 +544,15 @@ function Design() {
       selectedImage,
     });
   }, [isPinpointing, pinpointLocation, pinpointSelectedImage, selectedImage]);
+
+  const handleDownloadImage = (imageSrc) => {
+    const link = document.createElement("a");
+    link.href = imageSrc;
+    link.download = "image.png";
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
 
   if (loading) {
     return <LoadingPage message="Please wait, we're loading your design." />;
@@ -1117,6 +1130,33 @@ function Design() {
                                       }}
                                     >
                                       {infoVisible ? <UnviewInfoIcon /> : <ViewInfoIcon />}
+                                    </IconButton>
+                                    <IconButton
+                                      sx={{
+                                        color: "var(--color-white)",
+                                        marginRight: "30px",
+                                        borderRadius: "50%",
+                                        opacity: "0.3",
+                                        width: "40px",
+                                        height: "40px",
+                                        position: "absolute",
+                                        top: "8px",
+                                        right: "56px", // Adjusted to place it beside the existing button
+                                        zIndex: "1",
+                                        "&:hover": {
+                                          backgroundColor: "var(--iconButtonHover2)",
+                                        },
+                                        "& .MuiTouchRipple-root span": {
+                                          backgroundColor: "var(--iconButtonActive2)",
+                                        },
+                                      }}
+                                      onClick={(e) => {
+                                        e.stopPropagation();
+                                        e.preventDefault();
+                                        handleDownloadImage(image.link);
+                                      }}
+                                    >
+                                      <DownloadIcon />
                                     </IconButton>
                                   </div>
                                 ) : (

@@ -115,7 +115,6 @@ const ProjectSettings = () => {
   const [loading, setLoading] = useState(true);
   const [allowEdit, setAllowEdit] = useState(false);
   const [isSaveButtonDisabled, setIsSaveButtonDisabled] = useState(false);
-  const [isCollaborator, setIsCollaborator] = useState(false);
 
   // Effect to set the project once userProjects are loaded
   useEffect(() => {
@@ -128,8 +127,12 @@ const ProjectSettings = () => {
         console.error("Project not found.");
       } else if (Object.keys(project).length === 0 || !deepEqual(project, fetchedProject)) {
         // Check if user has access
-        if (!isCollaborator) {
+        const hasAccess = isCollaboratorProject(fetchedProject, userDoc?.id);
+        if (!hasAccess) {
           console.error("No access to project.");
+          setLoading(false);
+          showToast("error", "You don't have access to this project");
+          navigate("/");
           return;
         }
 
@@ -150,20 +153,6 @@ const ProjectSettings = () => {
       }
     }
   }, [projectId, projects, userProjects]);
-
-  // Initialize access rights
-  useEffect(() => {
-    if (!project?.projectSettings || !userDoc?.id) return;
-    // Check if user has any access
-    const hasAccess = isCollaboratorProject(project, userDoc.id);
-    if (!hasAccess) {
-      showToast("error", "You don't have access to this project");
-      navigate("/");
-      return;
-    }
-    // If they have access, proceed with setting roles
-    setIsCollaborator(isCollaboratorProject(project, userDoc.id));
-  }, [project, userDoc]);
 
   // Effect to update the timeline once userTimelines and project data are available
   useEffect(() => {

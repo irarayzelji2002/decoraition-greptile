@@ -94,8 +94,12 @@ function Details() {
         console.error("Design not found.");
       } else {
         // Check if user has access
-        if (!isCollaborator) {
+        const hasAccess = isCollaboratorDesign(fetchedDesign, userDoc?.id);
+        if (!hasAccess) {
           console.error("No access to design.");
+          setLoading(false);
+          showToast("error", "You don't have access to this design");
+          navigate("/");
           return;
         }
 
@@ -121,8 +125,12 @@ function Details() {
         console.error("Project not found.");
       } else {
         // Check if user has access
-        if (!isCollaborator) {
+        const hasAccess = isCollaboratorProject(fetchedProject, userDoc?.id);
+        if (!hasAccess) {
           console.error("No access to project.");
+          setLoading(false);
+          showToast("error", "You don't have access to this project");
+          navigate("/");
           return;
         }
 

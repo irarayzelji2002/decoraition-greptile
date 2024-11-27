@@ -19,7 +19,13 @@ const MapPin = ({
   deletePin,
   designId,
   editPin,
+  manager,
+  contributor,
 }) => {
+  // Convert to booleans
+  const isContributor = Boolean(contributor);
+  const isManager = Boolean(manager);
+
   const [modalOpen, setModalOpen] = useState(false);
   const [value, setValue] = useState("#ffffff");
   const [textColor, setTextColor] = useState("#000000");
@@ -190,13 +196,19 @@ const MapPin = ({
               <div aria-label="delete" style={{ cursor: "pointer" }} onClick={handleExportClick}>
                 <ExportIcon />
               </div>
-              <div aria-label="edit" onClick={editPin}>
-                <EditPen />
-              </div>
+              {isContributor && (
+                <>
+                  <div aria-label="edit" onClick={editPin}>
+                    <EditPen />
+                  </div>
+                </>
+              )}
 
-              <div aria-label="delete" onClick={() => setDeleteConfirmOpen(true)}>
-                <Trash />
-              </div>
+              {isManager && (
+                <div aria-label="delete" onClick={() => setDeleteConfirmOpen(true)}>
+                  <Trash />
+                </div>
+              )}
             </>
           ) : (
             <>

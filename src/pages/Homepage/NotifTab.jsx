@@ -24,6 +24,7 @@ const NotifTab = ({ isNotifOpen, onClose }) => {
   // Available filters: all, mention, comment, reply, project-update, design-update
   const [loading, setLoading] = useState(true);
   const [displayLimit, setDisplayLimit] = useState(10);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const notifContainerRef = useRef(null);
 
   // Get notifications
@@ -48,16 +49,24 @@ const NotifTab = ({ isNotifOpen, onClose }) => {
     console.log("notif - filters changed", filters);
   }, [filters]);
 
-  // Scroll listener
+  // Scroll event listener
   useEffect(() => {
     const container = notifContainerRef.current;
     const handleScroll = () => {
       if (container) {
         const { scrollTop, scrollHeight, clientHeight } = container;
-        // Check if user has scrolled near the bottom (within 50px)
-        if (scrollHeight - scrollTop - clientHeight < 100) {
-          // Increase display limit by 10
-          setDisplayLimit((prev) => prev + 10);
+        // Check if user has scrolled to bottom and there are more notifications to load
+        if (
+          scrollHeight - scrollTop - clientHeight < 50 &&
+          !isLoadingMore &&
+          userNotifications.length > displayLimit
+        ) {
+          setIsLoadingMore(true);
+          // Simulate loading delay (remove this in production)
+          setTimeout(() => {
+            setDisplayLimit((prev) => prev + 10);
+            setIsLoadingMore(false);
+          }, 500);
         }
       }
     };
@@ -69,7 +78,7 @@ const NotifTab = ({ isNotifOpen, onClose }) => {
         container.removeEventListener("scroll", handleScroll);
       }
     };
-  }, []);
+  }, [displayLimit, isLoadingMore, userNotifications.length]);
 
   const getFilteredNotifications = () => {
     // First, sort notifications by read status and date
@@ -92,8 +101,6 @@ const NotifTab = ({ isNotifOpen, onClose }) => {
                 return notif.type === "mention";
               case "comment":
                 return notif.type === "comment";
-              case "reply":
-                return notif.type === "reply";
               case "design-update":
                 return notif.type === "design-update";
               case "project-update":
@@ -236,9 +243,6 @@ const NotifTab = ({ isNotifOpen, onClose }) => {
           <ToggleButton sx={filterButtonStyles} value="comment" aria-label="comment">
             <Typography>Comments</Typography>
           </ToggleButton>
-          <ToggleButton sx={filterButtonStyles} value="reply" aria-label="reply">
-            <Typography> Replies</Typography>{" "}
-          </ToggleButton>
           <ToggleButton sx={filterButtonStyles} value="design-update" aria-label="design-update">
             <Typography> Designs</Typography>{" "}
           </ToggleButton>
@@ -257,7 +261,6 @@ const NotifTab = ({ isNotifOpen, onClose }) => {
           sx={{
             height: "calc(100vh - 200px)",
             overflowY: "auto",
-            padding: "0 10px",
           }}
         >
           {/* Init loading indicator */}
@@ -266,7 +269,7 @@ const NotifTab = ({ isNotifOpen, onClose }) => {
           {!loading &&
             getFilteredNotifications().map((notif) => <Notif key={notif.id} notif={notif} />)}
           {/* Loading indicator for more*/}
-          {userNotifications.length > displayLimit && (
+          {isLoadingMore && userNotifications.length > displayLimit && (
             <Box
               sx={{
                 display: "flex",

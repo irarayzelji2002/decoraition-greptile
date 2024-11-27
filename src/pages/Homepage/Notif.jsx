@@ -63,6 +63,7 @@ function Notif({ notif }) {
   const handleChangeNotifReadStatus = async () => {
     // Call changeNotifReadStatus
     const result = await changeNotifReadStatus(notif.id, isReadInApp, user, userDoc);
+    console.log("notif - change notif status", result);
     if (!result.success) {
       showToast("error", result.message);
       return;
@@ -104,6 +105,7 @@ function Notif({ notif }) {
   const handleDeleteNotif = async () => {
     // Call deleteNotif
     const result = await deleteNotif(notif.id, user, userDoc);
+    console.log("notif - delete notif result", result);
     if (!result.success) {
       showToast("error", result.message);
       return;
@@ -136,9 +138,12 @@ function Notif({ notif }) {
 
   return (
     <div>
-      <div className={`notif-box ${!isReadInApp && "unread"}`}>
+      <div
+        className={`notif-box ${!isReadInApp && "unread"}`}
+        onClick={() => (!isReadInApp ? handleChangeNotifReadStatus() : {})}
+      >
         <div className="hoverOverlay"></div>
-        <FaCircle className="unreadCircle" />
+        {!isReadInApp && <FaCircle className="unreadCircle" />}
         <div className="profile-section">
           <div className="profile-info">
             <Box
@@ -177,7 +182,7 @@ function Notif({ notif }) {
               <span className="notifContent">
                 {senderUsername ? (
                   <>
-                    <strong>{senderUsername}</strong>
+                    <strong>{`From ${senderUsername}: `}</strong>
                     <span>{content}</span>
                   </>
                 ) : (

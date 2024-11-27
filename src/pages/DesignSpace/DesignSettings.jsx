@@ -29,6 +29,7 @@ import {
   AnyoneWithLinkIcon,
 } from "./svg/DesignAccessIcons";
 import LoadingPage from "../../components/LoadingPage";
+import { isCollaboratorDesign } from "./Design";
 
 export const theme = createTheme({
   components: {
@@ -81,9 +82,10 @@ const DesignSettings = () => {
   const [loading, setLoading] = useState(true);
   const [allowEdit, setAllowEdit] = useState(false);
   const [isDesignButtonDisabled, setIsDesignButtonDisabled] = useState(false);
+  const [isCollaborator, setIsCollaborator] = useState(false);
 
   useEffect(() => {
-    if (designId && userDesigns.length > 0) {
+    if (designId && (userDesigns.length > 0 || designs.length > 0)) {
       const fetchedDesign =
         userDesigns.find((design) => design.id === designId) ||
         designs.find((design) => design.id === designId);
@@ -91,6 +93,13 @@ const DesignSettings = () => {
       if (!fetchedDesign) {
         console.error("Design not found.");
       } else if (Object.keys(design).length === 0 || !deepEqual(design, fetchedDesign)) {
+        // Check if user has access
+        if (!isCollaborator) {
+          console.error("No access to project.");
+          navigate("/");
+          return;
+        }
+
         setDesign(fetchedDesign);
         setDesignName(fetchedDesign?.designName ?? "Untitled Design");
         setGeneralAccessSetting(fetchedDesign?.designSettings?.generalAccessSetting ?? 0);
@@ -108,7 +117,21 @@ const DesignSettings = () => {
       }
     }
     setLoading(false);
-  }, [designId, designs, userDesigns]);
+  }, [designId, designs, userDesigns, isCollaborator]);
+
+  // Initialize access rights
+  useEffect(() => {
+    if (!design?.designSettings || !userDoc?.id) return;
+    // Check if user has any access
+    const hasAccess = isCollaboratorDesign(design, userDoc.id);
+    if (!hasAccess) {
+      showToast("error", "You don't have access to this design");
+      navigate("/");
+      return;
+    }
+    // If they have access, proceed with setting roles
+    setIsCollaborator(isCollaboratorDesign(design, userDoc.id));
+  }, [design, userDoc]);
 
   useEffect(() => {
     if (!design || !user || !userDoc) return;

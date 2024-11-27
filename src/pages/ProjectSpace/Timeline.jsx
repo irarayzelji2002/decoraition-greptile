@@ -58,20 +58,31 @@ function Timeline() {
 
   // Get project
   useEffect(() => {
-    if (projectId && userProjects.length > 0) {
+    if (projectId && (userProjects.length > 0 || projects.length > 0)) {
       const fetchedProject =
         userProjects.find((d) => d.id === projectId) || projects.find((d) => d.id === projectId);
 
       if (!fetchedProject) {
         console.error("Project not found.");
         setLoadingProject(false);
-      } else if (Object.keys(project).length === 0 || !deepEqual(project, fetchedProject)) {
-        setProject(fetchedProject);
-        console.log("current project:", fetchedProject);
+      } else {
+        // Check if user has access
+        if (!isCollaborator) {
+          console.error("No access to project.");
+          setLoadingProject(false);
+          showToast("error", "You don't have access to this project");
+          navigate("/");
+          return;
+        }
+
+        if (Object.keys(project).length === 0 || !deepEqual(project, fetchedProject)) {
+          setProject(fetchedProject);
+          console.log("current project:", fetchedProject);
+        }
       }
     }
     setLoadingProject(false);
-  }, [projectId, projects, userProjects]);
+  }, [projectId, projects, userProjects, isCollaborator]);
 
   // Initialize access rights
   useEffect(() => {

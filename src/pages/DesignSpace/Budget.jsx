@@ -226,18 +226,23 @@ function Budget() {
 
   // Get design
   useEffect(() => {
-    if (designId && userDesigns.length > 0) {
+    if (designId && (userDesigns.length > 0 || designs.length > 0)) {
       const fetchedDesign =
         userDesigns.find((d) => d.id === designId) || designs.find((d) => d.id === designId);
 
       if (!fetchedDesign) {
         console.error("Design not found.");
       } else if (Object.keys(design).length === 0 || !deepEqual(design, fetchedDesign)) {
+        // Check if user has access
+        if (!isCollaborator) {
+          console.error("No access to project.");
+          return;
+        }
         setDesign(fetchedDesign);
         console.log("current design:", fetchedDesign);
       }
     }
-  }, [designId, design, userDesigns]);
+  }, [designId, design, designs, userDesigns, isCollaborator]);
 
   // Get latest design version
   useEffect(() => {

@@ -33,6 +33,7 @@ import { set } from "lodash";
 import { switchStyles } from "../DesignSpace/DesignSettings";
 import LoadingPage from "../../components/LoadingPage";
 import { selectStyles, selectStylesDisabled, menuItemStyles } from "../DesignSpace/DesignSettings";
+import { isCollaboratorProject } from "./Project";
 
 export const theme = createTheme({
   components: {
@@ -114,10 +115,11 @@ const ProjectSettings = () => {
   const [loading, setLoading] = useState(true);
   const [allowEdit, setAllowEdit] = useState(false);
   const [isSaveButtonDisabled, setIsSaveButtonDisabled] = useState(false);
+  const [isCollaborator, setIsCollaborator] = useState(false);
 
   // Effect to set the project once userProjects are loaded
   useEffect(() => {
-    if (projectId && userProjects.length > 0) {
+    if (projectId && (userProjects.length > 0 || projects.length > 0)) {
       const fetchedProject =
         userProjects.find((project) => project.id === projectId) ||
         projects.find((project) => project.id === projectId);
@@ -125,6 +127,12 @@ const ProjectSettings = () => {
       if (!fetchedProject) {
         console.error("Project not found.");
       } else if (Object.keys(project).length === 0 || !deepEqual(project, fetchedProject)) {
+        // Check if user has access
+        if (!isCollaborator) {
+          console.error("No access to project.");
+          return;
+        }
+
         setProject(fetchedProject);
         setProjectName(fetchedProject?.projectName ?? "Untitled Project");
         setGeneralAccessSettingProject(fetchedProject?.projectSettings?.generalAccessSetting ?? 0);
@@ -138,9 +146,24 @@ const ProjectSettings = () => {
           `fetchedProject.projectSettings (${projectId})`,
           fetchedProject?.projectSettings
         );
+        setLoading(false);
       }
     }
   }, [projectId, projects, userProjects]);
+
+  // Initialize access rights
+  useEffect(() => {
+    if (!project?.projectSettings || !userDoc?.id) return;
+    // Check if user has any access
+    const hasAccess = isCollaboratorProject(project, userDoc.id);
+    if (!hasAccess) {
+      showToast("error", "You don't have access to this project");
+      navigate("/");
+      return;
+    }
+    // If they have access, proceed with setting roles
+    setIsCollaborator(isCollaboratorProject(project, userDoc.id));
+  }, [project, userDoc]);
 
   // Effect to update the timeline once userTimelines and project data are available
   useEffect(() => {

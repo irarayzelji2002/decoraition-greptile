@@ -40,7 +40,7 @@ function Notif({ notif }) {
     setIsReadInApp(notif.isReadInApp);
     setSenderUsername(senderUsername);
     setSenderProfilePic(senderProfilePic);
-    // calculate time difference from now with notif.createdAt use formatDateDetail then setTimeDiff
+    setTimeDiff(formatDateDetail(notif.createdAt) || "");
   }, [notif, users]);
 
   const toggleOptions = () => {
@@ -68,7 +68,7 @@ function Notif({ notif }) {
       return;
     }
     showToast("success", result.message);
-    toggleOptions();
+    if (isReadInApp) toggleOptions();
   };
 
   const changeNotifReadStatus = async (notifId, isReadInApp, user, userDoc) => {
@@ -203,7 +203,7 @@ function Notif({ notif }) {
                 sx={{
                   ...iconButtonStyles,
                   padding: "8px",
-                  marginRight: "-50px",
+                  margin: "0px !important",
                   width: "38px",
                 }}
                 onClick={(e) => {
@@ -221,7 +221,7 @@ function Notif({ notif }) {
                   e.stopPropagation();
                   toggleOptions();
                 }}
-                sx={iconButtonStyles}
+                sx={{ ...iconButtonStyles, margin: "0px !important" }}
               >
                 <MoreHorizIcon />
               </IconButton>

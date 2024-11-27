@@ -46,18 +46,19 @@ function ProjectSpace({
       else newRole = project?.projectSettings?.generalAccessRole ?? 0;
     }
 
-    // Set role and all dependent flags
-    if (!location.state?.changeMode)
-      setChangeMode(
+    // Only set changeMode if it's not already set through navigation
+    if (!location?.state?.changeMode) {
+      const defaultMode =
         newRole === 3
           ? "Managing"
           : newRole === 2
           ? "Managing Content"
           : newRole === 1
           ? "Contributing"
-          : "Viewing"
-      );
-  }, [project, user, userDoc]);
+          : "Viewing";
+      setChangeMode(defaultMode);
+    }
+  }, [project, user, userDoc, location?.state?.changeMode]);
 
   return (
     <div className="project-space">

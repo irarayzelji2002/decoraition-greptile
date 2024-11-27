@@ -68,6 +68,7 @@ import {
   dialogStyles,
   dialogTitleStyles,
 } from "../../components/RenameModal";
+import Error from "../../components/Error";
 
 function Project() {
   const { projectId } = useParams();
@@ -83,8 +84,8 @@ function Project() {
     userDesignVersions,
   } = useSharedProps();
   const location = useLocation();
-  const navigate = useNavigate();
   const [changeMode, setChangeMode] = useState(location?.state?.changeMode || "");
+  const navigate = useNavigate();
   const [modalOpen, setModalOpen] = useState(false);
   const [modalContent, setModalContent] = useState(null);
   const [menuOpen, setMenuOpen] = useState(false);
@@ -223,24 +224,6 @@ function Project() {
     );
     setIsCollaborator(isCollaboratorProject(project, userDoc.id));
   }, [project, userDoc]);
-
-  useEffect(() => {
-    if (!changeMode) {
-      if (isManager) setChangeMode("Managing");
-      else if (isManagerContentManager) setChangeMode("Managing Content");
-      else if (isManagerContentManagerContributor) setChangeMode("Contributing");
-      else if (isCollaborator) setChangeMode("Viewing");
-    }
-    console.log(
-      `commentCont - isManager: ${isManager}, isManagerContentManager: ${isManagerContentManager}, isManagerContentManagerContributor: ${isManagerContentManagerContributor}, isCollaborator: ${isCollaborator}`
-    );
-  }, [
-    isManager,
-    isManagerContentManager,
-    isManagerContentManagerContributor,
-    isCollaborator,
-    changeMode,
-  ]);
 
   // Sorting and filtering
   const handleOwnerChange = (owner) => {

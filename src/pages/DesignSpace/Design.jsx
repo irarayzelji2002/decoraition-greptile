@@ -162,7 +162,7 @@ function Design() {
       setShowPromptBar(false);
       setShowComments(true); // initially show comments
     }
-    if (!changeMode) {
+    if (!location?.state?.changeMode) {
       if (isOwner) setChangeMode("Editing");
       else if (isOwnerEditor) setChangeMode("Editing");
       else if (isOwnerEditorCommenter) setChangeMode("Commenting");
@@ -171,7 +171,7 @@ function Design() {
     console.log(
       `commentCont - isOwner: ${isOwner}, isOwnerEditor: ${isOwnerEditor}, isOwnerEditorCommenter: ${isOwnerEditorCommenter}, isCollaborator: ${isCollaborator}`
     );
-  }, [isOwner, isOwnerEditor, isOwnerEditorCommenter, isCollaborator, changeMode]);
+  }, [isOwner, isOwnerEditor, isOwnerEditorCommenter, isCollaborator, location?.state?.changeMode]);
 
   useEffect(() => {
     console.log(`commentCont - changeMode: ${changeMode}`);
@@ -1530,7 +1530,7 @@ export const BorderLinearProgress = styled(LinearProgress)(({ theme }) => ({
   },
 }));
 
-const CustomTooltip = styled(
+export const CustomTooltip = styled(
   React.forwardRef(({ className, ...props }, ref) => (
     <Tooltip
       {...props}
@@ -1557,7 +1557,7 @@ const CustomTooltip = styled(
   [`& .${tooltipClasses.tooltip}`]: {
     backgroundColor: "var(--iconBg)",
     color: "var(--color-white)",
-    maxWidth: "320px",
+    maxWidth: "600px",
     width: "100%",
     borderRadius: "10px",
     boxShadow: "-4px 4px 10px rgba(0, 0, 0, 0.2)",
@@ -1569,7 +1569,7 @@ const CustomTooltip = styled(
   },
 }));
 
-export const DescriptionTooltip = ({ description = "", createdAt = "" }) => {
+export const DescriptionTooltip = ({ description = "", createdAt = "", image = "" }) => {
   const displayDate = formatDateDetailComma(createdAt);
 
   return (
@@ -1581,10 +1581,22 @@ export const DescriptionTooltip = ({ description = "", createdAt = "" }) => {
         p: "5px",
         textAlign: "justify",
         padding: "5px 10px",
-        minWidth: "calc(320px - 40px)",
+        // minWidth: "calc(320px - 40px)",
+        maxWidth: image !== "" ? "600px" : "calc(320px - 40px)", // Adjust maxWidth based on image presence
       }}
     >
       <Box>
+        {image && (
+          <Box
+            component="img"
+            src={image}
+            alt="Tooltip"
+            sx={{
+              width: "100%",
+              marginBottom: "10px",
+            }}
+          />
+        )}
         {description && (
           <Typography
             sx={{
@@ -1606,7 +1618,6 @@ export const DescriptionTooltip = ({ description = "", createdAt = "" }) => {
     </Box>
   );
 };
-
 //0 for viewer, 1 for editor, 2 for commenter, 3 for owner
 // Check if user is owner (manage)
 export const isOwnerDesign = (design, userId) => {

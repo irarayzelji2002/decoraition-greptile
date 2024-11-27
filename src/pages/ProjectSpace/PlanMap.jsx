@@ -108,24 +108,6 @@ function PlanMap() {
   }, [project, userDoc]);
 
   useEffect(() => {
-    if (!changeMode) {
-      if (isManager) setChangeMode("Managing");
-      else if (isManagerContentManager) setChangeMode("Managing Content");
-      else if (isManagerContentManagerContributor) setChangeMode("Contributing");
-      else if (isCollaborator) setChangeMode("Viewing");
-    }
-    console.log(
-      `commentCont - isManager: ${isManager}, isManagerContentManager: ${isManagerContentManager}, isManagerContentManagerContributor: ${isManagerContentManagerContributor}, isCollaborator: ${isCollaborator}`
-    );
-  }, [
-    isManager,
-    isManagerContentManager,
-    isManagerContentManagerContributor,
-    isCollaborator,
-    changeMode,
-  ]);
-
-  useEffect(() => {
     if (user) {
       fetchPlanImage(projectId, setPlanImage);
     }
@@ -233,16 +215,21 @@ function PlanMap() {
     }
   };
 
-  const handleStyleRefContinue = () => {
-    // Handle the continue action
-  };
-
   const handlePlanImageContinue = () => {
     if (initPlanImage) {
-      handlePlanImageUpload(initPlanImage, projectId, setPlanImage);
+      handlePlanImageUpload(initPlanImage, projectId, setPlanImage).then(() => {
+        showToast("success", "Plan map uploaded successfully");
+        setTimeout(() => {
+          window.location.reload();
+        }, 1500); // Adjust the timeout as needed
+      });
       setInitPlanImage(null);
     }
     setStyleRefModalOpen(false);
+  };
+
+  const handleNoPlanImage = () => {
+    showToast("error", "Please upload a plan map first");
   };
 
   if (loadingImage) {
@@ -323,7 +310,7 @@ function PlanMap() {
               </div>
               <div
                 className="small-button-container"
-                onClick={planImage ? navigateToPinLayout : null}
+                onClick={planImage ? navigateToPinLayout : handleNoPlanImage}
               >
                 <span className="small-button-text">Change pins order</span>
                 <div className="small-circle-button">
@@ -332,14 +319,17 @@ function PlanMap() {
               </div>
               <div
                 className="small-button-container"
-                onClick={planImage ? navigateToAdjustPin : null}
+                onClick={planImage ? navigateToAdjustPin : handleNoPlanImage}
               >
                 <span className="small-button-text">Adjust Pins</span>
                 <div className="small-circle-button">
                   <AdjustPin />
                 </div>
               </div>
-              <div className="small-button-container" onClick={planImage ? navigateToAddPin : null}>
+              <div
+                className="small-button-container"
+                onClick={planImage ? navigateToAddPin : handleNoPlanImage}
+              >
                 <span className="small-button-text">Add a Pin</span>
                 <div className="small-circle-button">
                   <AddPin />

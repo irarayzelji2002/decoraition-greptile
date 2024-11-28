@@ -41,7 +41,7 @@ function DesignHead({
   setShowComments = () => {},
   isSelectingMask = false,
 }) {
-  const { user, userDoc, handleLogout } = useSharedProps();
+  const { user, userDoc, handleLogout, notificationUpdate } = useSharedProps();
   const { designId } = useParams();
   const isOnline = useNetworkStatus();
   const navigate = useNavigate();
@@ -511,41 +511,90 @@ function DesignHead({
   };
 
   // Notification highlight
+  const highlightDesignName = (designName) => {
+    console.log("design head - attempting to highlight design name");
+    const nameElement = document.querySelector(".design-name");
+    console.log("design head - found nameElement:", nameElement);
+
+    if (nameElement) {
+      nameElement.scrollIntoView({ behavior: "smooth" });
+      nameElement.classList.add("highlight-animation");
+      setTimeout(() => {
+        nameElement.classList.remove("highlight-animation");
+      }, 3000);
+    } else {
+      console.log("design head - nameElement not found in DOM, retrying in 500ms");
+      setTimeout(() => {
+        const retryElement = document.querySelector(".design-name");
+        console.log("design head - retry found nameElement:", retryElement);
+        if (retryElement) {
+          retryElement.scrollIntoView({ behavior: "smooth" });
+          retryElement.classList.add("highlight-animation");
+          setTimeout(() => {
+            retryElement.classList.remove("highlight-animation");
+          }, 3000);
+        }
+      }, 500);
+    }
+  };
+
   useEffect(() => {
     const handleNotificationActions = async () => {
+      console.log("handleNotificationActions called - design:", design);
+      if (!design) return;
+
       const pendingActions = localStorage.getItem("pendingNotificationActions");
+      console.log("design head - pendingActions from localStorage:", pendingActions);
+
       if (pendingActions) {
-        const { actions, references, timestamp, completed } = JSON.parse(pendingActions);
+        try {
+          const parsedActions = JSON.parse(pendingActions);
+          console.log("design head - parsed pendingActions:", parsedActions);
 
-        for (const [index, action] of actions.entries()) {
-          const previousActionsCompleted =
-            completed.filter((c) => c.index < index).length === index;
+          const { actions, references, timestamp, completed } = parsedActions;
 
-          if (action === "Highlight design name" && previousActionsCompleted) {
-            highlightName(true); //isDesign
+          const uniqueCompleted = completed.reduce((acc, current) => {
+            const x = acc.find((item) => item.index === current.index);
+            if (!x) return acc.concat([current]);
+            return acc;
+          }, []);
 
-            completed.push({ action, index, timestamp });
-            localStorage.setItem(
-              "pendingNotificationActions",
-              JSON.stringify({ actions, references, timestamp, completed })
-            );
+          for (const [index, action] of actions.entries()) {
+            console.log("design head - Processing action:", action, "at index:", index);
+
+            const isAlreadyCompleted = uniqueCompleted.some((c) => c.index === index);
+            if (isAlreadyCompleted) {
+              console.log(`design head - Action at index ${index} already completed`);
+              continue;
+            }
+
+            const previousActionsCompleted =
+              uniqueCompleted.filter((c) => c.index < index).length === index;
+            console.log("design head - previousActionsCompleted:", previousActionsCompleted);
+
+            if (action === "Highlight design name" && previousActionsCompleted) {
+              highlightDesignName(design.designName);
+
+              uniqueCompleted.push({ action, index, timestamp });
+              localStorage.setItem(
+                "pendingNotificationActions",
+                JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted })
+              );
+
+              if (index === actions.length - 1) {
+                console.log("design head - Removing pendingNotificationActions from localStorage");
+                localStorage.removeItem("pendingNotificationActions");
+              }
+            }
           }
-
-          if (action === "Open view collaborators modal" && previousActionsCompleted) {
-            setIsViewCollabModalOpen(true);
-
-            completed.push({ action, index, timestamp });
-            localStorage.setItem(
-              "pendingNotificationActions",
-              JSON.stringify({ actions, references, timestamp, completed })
-            );
-          }
+        } catch (error) {
+          console.error("Error processing notification actions:", error);
         }
       }
     };
 
     handleNotificationActions();
-  }, []);
+  }, [design, notificationUpdate]);
 
   return (
     <div className={`designHead stickyMenu`}>

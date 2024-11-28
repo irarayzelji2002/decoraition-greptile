@@ -85,7 +85,7 @@ const CommentContainer = ({
   changeMode,
 }) => {
   const { designId } = useParams();
-  const { user, users, userDoc } = useSharedProps();
+  const { user, users, userDoc, notificationUpdate } = useSharedProps();
 
   // Root comment states for display
   const [commenterUserId, setCommenterUserId] = useState("");
@@ -736,6 +736,19 @@ const CommentContainer = ({
             setTimeout(() => {
               replyElement.classList.remove("highlight-animation");
             }, 3000);
+          } else {
+            console.log("comment container - commentElement not found in DOM, retrying in 500ms");
+            setTimeout(() => {
+              const retryElement = document.getElementById(`comment-${commentId}`);
+              console.log("comment container - retry found commentElement:", retryElement);
+              if (retryElement) {
+                retryElement.scrollIntoView({ behavior: "smooth" });
+                retryElement.classList.add("highlight-animation");
+                setTimeout(() => {
+                  retryElement.classList.remove("highlight-animation");
+                }, 3000);
+              }
+            }, 500);
           }
         }, 300);
       }
@@ -747,40 +760,82 @@ const CommentContainer = ({
         setTimeout(() => {
           commentElement.classList.remove("highlight-animation");
         }, 3000);
+      } else {
+        console.log("comment container - commentElement not found in DOM, retrying in 500ms");
+        setTimeout(() => {
+          const retryElement = document.getElementById(`comment-${commentId}`);
+          console.log("comment container - retry found commentElement:", retryElement);
+          if (retryElement) {
+            retryElement.scrollIntoView({ behavior: "smooth" });
+            retryElement.classList.add("highlight-animation");
+            setTimeout(() => {
+              retryElement.classList.remove("highlight-animation");
+            }, 3000);
+          }
+        }, 500);
       }
     }
   };
 
   useEffect(() => {
     const handleNotificationActions = async () => {
+      console.log("handleNotificationActions called - comment:", comment);
+      if (!comment) return;
+
       const pendingActions = localStorage.getItem("pendingNotificationActions");
+      console.log("comment container - pendingActions from localStorage:", pendingActions);
+
       if (pendingActions) {
-        const { actions, references, timestamp, completed } = JSON.parse(pendingActions);
+        try {
+          const parsedActions = JSON.parse(pendingActions);
+          console.log("comment container - parsed pendingActions:", parsedActions);
 
-        for (const [index, action] of actions.entries()) {
-          const previousActionsCompleted =
-            completed.filter((c) => c.index < index).length === index;
+          const { actions, references, timestamp, completed } = parsedActions;
 
-          if (action === "Highlight comment" && previousActionsCompleted) {
-            const commentId = references?.replyId || references?.commentId;
-            const isReply = !!references?.replyId;
+          const uniqueCompleted = completed.reduce((acc, current) => {
+            const x = acc.find((item) => item.index === current.index);
+            if (!x) return acc.concat([current]);
+            return acc;
+          }, []);
 
-            if (commentId) {
-              highlightComment(commentId, isReply);
+          for (const [index, action] of actions.entries()) {
+            console.log("comment container - Processing action:", action, "at index:", index);
+
+            const isAlreadyCompleted = uniqueCompleted.some((c) => c.index === index);
+            if (isAlreadyCompleted) {
+              console.log(`comment container - Action at index ${index} already completed`);
+              continue;
             }
 
-            completed.push({ action, index, timestamp });
-            localStorage.setItem(
-              "pendingNotificationActions",
-              JSON.stringify({ actions, references, timestamp, completed })
-            );
+            const previousActionsCompleted =
+              uniqueCompleted.filter((c) => c.index < index).length === index;
+            console.log("comment container - previousActionsCompleted:", previousActionsCompleted);
+
+            if (action === "Highlight comment" && previousActionsCompleted) {
+              highlightComment(commentId);
+
+              uniqueCompleted.push({ action, index, timestamp });
+              localStorage.setItem(
+                "pendingNotificationActions",
+                JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted })
+              );
+
+              if (index === actions.length - 1) {
+                console.log(
+                  "comment container - Removing pendingNotificationActions from localStorage"
+                );
+                localStorage.removeItem("pendingNotificationActions");
+              }
+            }
           }
+        } catch (error) {
+          console.error("Error processing notification actions:", error);
         }
       }
     };
 
     handleNotificationActions();
-  }, []);
+  }, [comment, commentId, notificationUpdate]);
 
   return (
     <>

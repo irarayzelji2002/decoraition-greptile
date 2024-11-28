@@ -108,7 +108,7 @@ const SearchAppBar = ({ onMenuClick, onSearchChange, searchQuery }) => {
             isDrawerOpen={isDrawerOpen}
             onClose={handleDrawerClose}
             isNotifOpen={isNotifOpen}
-            closeNotif={setIsNotifOpen}
+            setIsNotifOpen={setIsNotifOpen}
           />
 
           <Paper

@@ -36,7 +36,7 @@ import {
 const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title }) => {
   const navigate = useNavigate();
   const designLinkRef = useRef(null);
-  const { user, designs, designVersions } = useSharedProps();
+  const { user, userDoc, designs, designVersions } = useSharedProps();
   const [selectedDesignVersionId, setSelectedDesignVersionId] = useState("");
   const [selectedDesignVersionDetails, setSelectedVersionDetails] = useState({});
   const [versionDetails, setVersionDetails] = useState([]);
@@ -45,6 +45,7 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
   const [openViewModal, setOpenViewModal] = useState(false);
   const [viewingImage, setViewingImage] = useState(0);
   const [openConfirmRestoreModal, setOpenConfirmRestoreModal] = useState(false);
+  const [isRestoreButttonDisabled, setIsRestoreButtonDisabled] = useState(false);
 
   const handleSelectVersion = (e, versionId) => {
     if (e) e.stopPropagation();
@@ -78,28 +79,46 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
     }
   };
 
-  const handleRestore = async (e, selectedDesignVersionId) => {
-    if (!selectedDesignVersionId) {
-      showToast("error", "Select a version to restore");
+  // Restore utton function
+  const onConfirmRestore = async () => {
+    try {
+      setIsRestoreButtonDisabled(true);
+      const result = await handleRestore(design, selectedDesignVersionId);
+      if (!result.success) {
+        showToast("error", result.message);
+        return;
+      }
+      showToast(
+        "success",
+        `Design restored${
+          selectedDesignVersionDetails.displayDate
+            ? ` to version on ${selectedDesignVersionDetails.displayDate}`
+            : ""
+        }`
+      );
+      handleClose();
+    } catch (error) {
+      console.error("Error restoring design:", error);
+    } finally {
+      setIsRestoreButtonDisabled(false);
+    }
+  };
+
+  // Function call
+  const handleRestore = async (design, designVersionId) => {
+    if (!designVersionId) {
+      return { success: false, message: "Select a version to restore" };
     }
     try {
-      const result = await handleRestoreDesignVersion(design, selectedDesignVersionId, user);
+      const result = await handleRestoreDesignVersion(design, designVersionId, user, userDoc);
       if (result.success) {
-        handleClose(e);
-        showToast(
-          "success",
-          `Design restored${
-            selectedDesignVersionDetails.displayDate
-              ? ` to version on ${selectedDesignVersionDetails.displayDate}`
-              : ""
-          }`
-        );
+        return { success: true, message: "Design restored" };
       } else {
-        showToast("error", "Failed to restore design");
+        return { success: false, message: "Failed to restore design" };
       }
     } catch (error) {
       console.error("Error restoring design:", error);
-      showToast("error", "Failed to restore design");
+      return { success: false, message: "Failed to restore design" };
     }
   };
 
@@ -212,8 +231,14 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
       }
       return;
     }
-    getVersionDetails();
+    if (isDrawerOpen) {
+      getVersionDetails();
+    }
   }, [isDrawerOpen, design, designVersions, designs, user]);
+
+  useEffect(() => {
+    console.log("openConfirmRestoreModal", openConfirmRestoreModal);
+  }, [openConfirmRestoreModal]);
 
   return (
     <>
@@ -568,7 +593,7 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
           openConfirmRestoreModal={openConfirmRestoreModal}
           setOpenConfirmRestoreModal={setOpenConfirmRestoreModal}
           selectedDesignVersionDetails={selectedDesignVersionDetails}
-          handleRestore={handleRestore}
+          handleRestore={onConfirmRestore}
           selectedDesignVersionId={selectedDesignVersionId}
         />
       )}
@@ -582,78 +607,91 @@ const ConfirmRestoreModal = ({
   selectedDesignVersionDetails,
   handleRestore,
   selectedDesignVersionId,
+  isRestoreButttonDisabled,
 }) => {
-  <Dialog
-    open={openConfirmRestoreModal}
-    onClose={() => setOpenConfirmRestoreModal(false)}
-    sx={{
-      ...dialogStyles,
-      zIndex: "13002",
-    }}
-  >
-    <DialogTitle sx={dialogTitleStyles}>
-      <Typography
-        variant="body1"
-        sx={{
-          fontWeight: "bold",
-          fontSize: "1.15rem",
-          flexGrow: 1,
-          maxWidth: "80%",
-          whiteSpace: "normal",
-        }}
-      >
-        Confirm Restore
-      </Typography>
-      <IconButton
-        onClick={(e) => {
-          if (e) e.stopPropagation();
-          setOpenConfirmRestoreModal(false);
-        }}
-        sx={{
-          ...iconButtonStyles,
-          flexShrink: 0,
-          marginLeft: "auto",
-        }}
-      >
-        <CloseRoundedIcon />
-      </IconButton>
-    </DialogTitle>
-    <DialogContent sx={dialogContentStyles}>
-      <Typography variant="body1" sx={{ textAlign: "center", maxWidth: "500px" }}>
-        {`Are you sure you want to restore the design to the version ${
-          selectedDesignVersionDetails.displayDate?.includes(",") ? "at " : ""
-        }${selectedDesignVersionDetails.displayDate}?`}
-      </Typography>
-    </DialogContent>
-    <DialogActions sx={dialogActionsStyles}>
-      {/* Yes Button */}
-      <Button
-        variant="contained"
-        onClick={(e) => handleRestore(e, selectedDesignVersionId)}
-        sx={gradientButtonStyles}
-      >
-        Yes
-      </Button>
+  return (
+    <Dialog
+      open={openConfirmRestoreModal}
+      onClose={() => setOpenConfirmRestoreModal(false)}
+      sx={{
+        ...dialogStyles,
+        zIndex: "13002",
+      }}
+    >
+      <DialogTitle sx={dialogTitleStyles}>
+        <Typography
+          variant="body1"
+          sx={{
+            fontWeight: "bold",
+            fontSize: "1.15rem",
+            flexGrow: 1,
+            maxWidth: "80%",
+            whiteSpace: "normal",
+          }}
+        >
+          Confirm Restore
+        </Typography>
+        <IconButton
+          onClick={(e) => {
+            if (e) e.stopPropagation();
+            setOpenConfirmRestoreModal(false);
+          }}
+          sx={{
+            ...iconButtonStyles,
+            flexShrink: 0,
+            marginLeft: "auto",
+          }}
+        >
+          <CloseRoundedIcon />
+        </IconButton>
+      </DialogTitle>
+      <DialogContent sx={dialogContentStyles}>
+        <Typography variant="body1" sx={{ textAlign: "center", maxWidth: "500px" }}>
+          {`Are you sure you want to restore the design to the version created ${
+            selectedDesignVersionDetails.displayDate?.includes(",") ? "at " : ""
+          }${selectedDesignVersionDetails.displayDate}?`}
+        </Typography>
+      </DialogContent>
+      <DialogActions sx={dialogActionsStyles}>
+        {/* Yes Button */}
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={(e) => handleRestore(e, selectedDesignVersionId)}
+          sx={{
+            ...gradientButtonStyles,
+            opacity: isRestoreButttonDisabled ? "0.5" : "1",
+            cursor: isRestoreButttonDisabled ? "default" : "pointer",
+            "&:hover": {
+              backgroundImage: !isRestoreButttonDisabled && "var(--gradientButtonHover)",
+            },
+          }}
+          disabled={isRestoreButttonDisabled}
+        >
+          Yes
+        </Button>
 
-      {/* No Button */}
-      <Button
-        variant="contained"
-        onClick={(e) => {
-          if (e) e.stopPropagation();
-          setOpenConfirmRestoreModal(false);
-        }}
-        sx={outlinedButtonStyles}
-        onMouseOver={(e) =>
-          (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButtonHover)")
-        }
-        onMouseOut={(e) =>
-          (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButton)")
-        }
-      >
-        No
-      </Button>
-    </DialogActions>
-  </Dialog>;
+        {/* No Button */}
+        <Button
+          fullWidth
+          variant="contained"
+          onClick={(e) => {
+            if (e) e.stopPropagation();
+            setOpenConfirmRestoreModal(false);
+          }}
+          sx={outlinedButtonStyles}
+          onMouseOver={(e) =>
+            (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButtonHover)")
+          }
+          onMouseOut={(e) =>
+            (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButton)")
+          }
+        >
+          No
+        </Button>
+      </DialogActions>
+    </Dialog>
+  );
 };
 
 export default Version;

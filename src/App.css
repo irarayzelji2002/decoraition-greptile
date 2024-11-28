@@ -240,7 +240,7 @@ select:-webkit-autofill {
 }
 
 .helpTooltip {
-  margin-left: 10px !important;
+  /* margin-left: 10px !important; */
   padding: 6px !important;
   height: 35px !important;
   width: 35px !important;
@@ -251,10 +251,8 @@ select:-webkit-autofill {
   margin-top: -5px !important;
 }
 
-.helpTooltip.inMeuItem {
-  margin-left: 0px !important;
-}
-
+.helpTooltip.inMeuItem,
+.helpTooltip.showGuide,
 .helpTooltip.inBudget {
   margin-left: 0px !important;
 }
@@ -271,6 +269,10 @@ select:-webkit-autofill {
   font-weight: 300;
   color: var(--color-white);
   margin-bottom: 6px;
+}
+
+.user-details .notifContent strong {
+  font-weight: bold;
 }
 
 .user-details .notifDate {

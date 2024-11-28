@@ -134,12 +134,10 @@ const DrawerComponent = ({
   };
 
   const handleNotifClick = () => {
-    console.log("setIsNotifOpen click", setIsNotifOpen);
     if (setIsNotifOpen) setIsNotifOpen(true);
   };
 
   const handleNotifClose = () => {
-    console.log("setIsNotifOpen close", setIsNotifOpen);
     if (setIsNotifOpen) setIsNotifOpen(false);
   };
 

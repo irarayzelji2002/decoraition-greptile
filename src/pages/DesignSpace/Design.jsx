@@ -158,8 +158,20 @@ function Design() {
 
   useEffect(() => {
     if (isOwner || isOwnerEditor) {
-      setShowPromptBar(true);
-      setShowComments(false); // initially hide comments
+      // Check for pending notification actions before setting defaults
+      const pendingActions = localStorage.getItem("pendingNotificationActions");
+      const parsedActions = pendingActions ? JSON.parse(pendingActions) : null;
+      if (
+        parsedActions?.type === "comment" ||
+        parsedActions?.type === "reply" ||
+        parsedActions?.type === "mention"
+      ) {
+        setShowPromptBar(false); // show notif default
+        setShowComments(true);
+      } else {
+        setShowPromptBar(true); // default
+        setShowComments(false);
+      }
     } else if (isOwnerEditorCommenter || isCollaborator) {
       setShowPromptBar(false);
       setShowComments(true); // initially show comments
@@ -558,18 +570,18 @@ function Design() {
   // Notifcation highlight
   useEffect(() => {
     const handleNotificationActions = async () => {
-      console.log("handleNotificationActions called - design loaded:", !!design);
+      console.log("notif (design) - handleNotificationActions called - design loaded:", !!design);
       if (!design) return;
 
       const pendingActions = localStorage.getItem("pendingNotificationActions");
-      console.log("design - pendingActions from localStorage:", pendingActions);
+      console.log("notif (design) - pendingActions from localStorage:", pendingActions);
 
       if (pendingActions) {
         try {
           const parsedActions = JSON.parse(pendingActions);
-          console.log("design - parsed pendingActions:", parsedActions);
+          console.log("notif (design) - parsed pendingActions:", parsedActions);
 
-          const { actions, references, timestamp, completed } = parsedActions;
+          const { actions, references, timestamp, completed, type } = parsedActions;
 
           const uniqueCompleted = completed.reduce((acc, current) => {
             const x = acc.find((item) => item.index === current.index);
@@ -578,31 +590,30 @@ function Design() {
           }, []);
 
           for (const [index, action] of actions.entries()) {
-            console.log("design - Processing action:", action, "at index:", index);
+            console.log("notif (design) - Processing action:", action, "at index:", index);
 
             const isAlreadyCompleted = uniqueCompleted.some((c) => c.index === index);
             if (isAlreadyCompleted) {
-              console.log(`design - Action at index ${index} already completed`);
+              console.log(`notif (design) - Action at index ${index} already completed`);
               continue;
             }
 
             const previousActionsCompleted =
               uniqueCompleted.filter((c) => c.index < index).length === index;
-            console.log("design - previousActionsCompleted:", previousActionsCompleted);
+            console.log("notif (design) - previousActionsCompleted:", previousActionsCompleted);
 
             if (action === "Show comment tab" && previousActionsCompleted) {
               setShowComments(true);
-
               uniqueCompleted.push({ action, index, timestamp });
               localStorage.setItem(
                 "pendingNotificationActions",
-                JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted })
+                JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted, type })
               );
+            }
 
-              if (index === actions.length - 1) {
-                console.log("design - Removing pendingNotificationActions from localStorage");
-                localStorage.removeItem("pendingNotificationActions");
-              }
+            if (index === actions.length - 1 && uniqueCompleted.length === actions.length) {
+              console.log("notif (design) - Removing pendingNotificationActions from localStorage");
+              localStorage.removeItem("pendingNotificationActions");
             }
           }
         } catch (error) {

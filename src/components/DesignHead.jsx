@@ -85,6 +85,7 @@ function DesignHead({
   // const [collaborators, setCollaborators] = useState([]);
   // const [newCollaborator, setNewCollaborator] = useState("");
   const [isDrawerOpen, setDrawerOpen] = useState(false);
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [darkMode, setDarkMode] = useState(false);
   const [isHistoryOpen, setIsHistoryOpen] = useState(false); // history
   const [isHistoryVisible, setIsHistoryVisible] = useState(false);
@@ -512,9 +513,9 @@ function DesignHead({
 
   // Notification highlight
   const highlightDesignName = (designName) => {
-    console.log("design head - attempting to highlight design name");
+    console.log("notif (design head) - attempting to highlight design name");
     const nameElement = document.querySelector(".design-name");
-    console.log("design head - found nameElement:", nameElement);
+    console.log("notif (design head) - found nameElement:", nameElement);
 
     if (nameElement) {
       nameElement.scrollIntoView({ behavior: "smooth" });
@@ -523,10 +524,10 @@ function DesignHead({
         nameElement.classList.remove("highlight-animation");
       }, 3000);
     } else {
-      console.log("design head - nameElement not found in DOM, retrying in 500ms");
+      console.log("notif (design head) - nameElement not found in DOM, retrying in 500ms");
       setTimeout(() => {
         const retryElement = document.querySelector(".design-name");
-        console.log("design head - retry found nameElement:", retryElement);
+        console.log("notif (design head) - retry found nameElement:", retryElement);
         if (retryElement) {
           retryElement.scrollIntoView({ behavior: "smooth" });
           retryElement.classList.add("highlight-animation");
@@ -540,16 +541,16 @@ function DesignHead({
 
   useEffect(() => {
     const handleNotificationActions = async () => {
-      console.log("handleNotificationActions called - design:", design);
+      console.log("notif (design head) - handleNotificationActions called - design:", design);
       if (!design) return;
 
       const pendingActions = localStorage.getItem("pendingNotificationActions");
-      console.log("design head - pendingActions from localStorage:", pendingActions);
+      console.log("notif (design head) - pendingActions from localStorage:", pendingActions);
 
       if (pendingActions) {
         try {
           const parsedActions = JSON.parse(pendingActions);
-          console.log("design head - parsed pendingActions:", parsedActions);
+          console.log("notif (design head) - parsed pendingActions:", parsedActions);
 
           const { actions, references, timestamp, completed } = parsedActions;
 
@@ -560,31 +561,50 @@ function DesignHead({
           }, []);
 
           for (const [index, action] of actions.entries()) {
-            console.log("design head - Processing action:", action, "at index:", index);
+            console.log("notif (design head) - Processing action:", action, "at index:", index);
 
             const isAlreadyCompleted = uniqueCompleted.some((c) => c.index === index);
             if (isAlreadyCompleted) {
-              console.log(`design head - Action at index ${index} already completed`);
+              console.log(`notif (design head) - Action at index ${index} already completed`);
               continue;
             }
 
             const previousActionsCompleted =
               uniqueCompleted.filter((c) => c.index < index).length === index;
-            console.log("design head - previousActionsCompleted:", previousActionsCompleted);
+            console.log(
+              "notif (design head) - previousActionsCompleted:",
+              previousActionsCompleted
+            );
 
             if (action === "Highlight design name" && previousActionsCompleted) {
               highlightDesignName(design.designName);
-
               uniqueCompleted.push({ action, index, timestamp });
               localStorage.setItem(
                 "pendingNotificationActions",
                 JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted })
               );
+            } else if (action === "Open view collaborators modal" && previousActionsCompleted) {
+              setIsViewCollabModalOpen(true);
+              uniqueCompleted.push({ action, index, timestamp });
+              localStorage.setItem(
+                "pendingNotificationActions",
+                JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted })
+              );
+            } else if (action === "Hide drawers" && previousActionsCompleted) {
+              setDrawerOpen(false);
+              setIsNotifOpen(false);
+              uniqueCompleted.push({ action, index, timestamp });
+              localStorage.setItem(
+                "pendingNotificationActions",
+                JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted })
+              );
+            }
 
-              if (index === actions.length - 1) {
-                console.log("design head - Removing pendingNotificationActions from localStorage");
-                localStorage.removeItem("pendingNotificationActions");
-              }
+            if (index === actions.length - 1 && uniqueCompleted.length === actions.length) {
+              console.log(
+                "notif (design head) - Removing pendingNotificationActions from localStorage"
+              );
+              localStorage.removeItem("pendingNotificationActions");
             }
           }
         } catch (error) {
@@ -598,7 +618,12 @@ function DesignHead({
 
   return (
     <div className={`designHead stickyMenu`}>
-      <DrawerComponent isDrawerOpen={isDrawerOpen} onClose={() => setDrawerOpen(false)} />
+      <DrawerComponent
+        isDrawerOpen={isDrawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        isNotifOpen={isNotifOpen}
+        closeNotif={setIsNotifOpen}
+      />
       <Version
         isDrawerOpen={isHistoryOpen}
         onClose={handleHistoryClose}
@@ -678,13 +703,11 @@ function DesignHead({
               )}
             </>
           ) : (
-            <span
-              onClick={handleInputClick}
-              className="headTitleInput design-name"
-              style={{ height: "20px" }}
-            >
-              {design?.designName ?? "Untitled Design"}
-            </span>
+            <div onClick={handleInputClick} className="navhead design-name">
+              <span className="headTitleInput" style={{ height: "20px" }}>
+                {design?.designName ?? "Untitled Design"}
+              </span>
+            </div>
           )}
         </div>
       </div>

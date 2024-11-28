@@ -306,7 +306,7 @@ export default NotifTab;
 
 export const filterButtonGroupStyles = {
   flexWrap: "wrap",
-  justifyContent: "start",
+  justifyContent: "center",
   display: "flex",
   gap: "10px !important",
   padding: "10px",

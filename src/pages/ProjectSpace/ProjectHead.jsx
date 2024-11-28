@@ -74,7 +74,7 @@ function ProjectHead({ project, changeMode = "Viewing", setChangeMode }) {
   const [collaborators, setCollaborators] = useState([]);
   const [newCollaborator, setNewCollaborator] = useState("");
   const [isDrawerOpen, setDrawerOpen] = useState(false);
-
+  const [isNotifOpen, setIsNotifOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   useEffect(() => {
@@ -434,16 +434,16 @@ function ProjectHead({ project, changeMode = "Viewing", setChangeMode }) {
 
   useEffect(() => {
     const handleNotificationActions = async () => {
-      console.log("handleNotificationActions called - project:", project);
+      console.log("notif (project head) - handleNotificationActions called - project:", project);
       if (!project) return;
 
       const pendingActions = localStorage.getItem("pendingNotificationActions");
-      console.log("project head - pendingActions from localStorage:", pendingActions);
+      console.log("notif (project head) - pendingActions from localStorage:", pendingActions);
 
       if (pendingActions) {
         try {
           const parsedActions = JSON.parse(pendingActions);
-          console.log("project head - parsed pendingActions:", parsedActions);
+          console.log("notif (project head) - parsed pendingActions:", parsedActions);
 
           const { actions, references, timestamp, completed } = parsedActions;
 
@@ -454,31 +454,42 @@ function ProjectHead({ project, changeMode = "Viewing", setChangeMode }) {
           }, []);
 
           for (const [index, action] of actions.entries()) {
-            console.log("project head - Processing action:", action, "at index:", index);
+            console.log("notif (project head) - Processing action:", action, "at index:", index);
 
             const isAlreadyCompleted = uniqueCompleted.some((c) => c.index === index);
             if (isAlreadyCompleted) {
-              console.log(`project head - Action at index ${index} already completed`);
+              console.log(`notif (project head) - Action at index ${index} already completed`);
               continue;
             }
 
             const previousActionsCompleted =
               uniqueCompleted.filter((c) => c.index < index).length === index;
-            console.log("project head - previousActionsCompleted:", previousActionsCompleted);
+            console.log(
+              "notif (project head) - previousActionsCompleted:",
+              previousActionsCompleted
+            );
 
             if (action === "Highlight project name" && previousActionsCompleted) {
               highlightProjectName(project.projectName);
-
               uniqueCompleted.push({ action, index, timestamp });
               localStorage.setItem(
                 "pendingNotificationActions",
                 JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted })
               );
+            } else if (action === "Open view collaborators modal" && previousActionsCompleted) {
+              setIsViewCollabModalOpen(true);
+              uniqueCompleted.push({ action, index, timestamp });
+              localStorage.setItem(
+                "pendingNotificationActions",
+                JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted })
+              );
+            }
 
-              if (index === actions.length - 1) {
-                console.log("project head - Removing pendingNotificationActions from localStorage");
-                localStorage.removeItem("pendingNotificationActions");
-              }
+            if (index === actions.length - 1 && uniqueCompleted.length === actions.length) {
+              console.log(
+                "notif (project head) - Removing pendingNotificationActions from localStorage"
+              );
+              localStorage.removeItem("pendingNotificationActions");
             }
           }
         } catch (error) {
@@ -492,7 +503,12 @@ function ProjectHead({ project, changeMode = "Viewing", setChangeMode }) {
 
   return (
     <div className={`designHead stickyMenu ${menuOpen ? "darkened" : ""}`}>
-      <DrawerComponent isDrawerOpen={isDrawerOpen} onClose={() => setDrawerOpen(false)} />
+      <DrawerComponent
+        isDrawerOpen={isDrawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        isNotifOpen={isNotifOpen}
+        closeNotif={setIsNotifOpen}
+      />
       <div className="left">
         <IconButton
           size="large"
@@ -564,13 +580,11 @@ function ProjectHead({ project, changeMode = "Viewing", setChangeMode }) {
               )}
             </>
           ) : (
-            <span
-              onClick={handleInputClick}
-              className="headTitleInput project-name"
-              style={{ height: "20px" }}
-            >
-              {project?.projectName || "Untitled Project"}
-            </span>
+            <div onClick={handleInputClick} className="navhead project-name">
+              <span className="headTitleInput" style={{ height: "20px" }}>
+                {project?.projectName || "Untitled Project"}
+              </span>
+            </div>
           )}
         </div>
       </div>

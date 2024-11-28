@@ -444,16 +444,19 @@ function CommentTabs({
   // Notification highlight
   useEffect(() => {
     const handleNotificationActions = async () => {
-      console.log("handleNotificationActions called - tabs loaded:", !!commentTypeTab);
+      console.log(
+        "notif (comment tabs) - handleNotificationActions called - tabs loaded:",
+        !!commentTypeTab
+      );
       if (typeof commentTypeTab === "undefined") return;
 
       const pendingActions = localStorage.getItem("pendingNotificationActions");
-      console.log("comment tabs - pendingActions from localStorage:", pendingActions);
+      console.log("notif (comment tabs) - pendingActions from localStorage:", pendingActions);
 
       if (pendingActions) {
         try {
           const parsedActions = JSON.parse(pendingActions);
-          console.log("comment tabs - parsed pendingActions:", parsedActions);
+          console.log("notif (comment tabs) - parsed pendingActions:", parsedActions);
 
           const { actions, references, timestamp, completed, type, title } = parsedActions;
 
@@ -464,34 +467,38 @@ function CommentTabs({
           }, []);
 
           for (const [index, action] of actions.entries()) {
-            console.log("comment tabs - Processing action:", action, "at index:", index);
+            console.log("notif (comment tabs) - Processing action:", action, "at index:", index);
 
             const isAlreadyCompleted = uniqueCompleted.some((c) => c.index === index);
             if (isAlreadyCompleted) {
-              console.log(`comment tabs - Action at index ${index} already completed`);
+              console.log(`notif (comment tabs) - Action at index ${index} already completed`);
               continue;
             }
 
             const previousActionsCompleted =
               uniqueCompleted.filter((c) => c.index < index).length === index;
-            console.log("comment tabs - previousActionsCompleted:", previousActionsCompleted);
+            console.log(
+              "notif (comment tabs) - previousActionsCompleted:",
+              previousActionsCompleted
+            );
 
             if (action === "Set comment type and for" && previousActionsCompleted) {
               const commentForTab = type === "mention" ? false : true;
-              const commentTypeTab = title?.toLowerCase().includes("resolved") ? false : true;
+              const commentTypeTab = title?.toLowerCase()?.includes("resolved") ? false : true;
               setCommentForTab(commentForTab);
               setCommentTypeTab(commentTypeTab);
-
               uniqueCompleted.push({ action, index, timestamp });
               localStorage.setItem(
                 "pendingNotificationActions",
                 JSON.stringify({ actions, references, timestamp, completed: uniqueCompleted })
               );
+            }
 
-              if (index === actions.length - 1) {
-                console.log("comment tabs - Removing pendingNotificationActions from localStorage");
-                localStorage.removeItem("pendingNotificationActions");
-              }
+            if (index === actions.length - 1 && uniqueCompleted.length === actions.length) {
+              console.log(
+                "notif (comment tabs) - Removing pendingNotificationActions from localStorage"
+              );
+              localStorage.removeItem("pendingNotificationActions");
             }
           }
         } catch (error) {

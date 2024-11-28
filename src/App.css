@@ -284,7 +284,7 @@ select:-webkit-autofill {
 }
 
 .highlight-animation {
-  animation: highlight-notif 1.5s ease-in-out infinite;
+  animation: highlight-notif 1.5s ease-in-out infinite !important;
 }
 
 @keyframes highlight-notif {

@@ -141,6 +141,11 @@ function ProjBudget() {
     return currencyDetails;
   };
 
+  useEffect(() => {
+    const currencyArray = getCurrencyData();
+    setCurrencyDetails(currencyArray);
+  }, []);
+
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
@@ -461,9 +466,12 @@ function ProjBudget() {
   }, [designs, designBudgetItems]);
 
   const getBudgetColor = (budgetAmount, totalCost, isDarkMode) => {
-    if (budgetAmount === 0) {
+    const parsedBudgetAmount = parseFloat(budgetAmount) || 0;
+    const parsedTotalCost = parseFloat(totalCost) || 0;
+
+    if (parsedBudgetAmount === 0) {
       return isDarkMode ? "var(--inputBg)" : "var(--bright-grey)"; // no budget
-    } else if (totalCost <= budgetAmount) {
+    } else if (parsedTotalCost <= parsedBudgetAmount) {
       return "var(--green)"; // within budget
     } else {
       return "var(--red)"; // over budget
@@ -483,21 +491,23 @@ function ProjBudget() {
         const designTotal = items
           .filter((item) => item.includedInTotal !== false)
           .reduce((sum, item) => {
+            const itemCurrency =
+              item.cost?.currency?.currencySymbol ||
+              item.cost?.currency?.currencyCode ||
+              budgetCurrency?.currencySymbol ||
+              "₱";
             return sum + parseFloat(item.cost?.amount || 0) * (item.quantity || 1);
           }, 0);
 
-        newTotalCosts[designId] = designTotal;
+        newTotalCosts[designId] = {
+          amount: designTotal,
+          currency: items[0]?.cost?.currency || budgetCurrency || getPHCurrency(),
+        };
         projectTotal += designTotal;
       }
 
       setTotalCosts(newTotalCosts);
-      setFormattedTotalCost(
-        new Intl.NumberFormat("en-US", {
-          style: "decimal",
-          minimumFractionDigits: 2,
-          maximumFractionDigits: 2,
-        }).format(projectTotal)
-      );
+      setFormattedTotalCost(projectTotal.toFixed(2));
     };
 
     computeTotalCosts();
@@ -550,7 +560,6 @@ function ProjBudget() {
         currency: budgetCurrencyForInput,
       });
 
-      // Update local state
       setProjectBudget((prev) => ({
         ...prev,
         budget: {
@@ -562,15 +571,73 @@ function ProjBudget() {
       setBudgetAmount(amount);
       setBudgetCurrency(budgetCurrencyForInput);
       setIsBudgetModalOpen(false);
-      showToast("success", "Budget updated successfully");
+      showToast(
+        "success",
+        isEditingBudget ? "Budget updated successfully" : "Budget added successfully"
+      );
     } catch (error) {
       console.error("Error updating budget:", error);
       setError("Failed to update budget");
-      showToast("error", "Failed to update budget");
+      showToast(
+        "error",
+        `Failed to ${isEditingBudget ? "update" : "add"} budget. Please try again.`
+      );
     } finally {
       setIsBudgetButtonDisabled(false);
     }
   };
+
+  const renderBudgetStatus = () => {
+    const totalCostNum = parseFloat(formattedTotalCost) || 0;
+    const budgetAmountNum = parseFloat(projectBudget?.budget?.amount) || 0;
+    const currencyCode = projectBudget?.budget?.currency?.currencyCode || "PHP";
+
+    if (totalCostNum === 0 && budgetAmountNum === 0) {
+      return "No costs or budget added";
+    }
+
+    const totalCostDisplay = (
+      <>
+        Total Cost:{" "}
+        <strong>
+          {currencyCode} {formattedTotalCost}
+        </strong>
+      </>
+    );
+
+    const budgetDisplay =
+      budgetAmountNum > 0 ? (
+        <>
+          , Budget:{" "}
+          <strong>
+            {currencyCode} {formatNumber(budgetAmountNum)}
+          </strong>
+        </>
+      ) : (
+        ", No budget set"
+      );
+
+    return (
+      <>
+        {totalCostDisplay}
+        {budgetDisplay}
+      </>
+    );
+  };
+
+  // Then in your JSX:
+  <span
+    className="priceSum budget"
+    style={{
+      backgroundColor: getBudgetColor(
+        projectBudget?.budget?.amount,
+        formattedTotalCost,
+        isDarkMode
+      ),
+    }}
+  >
+    {renderBudgetStatus()}
+  </span>;
 
   return (
     <ProjectSpace
@@ -591,47 +658,7 @@ function ProjBudget() {
               backgroundColor: getBudgetColor(projectBudget.budget?.amount, totalCosts, isDarkMode),
             }}
           >
-            {(() => {
-              if (formattedTotalCost === "0.00" && projectBudget.budget?.amount === 0) {
-                return <>No cost and added budget</>;
-              } else if (formattedTotalCost === "0.00") {
-                return (
-                  <>
-                    Total Cost:{" "}
-                    <strong>
-                      {budgetCurrency?.currencySymbol || "₱"} {formattedTotalCost}{" "}
-                    </strong>
-                    , Budget:{" "}
-                    <strong>
-                      {budgetCurrency?.currencySymbol || "₱"} {formatNumber(budgetAmount)}
-                    </strong>
-                  </>
-                );
-              } else if (projectBudget.budget?.amount === 0) {
-                return (
-                  <>
-                    Total Cost:{" "}
-                    <strong>
-                      {budgetCurrency?.currencySymbol || "₱"} {formattedTotalCost}
-                    </strong>
-                    , No added budget
-                  </>
-                );
-              } else {
-                return (
-                  <>
-                    Total Cost:{" "}
-                    <strong>
-                      {budgetCurrency?.currencySymbol || "₱"} {formattedTotalCost}
-                    </strong>
-                    , Budget:{" "}
-                    <strong>
-                      {budgetCurrency?.currencySymbol || "₱"} {formatNumber(budgetAmount)}
-                    </strong>
-                  </>
-                );
-              }
-            })()}
+            {renderBudgetStatus()}
           </span>
 
           {isManagerContentManagerContributor &&
@@ -738,7 +765,10 @@ function ProjBudget() {
                                   className="SubtitlePrice"
                                   style={{ backgroundColor: "transparent" }}
                                 >
-                                  Php {item.cost.amount?.toFixed(2)}
+                                  {item.cost?.currency?.currencyCode ||
+                                    budgetCurrency?.currencyCode ||
+                                    "₱"}{" "}
+                                  {item.cost?.amount?.toFixed(2)}
                                 </span>
                               </div>
                             </div>

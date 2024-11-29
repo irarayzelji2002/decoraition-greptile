@@ -32,11 +32,12 @@ import {
   dialogContentStyles,
   dialogActionsStyles,
 } from "../../components/RenameModal";
+import { GradientCircularLoading } from "../../components/ManageAccessModal";
 
 const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title }) => {
   const navigate = useNavigate();
   const designLinkRef = useRef(null);
-  const { user, userDoc, designs, designVersions } = useSharedProps();
+  const { user, users, userDoc, designs, designVersions } = useSharedProps();
   const [selectedDesignVersionId, setSelectedDesignVersionId] = useState("");
   const [selectedDesignVersionDetails, setSelectedVersionDetails] = useState({});
   const [versionDetails, setVersionDetails] = useState([]);
@@ -46,6 +47,8 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
   const [viewingImage, setViewingImage] = useState(0);
   const [openConfirmRestoreModal, setOpenConfirmRestoreModal] = useState(false);
   const [isRestoreButttonDisabled, setIsRestoreButtonDisabled] = useState(false);
+  const [isMakeACopyButtonDisabled, setIsMakeACopyButtonDisabled] = useState(false);
+  const [isLoading, setIsLoading] = useState(true);
 
   const handleSelectVersion = (e, versionId) => {
     if (e) e.stopPropagation();
@@ -79,7 +82,7 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
     }
   };
 
-  // Restore utton function
+  // Restore button function
   const onConfirmRestore = async () => {
     try {
       setIsRestoreButtonDisabled(true);
@@ -96,20 +99,26 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
             : ""
         }`
       );
-      handleClose();
-    } catch (error) {
-      console.error("Error restoring design:", error);
     } finally {
+      handleClose();
       setIsRestoreButtonDisabled(false);
     }
   };
 
-  // Function call
+  // Restore function call
   const handleRestore = async (design, designVersionId) => {
-    if (!designVersionId) {
-      return { success: false, message: "Select a version to restore" };
+    if (!design?.id || !designVersionId) {
+      return {
+        success: false,
+        message: "Invalid design or version",
+      };
     }
     try {
+      console.log("Restoring version:", {
+        designId: design.id,
+        versionId: designVersionId,
+        user,
+      });
       const result = await handleRestoreDesignVersion(design, designVersionId, user, userDoc);
       if (result.success) {
         return { success: true, message: "Design restored" };
@@ -122,97 +131,134 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
     }
   };
 
+  // Make a copy button function
+  const handleCopy = async () => {
+    try {
+      setIsMakeACopyButtonDisabled(true);
+      const result = await handleCopy(design, selectedDesignVersionId, false);
+      if (!result.success) {
+        showToast("error", result.message);
+        return;
+      }
+      showToast(
+        "success",
+        `Design copied${
+          selectedDesignVersionDetails.displayDate
+            ? ` from version on ${selectedDesignVersionDetails.displayDate}`
+            : ""
+        }`
+      );
+      // Open new tab with copied design
+      if (result.designId) {
+        window.open(`/design/${result.designId}`, "_blank");
+      }
+    } finally {
+      handleClose();
+      setIsMakeACopyButtonDisabled(false);
+    }
+  };
+
   useEffect(() => {
     const getVersionDetails = async () => {
-      if (design?.history && design.history.length > 0) {
-        // Get version details
-        const result = await fetchVersionDetails(design, user);
-        if (!result.success) {
-          console.error("Error:", result.message);
-          setSelectedDesignVersionId("");
-          setSelectedVersionDetails({});
-          setVersionDetails([]);
-          return;
-        }
-
-        // Create new array with modified versions instead of modifying in place
-        let versionDetails = result.versionDetails.map((version) => {
-          const displayDate = formatDateDetailComma(version.createdAt);
-          let restoredFromCreatedAt, restoredFromDisplayDate;
-          if (version.isRestored && version.isRestoredFrom?.versionId) {
-            const isRestoredFrom = result.versionDetails.find(
-              (v) => v.id === version.isRestoredFrom.versionId
-            );
-            if (isRestoredFrom) {
-              restoredFromCreatedAt = isRestoredFrom.createdAt;
-              restoredFromDisplayDate = formatDateDetailComma(restoredFromCreatedAt);
-            }
+      setIsLoading(true);
+      try {
+        if (design?.history && design.history.length > 0) {
+          // Get version details
+          const result = await fetchVersionDetails(design, user);
+          if (!result.success) {
+            console.error("Error:", result.message);
+            setSelectedDesignVersionId("");
+            setSelectedVersionDetails({});
+            setVersionDetails([]);
+            return;
           }
-          return {
-            ...version,
-            displayDate,
-            isRestoredFrom: {
-              designId: version.isRestoredFrom?.designId,
-              versionId: version.isRestoredFrom?.versionId,
-              createdAt: restoredFromCreatedAt,
-              displayDate: restoredFromDisplayDate,
-            },
-            imagesLink: version.images?.map((img) => img.link) || [],
-          };
-        });
 
-        // Reverse after mapping
-        versionDetails = versionDetails.reverse();
-        setVersionDetails(versionDetails);
-        console.log("versionDetails - versionDetails", versionDetails);
-
-        // Set latest version
-        const latestVersion = versionDetails[0];
-        if (latestVersion) {
-          setSelectedDesignVersionId(latestVersion.id);
-          setSelectedVersionDetails(latestVersion);
-        }
-        console.log("versionDetails - latestVersion", latestVersion);
-
-        // Get copied versions
-        const copiedVersionDetails = await Promise.all(
-          versionDetails.flatMap(async (version) => {
-            if (!version.copiedDesigns || version.copiedDesigns.length === 0) {
-              return [];
+          // Create new array with modified versions instead of modifying in place
+          let versionDetails = result.versionDetails.map((version) => {
+            const displayDate = formatDateDetailComma(version.createdAt);
+            let restoredFromCreatedAt, restoredFromDisplayDate;
+            if (version.isRestored && version.isRestoredFrom?.versionId) {
+              const isRestoredFrom = result.versionDetails.find(
+                (v) => v.id === version.isRestoredFrom.versionId
+              );
+              if (isRestoredFrom) {
+                restoredFromCreatedAt = isRestoredFrom.createdAt;
+                restoredFromDisplayDate = formatDateDetailComma(restoredFromCreatedAt);
+              }
             }
+            return {
+              ...version,
+              displayDate,
+              isRestoredFrom: {
+                designId: version.isRestoredFrom?.designId,
+                versionId: version.isRestoredFrom?.versionId,
+                createdAt: restoredFromCreatedAt,
+                displayDate: restoredFromDisplayDate,
+              },
+              imagesLink: version.images?.map((img) => img.link) || [],
+            };
+          });
 
-            return Promise.all(
-              version.copiedDesigns.map(async (copiedDesignId) => {
-                const copiedDesign = designs.find((d) => d.id === copiedDesignId);
-                if (!copiedDesign) return null;
+          // Reverse after mapping
+          versionDetails = versionDetails.reverse();
+          setVersionDetails(versionDetails);
+          console.log("versionDetails - versionDetails", versionDetails);
 
-                const latestVersionId = copiedDesign.history[copiedDesign.history.length - 1];
-                const copiedVersion = designVersions.find((v) => v.id === latestVersionId);
+          // Set latest version
+          const latestVersion = versionDetails[0];
+          if (latestVersion) {
+            setSelectedDesignVersionId(latestVersion.id);
+            setSelectedVersionDetails(latestVersion);
+          }
+          console.log("versionDetails - latestVersion", latestVersion);
 
-                if (!copiedVersion) return null;
+          // Get copied versions
+          const copiedVersionDetails = await Promise.all(
+            versionDetails.flatMap(async (version) => {
+              if (!version.copiedDesigns || version.copiedDesigns.length === 0) {
+                return [];
+              }
 
-                return {
-                  id: copiedVersion.id,
-                  description: copiedVersion.description,
-                  images: copiedVersion.images,
-                  createdAt: copiedVersion.createdAt,
-                  copiedDesigns: copiedVersion.copiedDesigns,
-                  isRestored: copiedVersion.isRestored,
-                  design: {
-                    id: copiedDesign.id,
-                    designName: copiedDesign.designName,
-                    owner: copiedDesign.owner,
-                  },
-                  copiedFrom: version.id,
-                  imagesLink: copiedVersion.images?.map((img) => img.link) || [],
-                  displayDate: formatDateDetailComma(copiedVersion.createdAt),
-                };
-              })
-            );
-          })
-        ).then((results) => results.flat().filter(Boolean));
-        setCopiedVersionDetails(copiedVersionDetails.reverse());
-        console.log("versionDetails - copiedVersionDetails", copiedVersionDetails.reverse());
+              return Promise.all(
+                version.copiedDesigns.map(async (copiedDesignId) => {
+                  const copiedDesign = designs.find((d) => d.id === copiedDesignId);
+                  if (!copiedDesign) return null;
+
+                  const latestVersionId = copiedDesign.history[copiedDesign.history.length - 1];
+                  const copiedVersion = designVersions.find((v) => v.id === latestVersionId);
+
+                  if (!copiedVersion) return null;
+                  const ownerData = users.find((u) => u.id === copiedDesign.owner);
+                  const ownerUsername = `@${ownerData?.username}` || "Unknown User";
+
+                  return {
+                    id: copiedVersion.id,
+                    description: copiedVersion.description,
+                    images: copiedVersion.images,
+                    createdAt: copiedVersion.createdAt,
+                    copiedDesigns: copiedVersion.copiedDesigns,
+                    isRestored: copiedVersion.isRestored,
+                    design: {
+                      id: copiedDesign.id,
+                      designName: copiedDesign.designName,
+                      owner: copiedDesign.owner,
+                      ownerUsername: ownerUsername,
+                    },
+                    copiedFrom: version.id,
+                    imagesLink: copiedVersion.images?.map((img) => img.link) || [],
+                    displayDate: formatDateDetailComma(copiedVersion.createdAt),
+                  };
+                })
+              );
+            })
+          ).then((results) => results.flat().filter(Boolean));
+          setCopiedVersionDetails(copiedVersionDetails.reverse());
+          console.log("versionDetails - copiedVersionDetails", copiedVersionDetails.reverse());
+        }
+      } catch (error) {
+        console.error("Error fetching version details:", error);
+      } finally {
+        setIsLoading(false);
       }
     };
 
@@ -291,167 +337,206 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
           </Toolbar>
         </AppBar>
         <div className="historyContainer">
-          {versionDetails.map((version) => (
-            <div key={version.id}>
-              <div
-                className="versionItem"
-                style={{ marginLeft: copiedVersionDetails.length > 0 ? "-220px" : "0px" }}
-              >
-                {/* Original Version */}
-                <div className="origDesign">
+          {!isLoading ? (
+            <>
+              {versionDetails.map((version) => (
+                <div key={version.id}>
                   <div
-                    onClick={(e) => handleSelectVersion(e, version.id)}
-                    style={{ marginBottom: "11px" }}
+                    className="versionItem"
+                    style={{ marginLeft: copiedVersionDetails.length > 0 ? "-220px" : "0px" }}
                   >
-                    <div
-                      className="selectVersionImgContainer"
-                      style={{
-                        background:
-                          selectedDesignVersionId === version.id
-                            ? "var(--gradientButton)"
-                            : "transparent",
-                      }}
-                    >
-                      <img src={version.imagesLink[0]} alt="" />
+                    {/* Original Version */}
+                    <div className="origDesign">
+                      <div
+                        onClick={(e) => handleSelectVersion(e, version.id)}
+                        style={{ marginBottom: "11px" }}
+                      >
+                        <div
+                          className="selectVersionImgContainer"
+                          style={{
+                            background:
+                              selectedDesignVersionId === version.id
+                                ? "var(--gradientButton)"
+                                : "transparent",
+                          }}
+                        >
+                          <img src={version.imagesLink[0]} alt="" />
+                        </div>
+                        <div className="versionTitle">{version.displayDate}</div>
+                        {version.isRestored && (
+                          <div className="copyByTitle">
+                            <span>{`Restored from version ${
+                              version.isRestoredFrom.displayDate?.includes(",") ? "at" : ""
+                            }`}</span>
+                            <span>{version.isRestoredFrom.displayDate}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="versionTitle">{version.displayDate}</div>
-                    {version.isRestored && (
-                      <div className="copyByTitle">
-                        <span>{`Restored from version ${
-                          version.isRestoredFrom.displayDate?.includes(",") ? "at" : ""
-                        }`}</span>
-                        <span>{version.isRestoredFrom.displayDate}</span>
+
+                    {/* Copied Versions */}
+                    {version.copiedDesigns.length > 0 && (
+                      <div
+                        className={`${
+                          versionDetails.indexOf(version) === versionDetails.length - 1
+                            ? "conditionalPadding"
+                            : ""
+                        } copiedDesigns`}
+                      >
+                        {/* Horizontal line */}
+                        <div className="versionLine horizontal"></div>
+
+                        {copiedVersionDetails
+                          .filter((cv) => cv.copiedFrom === version.id)
+                          .map((copiedVersion, index, array) => (
+                            <React.Fragment key={copiedVersion.id}>
+                              <div key={copiedVersion.id} className="copiedVersionItem">
+                                <div onClick={(e) => handleSelectVersion(e, copiedVersion.id)}>
+                                  <div
+                                    className="selectVersionImgContainer"
+                                    style={{
+                                      background:
+                                        selectedDesignVersionId === copiedVersion.id
+                                          ? "var(--gradientButton)"
+                                          : "transparent",
+                                    }}
+                                  >
+                                    <img src={copiedVersion.imagesLink[0]} alt="" />
+                                  </div>
+                                  <div className="versionTitle">{copiedVersion.displayDate}</div>
+                                  <div className="copiedDesignTitle">
+                                    {copiedVersion.design.designName}
+                                  </div>
+                                  <div className="copyByTitle">
+                                    Copied by {copiedVersion.design.ownerUsername}
+                                  </div>
+                                </div>
+                              </div>
+                              {/* Show vertical line except for the last copiedVersion item */}
+                              {index < array.length - 1 && (
+                                <>
+                                  <div className="versionLine vertical copy"></div>
+                                  <div className="versionLine horizontal copy"></div>
+                                </>
+                              )}
+                            </React.Fragment>
+                          ))}
+                      </div>
+                    )}
+
+                    {/* Vertical lines for Original Version */}
+                    {versionDetails.indexOf(version) !== versionDetails.length - 1 && (
+                      <div style={{ marginTop: version.isRestored ? "0px" : "-43px" }}>
+                        {(version.copiedDesigns.length > 0 ||
+                          versionDetails.indexOf(version) !== versionDetails.length - 1) &&
+                          version.copiedDesigns.map((copiedDesign, index) => (
+                            <div
+                              key={copiedDesign.id}
+                              className="versionLine vertical orig"
+                              style={{
+                                height:
+                                  index > 0 && version.isRestored
+                                    ? "204px"
+                                    : index > 0 && !version.isRestored
+                                    ? "220.5px"
+                                    : version.isRestored
+                                    ? "0px"
+                                    : "10px",
+                              }}
+                            ></div>
+                          ))}
+                        {version.copiedDesigns.length > 0 && (
+                          <div className="origDesignExtraVertLine"></div>
+                        )}
+                        {(version.copiedDesigns.length > 0 ||
+                          versionDetails.indexOf(version) !== versionDetails.length - 1) && (
+                          <div className="versionLine vertical orig1"></div>
+                        )}
                       </div>
                     )}
                   </div>
                 </div>
-
-                {/* Copied Versions */}
-                {version.copiedDesigns.length > 0 && (
-                  <div
-                    className={`${
-                      versionDetails.indexOf(version) === versionDetails.length - 1
-                        ? "conditionalPadding"
-                        : ""
-                    } copiedDesigns`}
-                  >
-                    {/* Horizontal line */}
-                    <div className="versionLine horizontal"></div>
-
-                    {copiedVersionDetails
-                      .filter((cv) => cv.copiedFrom === version.id)
-                      .map((copiedVersion, index, array) => (
-                        <React.Fragment key={copiedVersion.id}>
-                          <div key={copiedVersion.id} className="copiedVersionItem">
-                            <div onClick={(e) => handleSelectVersion(e, copiedVersion.id)}>
-                              <div
-                                className="selectVersionImgContainer"
-                                style={{
-                                  background:
-                                    selectedDesignVersionId === copiedVersion.id
-                                      ? "var(--gradientButton)"
-                                      : "transparent",
-                                }}
-                              >
-                                <img src={copiedVersion.imagesLink[0]} alt="" />
-                              </div>
-                              <div className="versionTitle">{copiedVersion.displayDate}</div>
-                              <div className="copiedDesignTitle">
-                                {copiedVersion.design.designName}
-                              </div>
-                              <div className="copyByTitle">
-                                Copied by {copiedVersion.design.owner}
-                              </div>
-                            </div>
-                          </div>
-                          {/* Show vertical line except for the last copiedVersion item */}
-                          {index < array.length - 1 && (
-                            <>
-                              <div className="versionLine vertical copy"></div>
-                              <div className="versionLine horizontal copy"></div>
-                            </>
-                          )}
-                        </React.Fragment>
-                      ))}
-                  </div>
-                )}
-
-                {/* Vertical lines for Original Version */}
-                {versionDetails.indexOf(version) !== versionDetails.length - 1 && (
-                  <div style={{ marginTop: version.isRestored ? "0px" : "-43px" }}>
-                    {(version.copiedDesigns.length > 0 ||
-                      versionDetails.indexOf(version) !== versionDetails.length - 1) &&
-                      version.copiedDesigns.map((copiedDesign, index) => (
-                        <div
-                          key={copiedDesign.id}
-                          className="versionLine vertical orig"
-                          style={{
-                            height:
-                              index > 0 && version.isRestored
-                                ? "204px"
-                                : index > 0 && !version.isRestored
-                                ? "220.5px"
-                                : version.isRestored
-                                ? "0px"
-                                : "10px",
-                          }}
-                        ></div>
-                      ))}
-                    {version.copiedDesigns.length > 0 && (
-                      <div className="origDesignExtraVertLine"></div>
-                    )}
-                    {(version.copiedDesigns.length > 0 ||
-                      versionDetails.indexOf(version) !== versionDetails.length - 1) && (
-                      <div className="versionLine vertical orig1"></div>
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          ))}
+              ))}
+            </>
+          ) : (
+            <GradientCircularLoading />
+          )}
         </div>
         {/* Buttons */}
-        <Toolbar
-          sx={{
-            backgroundColor: "var(--bgMain)",
-            padding: "0px !important",
-            position: "fixed",
-            bottom: 0,
-            width: "inherit",
-          }}
-        >
-          <div className="versionButtonsDiv">
-            {isHistory && !isCopySelected ? (
-              <>
-                <Button
-                  variant="contained"
-                  onClick={(e) => {
-                    if (e) e.stopPropagation();
-                    setOpenViewModal(true);
-                    handleSelectVersion(e, selectedDesignVersionId);
-                    setViewingImage(0);
-                  }}
-                  sx={{
-                    background: "var(--gradientButton)", // Gradient background
-                    borderRadius: "20px", // Button border radius
-                    color: "var(--always-white)", // Button text color
-                    fontWeight: "bold",
-                    textTransform: "none",
-                    minWidth: "200px",
-                    "&:hover": {
-                      background: "var(--gradientButtonHover)", // Reverse gradient on hover
-                    },
-                  }}
-                >
-                  View
-                </Button>
-                {selectedDesignVersionId !== versionDetails[0]?.id && (
+        {!isLoading && (
+          <Toolbar
+            sx={{
+              backgroundColor: "var(--bgMain)",
+              padding: "0px !important",
+              position: "fixed",
+              bottom: 0,
+              width: "inherit",
+            }}
+          >
+            <div className="versionButtonsDiv">
+              {isHistory && !isCopySelected ? (
+                <>
                   <Button
                     variant="contained"
                     onClick={(e) => {
                       if (e) e.stopPropagation();
-                      setOpenConfirmRestoreModal(true);
+                      setOpenViewModal(true);
                       handleSelectVersion(e, selectedDesignVersionId);
+                      setViewingImage(0);
+                    }}
+                    sx={{
+                      ...gradientButtonStyles,
+                      minWidth: "200px",
+                    }}
+                  >
+                    View
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={(e) => {
+                      if (e) e.stopPropagation();
+                      setOpenViewModal(true);
+                      handleCopy(e, selectedDesignVersionId);
+                    }}
+                    sx={{
+                      ...gradientButtonStyles,
+                      minWidth: "200px",
+                      opacity: isMakeACopyButtonDisabled ? "0.5" : "1",
+                      cursor: isMakeACopyButtonDisabled ? "default" : "pointer",
+                      "&:hover": {
+                        backgroundImage:
+                          !isMakeACopyButtonDisabled && !isLoading && "var(--gradientButtonHover)",
+                      },
+                    }}
+                  >
+                    Make a copy
+                  </Button>
+                  {selectedDesignVersionId !== versionDetails[0]?.id && (
+                    <Button
+                      variant="contained"
+                      onClick={(e) => {
+                        if (e) e.stopPropagation();
+                        setOpenConfirmRestoreModal(true);
+                        handleSelectVersion(e, selectedDesignVersionId);
+                      }}
+                      sx={{
+                        ...gradientButtonStyles,
+                        minWidth: "200px",
+                      }}
+                    >
+                      Restore
+                    </Button>
+                  )}
+                </>
+              ) : isHistory && isCopySelected ? (
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={(e) => {
+                      if (e) e.stopPropagation();
+                      setOpenViewModal(true);
+                      handleSelectVersion(e, selectedDesignVersionId);
+                      setViewingImage(0);
                     }}
                     sx={{
                       background: "var(--gradientButton)", // Gradient background
@@ -465,118 +550,94 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
                       },
                     }}
                   >
-                    Restore
+                    View
                   </Button>
-                )}
-              </>
-            ) : isHistory && isCopySelected ? (
-              <>
-                <Button
-                  variant="contained"
-                  onClick={(e) => {
-                    if (e) e.stopPropagation();
-                    setOpenViewModal(true);
-                    handleSelectVersion(e, selectedDesignVersionId);
-                    setViewingImage(0);
-                  }}
-                  sx={{
-                    background: "var(--gradientButton)", // Gradient background
-                    borderRadius: "20px", // Button border radius
-                    color: "var(--always-white)", // Button text color
-                    fontWeight: "bold",
-                    textTransform: "none",
-                    minWidth: "200px",
-                    "&:hover": {
-                      background: "var(--gradientButtonHover)", // Reverse gradient on hover
-                    },
-                  }}
-                >
-                  View
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={(e) => {
-                    if (e) e.stopPropagation();
-                    if (designLinkRef.current && !designLinkRef.current.contains(e.target)) {
-                      designLinkRef.current.click();
-                    }
-                  }}
-                  sx={{
-                    background: "var(--gradientButton)", // Gradient background
-                    borderRadius: "20px", // Button border radius
-                    color: "var(--color-white)", // Button text color
-                    fontWeight: "bold",
-                    textTransform: "none",
-                    minWidth: "200px",
-                    "&:hover": {
-                      background: "var(--gradientButtonHover)", // Reverse gradient on hover
-                    },
-                  }}
-                >
-                  Go to design
-                  <a
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    href={`/design/${selectedDesignVersionDetails.design?.id}`}
-                    ref={designLinkRef}
-                    style={{ display: "none" }}
+                  <Button
+                    variant="contained"
+                    onClick={(e) => {
+                      if (e) e.stopPropagation();
+                      if (designLinkRef.current && !designLinkRef.current.contains(e.target)) {
+                        designLinkRef.current.click();
+                      }
+                    }}
+                    sx={{
+                      background: "var(--gradientButton)", // Gradient background
+                      borderRadius: "20px", // Button border radius
+                      color: "var(--color-white)", // Button text color
+                      fontWeight: "bold",
+                      textTransform: "none",
+                      minWidth: "200px",
+                      "&:hover": {
+                        background: "var(--gradientButtonHover)", // Reverse gradient on hover
+                      },
+                    }}
                   >
-                    Hidden Link
-                  </a>
-                </Button>
-              </>
-            ) : (
-              <>
-                <Button
-                  variant="contained"
-                  onClick={(e) => {
-                    if (e) e.stopPropagation();
-                    handleSelect(selectedDesignVersionId);
-                    handleClose(e);
-                  }}
-                  sx={{
-                    background: "var(--gradientButton)", // Gradient background
-                    borderRadius: "20px", // Button border radius
-                    color: "var(--color-white)", // Button text color
-                    fontWeight: "bold",
-                    textTransform: "none",
-                    minWidth: "200px",
-                    "&:hover": {
-                      background: "var(--gradientButtonHover)", // Reverse gradient on hover
-                    },
-                  }}
-                >
-                  Select
-                </Button>
-                <Button
-                  variant="contained"
-                  onClick={(e) => handleClose(e)}
-                  sx={{
-                    color: "var(--color-white)",
-                    background: "transparent",
-                    border: "2px solid transparent",
-                    borderRadius: "20px",
-                    backgroundImage: "var(--lightGradient), var(--gradientButton)",
-                    backgroundOrigin: "border-box",
-                    backgroundClip: "padding-box, border-box",
-                    fontWeight: "bold",
-                    textTransform: "none",
-                    minWidth: "200px",
-                  }}
-                  onMouseOver={(e) =>
-                    (e.target.style.backgroundImage =
-                      "var(--lightGradient), var(--gradientButtonHover)")
-                  }
-                  onMouseOut={(e) =>
-                    (e.target.style.backgroundImage = "var(--lightGradient), var(--gradientButton)")
-                  }
-                >
-                  Cancel
-                </Button>
-              </>
-            )}
-          </div>
-        </Toolbar>
+                    Go to design
+                    <a
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      href={`/design/${selectedDesignVersionDetails.design?.id}`}
+                      ref={designLinkRef}
+                      style={{ display: "none" }}
+                    >
+                      Hidden Link
+                    </a>
+                  </Button>
+                </>
+              ) : (
+                <>
+                  <Button
+                    variant="contained"
+                    onClick={(e) => {
+                      if (e) e.stopPropagation();
+                      handleSelect(selectedDesignVersionId);
+                      handleClose(e);
+                    }}
+                    sx={{
+                      background: "var(--gradientButton)", // Gradient background
+                      borderRadius: "20px", // Button border radius
+                      color: "var(--color-white)", // Button text color
+                      fontWeight: "bold",
+                      textTransform: "none",
+                      minWidth: "200px",
+                      "&:hover": {
+                        background: "var(--gradientButtonHover)", // Reverse gradient on hover
+                      },
+                    }}
+                  >
+                    Select
+                  </Button>
+                  <Button
+                    variant="contained"
+                    onClick={(e) => handleClose(e)}
+                    sx={{
+                      color: "var(--color-white)",
+                      background: "transparent",
+                      border: "2px solid transparent",
+                      borderRadius: "20px",
+                      backgroundImage: "var(--lightGradient), var(--gradientButton)",
+                      backgroundOrigin: "border-box",
+                      backgroundClip: "padding-box, border-box",
+                      fontWeight: "bold",
+                      textTransform: "none",
+                      minWidth: "200px",
+                    }}
+                    onMouseOver={(e) =>
+                      (e.target.style.backgroundImage =
+                        "var(--lightGradient), var(--gradientButtonHover)")
+                    }
+                    onMouseOut={(e) =>
+                      (e.target.style.backgroundImage =
+                        "var(--lightGradient), var(--gradientButton)")
+                    }
+                  >
+                    Cancel
+                  </Button>
+                </>
+              )}
+            </div>
+          </Toolbar>
+        )}
       </Drawer>
       {openViewModal && (
         <VersionOverviewModal
@@ -595,6 +656,7 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
           selectedDesignVersionDetails={selectedDesignVersionDetails}
           handleRestore={onConfirmRestore}
           selectedDesignVersionId={selectedDesignVersionId}
+          isRestoreButttonDisabled={isRestoreButttonDisabled}
         />
       )}
     </>

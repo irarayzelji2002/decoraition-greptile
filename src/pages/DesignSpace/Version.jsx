@@ -277,10 +277,9 @@ const Version = ({ isDrawerOpen, onClose, design, isHistory, handleSelect, title
       }
       return;
     }
-    if (isDrawerOpen) {
-      getVersionDetails();
-    }
-  }, [isDrawerOpen, design, designVersions, designs, user]);
+    // if (isDrawerOpen)
+    getVersionDetails();
+  }, [isDrawerOpen, design, designVersions, designs, user, users]);
 
   useEffect(() => {
     console.log("openConfirmRestoreModal", openConfirmRestoreModal);

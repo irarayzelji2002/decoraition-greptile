@@ -25,6 +25,9 @@ import {
   AddIconGradient,
   EditIconSmallGradient,
   DeleteIconGradient,
+  AddIcon,
+  DeleteIconWhite,
+  EditIconWhite,
 } from "../../components/svg/DefaultMenuIcons";
 import {
   TextField,
@@ -45,6 +48,8 @@ import {
 import CurrencySelect from "../../components/CurrencySelect";
 import { gradientButtonStyles, outlinedButtonStyles } from "../DesignSpace/PromptBar";
 import { textFieldInputProps } from "../DesignSpace/DesignSettings";
+import { AddBudget } from "../DesignSpace/svg/AddImage";
+import { getAllISOCodes, getAllInfoByISO } from "iso-country-currency";
 
 const getPHCurrency = () => {
   let currency = {
@@ -106,19 +111,85 @@ function ProjBudget() {
   const [currencyDetails, setCurrencyDetails] = useState([]);
   const [totalCosts, setTotalCosts] = useState({});
 
+  // Currency Functions
+  const isoToFlagEmoji = (isoCode) => {
+    return isoCode
+      .toUpperCase() // Ensure uppercase
+      .replace(
+        /./g,
+        (char) => String.fromCodePoint(127397 + char.charCodeAt(0)) // Offset to flag Unicode range
+      );
+  };
+
+  const getCurrencyData = () => {
+    const allISO = getAllISOCodes(); // Returns an array of objects, not just ISO codes
+
+    const currencyDetails = allISO.map((country) => {
+      const countryInfo = getAllInfoByISO(country.iso); // Pass the ISO code string
+      const currencyCode = countryInfo?.currency || country.currency;
+      const currencyName = countryInfo?.countryName || currencyCode;
+      const currencySymbol = countryInfo?.symbol || currencyCode;
+      return {
+        currencyCode,
+        flagEmoji: isoToFlagEmoji(country.iso), // Alpha-2 ISO code for FlagIcon
+        currencyName,
+        currencySymbol,
+        countryISO: country.iso,
+      };
+    });
+
+    return currencyDetails;
+  };
+
   const toggleMenu = () => {
     setMenuOpen(!menuOpen);
   };
 
+  // Modify the toggleBudgetModal function to ensure proper data population
   const toggleBudgetModal = (opening, editing) => {
     setMenuOpen(false);
-    if (opening && editing) setIsEditingBudget(true);
-    else setIsEditingBudget(false);
-    if (!opening) {
-      setBudgetAmountForInput(budgetAmount);
-      setBudgetCurrencyForInput(budgetCurrency);
+    if (opening) {
+      if (editing) {
+        setIsEditingBudget(true);
+        // Set current budget values when editing
+        setBudgetAmountForInput(projectBudget?.budget?.amount?.toString() || "");
+        setBudgetCurrencyForInput(projectBudget?.budget?.currency || getPHCurrency());
+      } else {
+        setIsEditingBudget(false);
+        // Set default values when adding new
+        setBudgetAmountForInput("");
+        setBudgetCurrencyForInput(getPHCurrency());
+      }
+      setError("");
+    } else {
+      // Reset to current values when closing
+      setBudgetAmountForInput(projectBudget?.budget?.amount?.toString() || "");
+      setBudgetCurrencyForInput(projectBudget?.budget?.currency || getPHCurrency());
     }
     setIsBudgetModalOpen(!isBudgetModalOpen);
+  };
+
+  // Add a useEffect to handle initial budget data
+  useEffect(() => {
+    if (projectBudget?.budget) {
+      setBudgetAmount(projectBudget.budget.amount);
+      setBudgetCurrency(projectBudget.budget.currency || getPHCurrency());
+    }
+  }, [projectBudget]);
+
+  // Add validation before opening modal
+  const handleOpenBudgetModal = (editing) => {
+    if (!projectId) {
+      showToast("error", "Project ID is required");
+      return;
+    }
+
+    if (editing && !projectBudget?.budget) {
+      showToast("error", "No budget data found to edit");
+      return;
+    }
+
+    toggleBudgetModal(true, editing);
   };
 
   // Get project
@@ -323,7 +394,7 @@ function ProjBudget() {
         user
       );
       if (response.success) {
-        showToast("success", "Budget added successfully");
+        if (!isEditingBudget) showToast("success", "Budget added successfully");
         setIsBudgetModalOpen(false);
         setProjectBudget({ amount: parseFloat(budgetAmount), currency: budgetCurrency });
       } else {
@@ -331,7 +402,7 @@ function ProjBudget() {
       }
     } catch (error) {
       console.error("Error adding budget:", error);
-      showToast("error", "Failed to add budget");
+      if (!isEditingBudget) showToast("error", "Failed to add budget");
     }
     setIsBudgetButtonDisabled(false);
     setIsConfirmRemoveBudgetBtnDisabled(false);
@@ -389,6 +460,118 @@ function ProjBudget() {
     setFormattedTotalCost(totalCostSum.toFixed(2));
   }, [designs, designBudgetItems]);
 
+  const getBudgetColor = (budgetAmount, totalCost, isDarkMode) => {
+    if (budgetAmount === 0) {
+      return isDarkMode ? "var(--inputBg)" : "var(--bright-grey)"; // no budget
+    } else if (totalCost <= budgetAmount) {
+      return "var(--green)"; // within budget
+    } else {
+      return "var(--red)"; // over budget
+    }
+  };
+
+  // Add this useEffect to compute total costs whenever designBudgetItems changes
+  useEffect(() => {
+    const computeTotalCosts = () => {
+      const newTotalCosts = {};
+      let projectTotal = 0;
+
+      for (const designId in designBudgetItems) {
+        const items = designBudgetItems[designId];
+        if (!items) continue;
+
+        const designTotal = items
+          .filter((item) => item.includedInTotal !== false)
+          .reduce((sum, item) => {
+            return sum + parseFloat(item.cost?.amount || 0) * (item.quantity || 1);
+          }, 0);
+
+        newTotalCosts[designId] = designTotal;
+        projectTotal += designTotal;
+      }
+
+      setTotalCosts(newTotalCosts);
+      setFormattedTotalCost(
+        new Intl.NumberFormat("en-US", {
+          style: "decimal",
+          minimumFractionDigits: 2,
+          maximumFractionDigits: 2,
+        }).format(projectTotal)
+      );
+    };
+
+    computeTotalCosts();
+  }, [designBudgetItems]);
+
+  // Add this useEffect to fetch project budget and update in real-time
+  useEffect(() => {
+    const fetchBudgetData = async () => {
+      if (projectId) {
+        try {
+          const budgetData = await fetchProjectBudget(projectId);
+          setProjectBudget(budgetData);
+          if (budgetData?.budget) {
+            setBudgetAmount(budgetData.budget.amount);
+            setBudgetCurrency(budgetData.budget.currency || getPHCurrency());
+          }
+        } catch (error) {
+          console.error("Error fetching budget:", error);
+          showToast("error", "Failed to fetch budget data");
+        }
+      }
+    };
+
+    fetchBudgetData();
+  }, [projectId]);
+
+  // Add this useEffect to update budget amount and currency when projectBudget changes
+  useEffect(() => {
+    if (projectBudget?.budget) {
+      setBudgetAmount(projectBudget.budget.amount);
+      setBudgetCurrency(projectBudget.budget.currency || getPHCurrency());
+      setBudgetAmountForInput(projectBudget.budget.amount.toString());
+      setBudgetCurrencyForInput(projectBudget.budget.currency || getPHCurrency());
+    }
+  }, [projectBudget]);
+
+  // Add a function to handle budget updates
+  const handleBudgetUpdate = async () => {
+    setIsBudgetButtonDisabled(true);
+    try {
+      const amount = parseFloat(budgetAmountForInput);
+      if (isNaN(amount)) {
+        setError("Please enter a valid amount");
+        setIsBudgetButtonDisabled(false);
+        return;
+      }
+
+      await updateProjectBudget(projectId, {
+        amount: amount,
+        currency: budgetCurrencyForInput,
+      });
+
+      // Update local state
+      setProjectBudget((prev) => ({
+        ...prev,
+        budget: {
+          amount: amount,
+          currency: budgetCurrencyForInput,
+        },
+      }));
+
+      setBudgetAmount(amount);
+      setBudgetCurrency(budgetCurrencyForInput);
+      setIsBudgetModalOpen(false);
+      showToast("success", "Budget updated successfully");
+    } catch (error) {
+      console.error("Error updating budget:", error);
+      setError("Failed to update budget");
+      showToast("error", "Failed to update budget");
+    } finally {
+      setIsBudgetButtonDisabled(false);
+    }
+  };
+
   return (
     <ProjectSpace
       project={project}
@@ -401,79 +584,90 @@ function ProjBudget() {
       setChangeMode={setChangeMode}
     >
       <div className="budgetHolder">
-        <span
-          className="priceSum"
-          style={{
-            backgroundColor: "#397438",
-            marginBottom: "20px",
-          }}
-        >
-          {(() => {
-            if (formattedTotalCost === "0.00" && projectBudget.budget?.amount === 0) {
-              return <>No cost and added budget</>;
-            } else if (formattedTotalCost === "0.00") {
-              return (
-                <>
-                  Total Cost: <strong>{formattedTotalCost}</strong>, Budget:{" "}
-                  <strong>
-                    {projectBudget.budget?.currency?.currencyCode}{" "}
-                    {formatNumber(projectBudget.budget?.amount)}
-                  </strong>
-                </>
-              );
-            } else if (projectBudget.budget?.amount === 0) {
-              return (
-                <>
-                  Total Cost: <strong>{formattedTotalCost}</strong>, No added budget
-                </>
-              );
-            } else {
-              return (
-                <>
-                  Total Cost: <strong>{formattedTotalCost}</strong>, Budget:{" "}
-                  <strong>
-                    {projectBudget.budget?.currency?.currencyCode}{" "}
-                    {formatNumber(projectBudget.budget?.amount)}
-                  </strong>
-                </>
-              );
-            }
-          })()}
-        </span>
+        <div className="previewBudgetCont" style={{ marginBottom: "20px" }}>
+          <span
+            className="priceSum budget"
+            style={{
+              backgroundColor: getBudgetColor(projectBudget.budget?.amount, totalCosts, isDarkMode),
+            }}
+          >
+            {(() => {
+              if (formattedTotalCost === "0.00" && projectBudget.budget?.amount === 0) {
+                return <>No cost and added budget</>;
+              } else if (formattedTotalCost === "0.00") {
+                return (
+                  <>
+                    Total Cost:{" "}
+                    <strong>
+                      {budgetCurrency?.currencySymbol || "₱"} {formattedTotalCost}{" "}
+                    </strong>
+                    , Budget:{" "}
+                    <strong>
+                      {budgetCurrency?.currencySymbol || "₱"} {formatNumber(budgetAmount)}
+                    </strong>
+                  </>
+                );
+              } else if (projectBudget.budget?.amount === 0) {
+                return (
+                  <>
+                    Total Cost:{" "}
+                    <strong>
+                      {budgetCurrency?.currencySymbol || "₱"} {formattedTotalCost}
+                    </strong>
+                    , No added budget
+                  </>
+                );
+              } else {
+                return (
+                  <>
+                    Total Cost:{" "}
+                    <strong>
+                      {budgetCurrency?.currencySymbol || "₱"} {formattedTotalCost}
+                    </strong>
+                    , Budget:{" "}
+                    <strong>
+                      {budgetCurrency?.currencySymbol || "₱"} {formatNumber(budgetAmount)}
+                    </strong>
+                  </>
+                );
+              }
+            })()}
+          </span>
 
-        {isManagerContentManagerContributor &&
-          (changeMode === "Managing Content" ||
-            changeMode === "Managing" ||
-            changeMode === "Contributing") && (
-            <div style={{ display: "flex", gap: "5px" }}>
-              {projectBudget.budget?.amount > 0 ? (
-                <>
-                  <IconButton onClick={() => toggleBudgetModal(true, true)} sx={iconButtonStyles}>
-                    <EditIconSmallGradient />
+          {isManagerContentManagerContributor &&
+            (changeMode === "Managing Content" ||
+              changeMode === "Managing" ||
+              changeMode === "Contributing") && (
+              <div style={{ display: "flex", gap: "5px" }}>
+                {projectBudget?.budget?.amount > 0 ? (
+                  <>
+                    <IconButton onClick={() => handleOpenBudgetModal(true)} sx={iconButtonStyles}>
+                      <EditIconSmallGradient />
+                    </IconButton>
+
+                    {isManagerContentManager &&
+                      (changeMode === "Managing Content" || changeMode === "Managing") && (
+                        <IconButton
+                          onClick={() => {
+                            setIsRemoveBudgetModalOpen(true);
+                            setMenuOpen(false);
+                          }}
+                          sx={iconButtonStyles}
+                        >
+                          <DeleteIconGradient />
+                        </IconButton>
+                      )}
+                  </>
+                ) : (
+                  <IconButton onClick={() => handleOpenBudgetModal(false)} sx={iconButtonStyles}>
+                    <AddIconGradient />
                   </IconButton>
+                )}
+              </div>
+            )}
+        </div>
 
-                  {isManagerContentManager &&
-                    (changeMode === "Managing Content" || changeMode === "Managing") && (
-                      <IconButton
-                        onClick={() => {
-                          setIsRemoveBudgetModalOpen(true);
-                          setMenuOpen(false);
-                        }}
-                        sx={iconButtonStyles}
-                      >
-                        <DeleteIconGradient />
-                      </IconButton>
-                    )}
-                </>
-              ) : (
-                <IconButton onClick={() => toggleBudgetModal(true, false)} sx={iconButtonStyles}>
-                  <AddIconGradient />
-                </IconButton>
-              )}
-            </div>
-          )}
-
-        <div style={{ marginBottom: "10%" }}>
+        <div className="allBudgetsCont">
           {loading ? (
             <Loading />
           ) : designs.length > 0 ? (
@@ -484,62 +678,85 @@ function ProjBudget() {
               );
 
               return (
-                <div className="sectionBudget" key={design.id}>
-                  <div>
+                <div className="sectionBudget" key={design.id} style={{ flexDirection: "column" }}>
+                  <div className="indivBudgetHeader">
                     <div style={{ display: "flex", flexDirection: "column" }}>
-                      <span className="SubtitleBudget" style={{ fontSize: "30px" }}>
+                      <span className="SubtitleBudget" style={{ fontSize: "1.4rem" }}>
                         {design.designName}
                       </span>
                       <span className="SubtitlePrice">Total Cost: Php {totalCosts[design.id]}</span>
                     </div>
-
-                    <div className="image-frame-project">
-                      {/* the design image goes here */}
-                      <img
-                        src={designImages[design.id] || "../../img/logoWhitebg.png"}
-                        alt={`design preview `}
-                        className="image-preview"
-                        style={{ marginRight: "10px" }}
-                      />
-                    </div>
-                  </div>
-                  <div className="itemList">
-                    {designBudgetItems[design.id]?.map((item) => (
-                      <div className="item" key={item.id}>
-                        {/* the item image goes here */}
-                        <img
-                          src={itemImages[item.id] || "../../img/logoWhitebg.png"}
-                          alt={`item preview `}
-                          style={{ width: "80px", height: "80px" }}
-                        />
-                        <div
-                          style={{
-                            marginLeft: "12px",
-                            display: "flex",
-                            flexDirection: "column",
-                          }}
-                        >
-                          <span className="SubtitleBudget">{item.itemName}</span>
-                          <span
-                            className="SubtitlePrice"
-                            style={{ backgroundColor: "transparent" }}
-                          >
-                            Php {item.cost.amount?.toFixed(2)}
-                          </span>
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                  <div style={{ height: "100%", marginLeft: "10px" }}>
-                    <div
+                    <IconButton
                       onClick={() =>
                         navigate(`/budget/${design.id}`, {
                           state: { designId: design.id },
                         })
                       }
-                      style={{ cursor: "pointer" }}
+                      sx={{
+                        ...iconButtonStyles,
+                        height: "45px",
+                        width: "45px",
+                        padding: "10px 4px 10px 10px",
+                        marginTop: "-6px",
+                      }}
                     >
                       <ExportIcon />
+                    </IconButton>
+                  </div>
+                  <div className="imageAndItems">
+                    <div className="image-frame-project">
+                      {/* Design Image */}
+                      <img
+                        src={designImages[design.id] || "/img/transparent-image.png"}
+                        alt={`design preview `}
+                        className="image-preview"
+                        style={{ marginRight: "10px" }}
+                      />
+                    </div>
+                    <div className="itemList">
+                      {designBudgetItems[design.id]?.length > 0 ? (
+                        designBudgetItems[design.id]?.map((item, index) => (
+                          <>
+                            <div className="item" key={item.id}>
+                              {/* Item Image */}
+                              <div className="item-frame-project">
+                                <img
+                                  src={itemImages[item.id] || "/img/transparent-image.png"}
+                                  alt={`item preview `}
+                                  style={{ width: "80px", height: "80px" }}
+                                />
+                              </div>
+                              <div
+                                style={{
+                                  marginLeft: "12px",
+                                  display: "flex",
+                                  flexDirection: "column",
+                                }}
+                              >
+                                <span className="SubtitleBudget">{item.itemName}</span>
+                                <span
+                                  className="SubtitlePrice"
+                                  style={{ backgroundColor: "transparent" }}
+                                >
+                                  Php {item.cost.amount?.toFixed(2)}
+                                </span>
+                              </div>
+                            </div>
+                            {index < designBudgetItems[design.id].length - 1 && (
+                              <div className="separator" style={{ margin: "5px 0px" }}></div>
+                            )}
+                          </>
+                        ))
+                      ) : (
+                        <div className="placeholderDiv">
+                          <img
+                            src={`/img/design-placeholder${!isDarkMode ? "-dark" : ""}.png`}
+                            style={{ width: "100px" }}
+                            alt=""
+                          />
+                          <p className="grey-text center">No items added yet.</p>
+                        </div>
+                      )}
                     </div>
                   </div>
                 </div>
@@ -551,11 +768,54 @@ function ProjBudget() {
                 src={`/img/design-placeholder${!isDarkMode ? "-dark" : ""}.png`}
                 alt="No designs yet"
               />
-              <p>No designs yet. Start creating.</p>
+              <p>No designs' budget yet.</p>
             </div>
           )}
         </div>
       </div>
+
+      {isManagerContentManagerContributor &&
+        (changeMode === "Managing Content" ||
+          changeMode === "Managing" ||
+          changeMode === "Contributing") && (
+          <div className="circle-button-container">
+            {menuOpen && (
+              <div className="small-buttons">
+                {projectBudget?.budget?.amount > 0 &&
+                  isManagerContentManager &&
+                  (changeMode === "Managing Content" || changeMode === "Managing") && (
+                    <div
+                      className="small-button-container budget"
+                      onClick={() => {
+                        setIsRemoveBudgetModalOpen(true);
+                        setMenuOpen(false);
+                      }}
+                    >
+                      <span className="small-button-text">Delete Budget</span>
+                      <div className="small-circle-button">
+                        <DeleteIconWhite />
+                      </div>
+                    </div>
+                  )}
+                <div
+                  className="small-button-container budget"
+                  onClick={() => handleOpenBudgetModal(projectBudget?.budget?.amount > 0)}
+                >
+                  <span className="small-button-text">
+                    {projectBudget?.budget?.amount > 0 ? "Edit the budget" : "Add a Budget"}
+                  </span>
+                  <div className="small-circle-button">
+                    {projectBudget?.budget?.amount > 0 ? <EditIconWhite /> : <AddBudget />}
+                  </div>
+                </div>
+              </div>
+            )}
+            <div className={`circle-button ${menuOpen ? "rotate" : ""} add`} onClick={toggleMenu}>
+              {menuOpen ? <AddIcon /> : <AddIcon />}
+            </div>
+          </div>
+        )}
+
       {isBudgetModalOpen && (
         <Dialog
           open={isBudgetModalOpen}
@@ -612,6 +872,8 @@ function ProjBudget() {
                       }
                     }}
                     sx={priceTextFieldStyles}
+                    error={!!error}
+                    helperText={error}
                     inputProps={{ ...textFieldInputProps, maxLength: 22 }}
                   />
                 </div>
@@ -627,7 +889,7 @@ function ProjBudget() {
             <Button
               fullWidth
               variant="contained"
-              onClick={() => handleUpdateBudget(budgetAmountForInput, budgetCurrencyForInput)}
+              onClick={handleBudgetUpdate}
               sx={{
                 ...gradientButtonStyles,
                 opacity: isBudgetButtonDisabled ? "0.5" : "1",

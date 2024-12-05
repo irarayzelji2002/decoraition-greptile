@@ -29,6 +29,9 @@ const authenticateUser = async (req, res, next) => {
 
 // User routes
 router.post("/register", userController.createUser);
+router.get("/confirm-email-verification/:token", userController.confirmEmailVerification);
+router.get("/check-email-verification/:email", userController.checkEmailVerification);
+router.delete("/delete-unverified-user/:token", userController.deleteUnverifiedUser);
 router.post("/login-with-oauth", userController.loginUserOAuth);
 router.get("/check-existing-email/:email", userController.checkExistingEmailForReg);
 router.get("/check-existing-username/:username", userController.checkExistingUsernameForReg);
@@ -95,6 +98,11 @@ router.post(
   "/design/budget/create-default-budget",
   authenticateUser,
   budgetController.createDefaultBudget
+);
+router.get(
+  "/design/budget/check/:designVersionId",
+  authenticateUser,
+  budgetController.checkBudgetExists
 );
 router.post(
   "/design/item/add-item",

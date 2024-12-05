@@ -5,10 +5,9 @@ import ExportIcon from "./svg/ExportIcon";
 import { showToast } from "../../functions/utils";
 import { useSharedProps } from "../../contexts/SharedPropsContext";
 import { iconButtonStyles } from "../Homepage/DrawerComponent";
-import Loading from "../../components/Loading";
+import axios from "axios";
 import deepEqual from "deep-equal";
 import { getAllISOCodes, getAllInfoByISO } from "iso-country-currency";
-import axios from "axios";
 import ProjectSpace from "./ProjectSpace";
 import {
   isManagerProject,
@@ -45,6 +44,7 @@ import CurrencySelect from "../../components/CurrencySelect";
 import { gradientButtonStyles, outlinedButtonStyles } from "../DesignSpace/PromptBar";
 import { textFieldInputProps } from "../DesignSpace/DesignSettings";
 import { AddBudget } from "../DesignSpace/svg/AddImage";
+import Loading from "../../components/Loading";
 import LoadingPage from "../../components/LoadingPage";
 
 const getPHCurrency = () => {
@@ -88,12 +88,12 @@ function ProjBudget() {
   const [project, setProject] = useState(null);
   const [projectBudget, setProjectBudget] = useState(null);
   const [projectDesigns, setProjectDesigns] = useState([]);
-  const [designBudgets, setDesignBudgets] = useState([]); // all design's budgets
-  const [designItems, setDesignItems] = useState([]); // all design's items
+  const [designBudgets, setDesignBudgets] = useState({}); // all design's budgets
+  const [designItems, setDesignItems] = useState({}); // all design's items
   const [totalCosts, setTotalCosts] = useState({});
   const [formattedTotalCost, setFormattedTotalCost] = useState("0.00");
-  const [designImages, setDesignImages] = useState([]);
-  const [itemImages, setItemImages] = useState([]);
+  const [designImages, setDesignImages] = useState({});
+  const [itemImages, setItemImages] = useState({});
   const [menuOpen, setMenuOpen] = useState(false);
 
   // Budget Modal States
@@ -164,7 +164,23 @@ function ProjBudget() {
       };
     });
 
-    return currencyDetails;
+    // Filter to only include USD and PHP
+    const filteredCurrencies = currencyDetails.filter(
+      (currency) => currency.currencyCode === "PHP" || currency.currencyCode === "USD"
+    );
+    return filteredCurrencies;
+  };
+
+  const getValidCurrency = (budgetCurrency) => {
+    // First check if currencyDetails is populated
+    if (!currencyDetails || currencyDetails.length === 0) {
+      return budgetCurrency ?? getPHCurrency();
+    }
+    // Then check if the budget currency is valid
+    const isValidCurrency = currencyDetails.some(
+      (currency) => currency.currencyCode === budgetCurrency?.currencyCode
+    );
+    return isValidCurrency ? budgetCurrency : getPHCurrency();
   };
 
   useEffect(() => {
@@ -193,9 +209,9 @@ function ProjBudget() {
           navigate("/homepage");
           return;
         }
-        if (Object.keys(project).length === 0 || !deepEqual(project, fetchedProject)) {
+        if (!project || Object.keys(project).length === 0 || !deepEqual(project, fetchedProject)) {
           setProject(fetchedProject);
-          console.log("current project:", fetchedProject);
+          console.log("proj budget - current project:", fetchedProject);
         }
       }
     }
@@ -211,6 +227,7 @@ function ProjBudget() {
       if (!fetchedProjectBudget) {
         console.error("Project budget not found");
       } else if (
+        !projectBudget ||
         Object.keys(projectBudget).length === 0 ||
         !deepEqual(projectBudget, fetchedProjectBudget)
       ) {
@@ -219,25 +236,38 @@ function ProjBudget() {
         setBudgetAmountForInput(fetchedProjectBudget.budget?.amount ?? 0);
         setBudgetCurrency(fetchedProjectBudget.budget?.currency ?? getPHCurrency());
         setBudgetCurrencyForInput(fetchedProjectBudget.budget?.currency ?? getPHCurrency());
+        console.log("proj budget - current project budget:", fetchedProjectBudget);
       }
     }
     setLoading(false);
-  }, [project, projectBudgets, userProjectBudgets]);
+  }, [project, projectBudgets, userProjectBudgets, getPHCurrency]);
+
+  useEffect(() => {
+    if (projectBudget && projectBudget?.budget?.currency)
+      setBudgetCurrencyForInput(getValidCurrency(projectBudget.budget?.currency));
+  }, [projectBudget, currencyDetails]);
 
   // Get project designs and their latest versions
   useEffect(() => {
     if (project?.designs?.length > 0 && userDesigns?.length > 0) {
-      const fetchedProjectDesigns = project.designs
-        .map((d) => {
-          return (
-            userDesigns.find((ud) => ud.id === d.designId) ||
-            designs.find((des) => des.id === d.designId)
-          );
-        })
-        .filter(Boolean);
-
-      if (projectDesigns.length === 0 || !deepEqual(projectDesigns, fetchedProjectDesigns)) {
-        setProjectDesigns(fetchedProjectDesigns);
+      // Get all designs that belong to this project
+      const projectDesigns = project.designs
+        .map(
+          (designId) =>
+            userDesigns.find((design) => design.id === designId) ||
+            designs.find((design) => design.id === designId)
+        )
+        .filter((design) => design); // Filter out any undefined values
+      let designsByLatest = [];
+      if (projectDesigns.length > 0) {
+        // Sort designs by latest modified
+        designsByLatest = [...projectDesigns].sort(
+          (a, b) => b.modifiedAt?.toMillis() - a.modifiedAt?.toMillis()
+        );
+      }
+      console.log("proj budget - fetched project designs", designsByLatest);
+      if (projectDesigns.length === 0 || !deepEqual(projectDesigns, designsByLatest)) {
+        setProjectDesigns(designsByLatest);
       }
     }
   }, [project, designs, userDesigns]);
@@ -277,7 +307,7 @@ function ProjBudget() {
                     (itemId) =>
                       userItems.find((i) => i.id === itemId) || items.find((i) => i.id === itemId)
                   )
-                  .filter(Boolean) || [];
+                  .filter((itemId) => itemId) || [];
 
               itemsMap[design.id] = budgetItems;
 
@@ -298,15 +328,19 @@ function ProjBudget() {
 
         if (designBudgets.length === 0 || !deepEqual(designBudgets, budgetsMap)) {
           setDesignBudgets(budgetsMap);
+          console.log("proj budget - design budgets:", budgetsMap);
         }
         if (designItems.length === 0 || !deepEqual(designItems, itemsMap)) {
           setDesignItems(itemsMap);
+          console.log("proj budget - design items:", itemsMap);
         }
         if (designImages.length === 0 || !deepEqual(designImages, designImagesMap)) {
           setDesignImages(designImagesMap);
+          console.log("proj budget - design images:", designImagesMap);
         }
         if (itemImages.length === 0 || !deepEqual(itemImages, itemImagesMap)) {
           setItemImages(itemImagesMap);
+          console.log("proj budget - item images:", itemImagesMap);
         }
       } catch (err) {
         console.error("Error fetching design budgets and items:", err);
@@ -324,6 +358,8 @@ function ProjBudget() {
 
   // Compute total costs using useMemo
   const { costs, totalCostSum } = useMemo(() => {
+    if (!projectDesigns || !designItems) return { costs: {}, totalCostSum: 0 };
+
     const costs = {};
     let totalCostSum = 0;
 
@@ -347,8 +383,10 @@ function ProjBudget() {
   useEffect(() => {
     if (!deepEqual(totalCosts, costs)) {
       setTotalCosts(costs);
+      console.log("proj budget - total costs:", costs);
     }
     setFormattedTotalCost(totalCostSum.toFixed(2));
+    console.log("proj budget - formatted total cost:", totalCostSum.toFixed(2));
   }, [costs, totalCostSum]);
 
   // Update budget amount and currency when project budget changes
@@ -357,29 +395,7 @@ function ProjBudget() {
     setBudgetCurrency(projectBudget?.budget?.currency ?? getPHCurrency());
   }, [projectBudget]);
 
-  // Compute total costs effect
-  useEffect(() => {
-    const computeTotalCosts = () => {
-      const costs = {};
-      let totalCostSum = 0;
-      for (const design of projectDesigns) {
-        const items = designItems[design.id] || [];
-        const designTotal = items.reduce((sum, item) => {
-          if (item.includedInTotal !== false) {
-            return sum + parseFloat(item.cost?.amount || 0) * (item.quantity || 1);
-          }
-          return sum;
-        }, 0);
-        costs[design.id] = designTotal.toFixed(2);
-        totalCostSum += designTotal;
-      }
-      setTotalCosts(costs);
-      setFormattedTotalCost(totalCostSum.toFixed(2));
-    };
-    computeTotalCosts();
-  }, [projectDesigns, designItems]);
-
-  // Budget valiadation
+  // Budget validation
   const handleValidation = (budgetAmount) => {
     let error = "";
     if (!budgetAmount || budgetAmount === 0) {
@@ -400,13 +416,18 @@ function ProjBudget() {
   // Add/Edit budget handler
   const handleUpdateBudget = async (budgetAmount, budgetCurrency) => {
     setIsBudgetButtonDisabled(true);
-    const error = handleValidation(budgetAmount);
-    if (error !== "") {
-      setError(error);
-      setIsBudgetButtonDisabled(false);
-      return;
-    } else {
-      setError("");
+    setIsConfirmRemoveBudgetBtnDisabled(true);
+
+    // Validation for adding/editing
+    if (!isRemoveBudgetModalOpen) {
+      const error = handleValidation(budgetAmount);
+      if (error !== "") {
+        setError(error);
+        setIsBudgetButtonDisabled(false);
+        return;
+      } else {
+        setError("");
+      }
     }
 
     try {
@@ -420,47 +441,26 @@ function ProjBudget() {
           headers: { Authorization: `Bearer ${await user.getIdToken()}` },
         }
       );
-
+      console.log("proj budget - response", response);
       if (response.status === 200) {
-        setIsBudgetModalOpen(false);
-        showToast(
-          "success",
-          isEditingBudget ? "Budget updated successfully" : "Budget added successfully"
-        );
+        if (isRemoveBudgetModalOpen) {
+          // deleting budget
+          setIsRemoveBudgetModalOpen(false);
+          showToast("success", "Budget deleted successfully");
+        } else {
+          // adding/editing
+          setIsBudgetModalOpen(false);
+          showToast(
+            "success",
+            isEditingBudget ? "Budget updated successfully" : "Budget added successfully"
+          );
+        }
       }
     } catch (error) {
       console.error("Error updating budget:", error);
       showToast("error", "Failed to update budget");
     } finally {
       setIsBudgetButtonDisabled(false);
-    }
-  };
-
-  // Remove budget handler
-  const handleRemoveBudget = async (budgetCurrency) => {
-    setBudgetAmount(0);
-    setIsConfirmRemoveBudgetBtnDisabled(true);
-    try {
-      const response = await axios.put(
-        `/api/project/${projectBudget.id}/update-budget`,
-        {
-          amount: parseFloat(budgetAmount),
-          currency: budgetCurrency,
-        },
-        {
-          headers: { Authorization: `Bearer ${await user.getIdToken()}` },
-        }
-      );
-      if (response.status === 200) {
-        showToast("success", "Budget deleted successfully");
-        setIsRemoveBudgetModalOpen(false);
-      } else {
-        throw new Error("Error deleting budget");
-      }
-    } catch (error) {
-      console.error("Error deleting budget:", error);
-      showToast("error", "Failed to delete budget");
-    } finally {
       setIsConfirmRemoveBudgetBtnDisabled(false);
     }
   };
@@ -474,13 +474,15 @@ function ProjBudget() {
 
   const toggleBudgetModal = (opening, editing) => {
     setMenuOpen(false);
-    if (opening && editing) setIsEditingBudget(true);
-    else setIsEditingBudget(false);
-    if (!opening) {
-      setBudgetAmountForInput(budgetAmount);
-      setBudgetCurrencyForInput(budgetCurrency);
+    if (opening) {
+      setIsEditingBudget(editing);
+      // Set input values when opening the modal
+      setBudgetAmountForInput(budgetAmountForInput || budgetAmount);
+      setBudgetCurrencyForInput(budgetCurrencyForInput || getValidCurrency(budgetCurrency));
+    } else {
+      setIsEditingBudget(false);
     }
-    setIsBudgetModalOpen(!isBudgetModalOpen);
+    setIsBudgetModalOpen(opening);
   };
 
   const getBudgetColor = (budgetAmount, totalCost, isDarkMode) => {
@@ -527,7 +529,11 @@ function ProjBudget() {
               } else if (formattedTotalCost === "0.00") {
                 return (
                   <>
-                    Total Cost: <strong>{formattedTotalCost}</strong>, Budget:{" "}
+                    Total Cost:{" "}
+                    <strong>
+                      {budgetCurrency?.currencyCode} {formattedTotalCost}
+                    </strong>
+                    , Budget:{" "}
                     <strong>
                       {budgetCurrency?.currencyCode} {formatNumber(budgetAmount)}
                     </strong>
@@ -536,13 +542,21 @@ function ProjBudget() {
               } else if (budgetAmount === 0) {
                 return (
                   <>
-                    Total Cost: <strong>{formattedTotalCost}</strong>, No added budget
+                    Total Cost:{" "}
+                    <strong>
+                      {budgetCurrency?.currencyCode} {formattedTotalCost}
+                    </strong>
+                    , No added budget
                   </>
                 );
               } else {
                 return (
                   <>
-                    Total Cost: <strong>{formattedTotalCost}</strong>, Budget:{" "}
+                    Total Cost:{" "}
+                    <strong>
+                      {budgetCurrency?.currencyCode} {formattedTotalCost}
+                    </strong>
+                    , Budget:{" "}
                     <strong>
                       {budgetCurrency?.currencyCode} {formatNumber(budgetAmount)}
                     </strong>
@@ -596,12 +610,70 @@ function ProjBudget() {
                     <span className="SubtitleBudget" style={{ fontSize: "1.4rem" }}>
                       {design.designName}
                     </span>
-                    <span className="SubtitlePrice">
-                      Total Cost: {budgetCurrency?.currencyCode} {totalCosts[design.id]}
-                    </span>
+                    {(() => {
+                      const designBudget = designBudgets[design.id];
+                      const designTotalCost = totalCosts[design.id] || "0.00";
+                      const designBudgetAmount = designBudget?.budget?.amount || 0;
+                      const designBudgetCurrency =
+                        designBudget?.budget?.currency?.currencyCode || "PHP";
+                      return (
+                        <span
+                          className="SubtitlePrice"
+                          style={{
+                            backgroundColor: getBudgetColor(
+                              designBudgetAmount,
+                              parseFloat(designTotalCost),
+                              isDarkMode
+                            ),
+                          }}
+                        >
+                          {(() => {
+                            if (designTotalCost === "0.00" && designBudgetAmount === 0) {
+                              return <>No cost and added budget</>;
+                            } else if (designTotalCost === "0.00") {
+                              return (
+                                <>
+                                  Total Cost:{" "}
+                                  <strong>
+                                    {designBudgetCurrency} {designTotalCost}
+                                  </strong>
+                                  , Budget:{" "}
+                                  <strong>
+                                    {designBudgetCurrency} {formatNumber(designBudgetAmount)}
+                                  </strong>
+                                </>
+                              );
+                            } else if (designBudgetAmount === 0) {
+                              return (
+                                <>
+                                  Total Cost:{" "}
+                                  <strong>
+                                    {designBudgetCurrency} {designTotalCost}
+                                  </strong>
+                                  , No added budget
+                                </>
+                              );
+                            } else {
+                              return (
+                                <>
+                                  Total Cost:{" "}
+                                  <strong>
+                                    {designBudgetCurrency} {designTotalCost}
+                                  </strong>
+                                  , Budget:{" "}
+                                  <strong>
+                                    {designBudgetCurrency} {formatNumber(designBudgetAmount)}
+                                  </strong>
+                                </>
+                              );
+                            }
+                          })()}
+                        </span>
+                      );
+                    })()}
                   </div>
                   <IconButton
-                    onClick={() => navigate(`/budget/${design.id}`)}
+                    onClick={() => window.open(`/budget/${design.id}`, "_blank")}
                     sx={{
                       ...iconButtonStyles,
                       height: "45px",
@@ -617,7 +689,7 @@ function ProjBudget() {
                   <div className="image-frame-project">
                     <img
                       src={designImages[design.id] || "/img/transparent-image.png"}
-                      alt={`design preview`}
+                      alt=""
                       className="image-preview"
                       style={{ marginRight: "10px" }}
                     />
@@ -630,7 +702,7 @@ function ProjBudget() {
                             <div className="item-frame-project">
                               <img
                                 src={itemImages[item.id] || "/img/transparent-image.png"}
-                                alt={`item preview`}
+                                alt=""
                                 style={{ width: "80px", height: "80px" }}
                               />
                             </div>
@@ -641,9 +713,11 @@ function ProjBudget() {
                                 flexDirection: "column",
                               }}
                             >
-                              <span className="SubtitleBudget">{item.itemName}</span>
+                              <span className="SubtitleBudget">
+                                {item.quantity + " " + item.itemName}
+                              </span>
                               <span
-                                className="SubtitlePrice"
+                                className="SubtitlePrice inItemList"
                                 style={{ backgroundColor: "transparent" }}
                               >
                                 {item.cost?.currency?.currencyCode}{" "}
@@ -659,7 +733,7 @@ function ProjBudget() {
                         </React.Fragment>
                       ))
                     ) : (
-                      <div className="placeholderDiv">
+                      <div className="placeholderDiv" style={{ margin: "10px 0px 20px 0px" }}>
                         <img
                           src={`/img/design-placeholder${!isDarkMode ? "-dark" : ""}.png`}
                           style={{ width: "100px" }}
@@ -869,7 +943,7 @@ function ProjBudget() {
             <Button
               fullWidth
               variant="contained"
-              onClick={() => handleRemoveBudget(budgetCurrency)}
+              onClick={() => handleUpdateBudget("0", budgetCurrencyForInput)}
               sx={{
                 ...gradientButtonStyles,
                 opacity: isConfirmRemoveBudgetBtnDisabled ? "0.5" : "1",

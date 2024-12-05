@@ -70,6 +70,7 @@ const DrawerComponent = ({
     showOptions: false,
     selectedId: null,
   });
+  const [isThemeToggleBtnDisabled, setIsThemeToggleBtnDisabled] = useState(false);
 
   // Sorting designs by latest modifiedAt
   useEffect(() => {
@@ -166,6 +167,15 @@ const DrawerComponent = ({
     }
   };
 
+  const handleThemeToggle = async () => {
+    setIsThemeToggleBtnDisabled(true);
+    try {
+      await toggleDarkMode(user, userDoc?.id, isDarkMode, setIsDarkMode);
+    } finally {
+      setIsThemeToggleBtnDisabled(false);
+    }
+  };
+
   useEffect(() => {
     console.log("showOptions:", optionsState.showOptions, "; selectedId:", optionsState.selectedId);
   }, [optionsState]);
@@ -218,8 +228,18 @@ const DrawerComponent = ({
           </IconButton>
           <h2 className="navName drawer">DecorAItion</h2>
           <IconButton
-            sx={{ ...iconButtonStyles, marginLeft: "auto" }}
-            onClick={() => toggleDarkMode(user, userDoc?.id, isDarkMode, setIsDarkMode)}
+            onClick={handleThemeToggle}
+            sx={{
+              ...iconButtonStyles,
+              marginLeft: "auto",
+              opacity: isThemeToggleBtnDisabled ? "0.5 !important" : "1 !important",
+              cursor: isThemeToggleBtnDisabled ? "default !important" : "pointer !important",
+              "&.Mui-disabled": {
+                opacity: 0.5,
+                color: "var(--color-white)",
+              },
+            }}
+            disabled={isThemeToggleBtnDisabled}
           >
             {isDarkMode ? <DarkModeIcon /> : <LightModeIcon />}
           </IconButton>
@@ -593,6 +613,11 @@ export const iconButtonStyles = {
   "& .MuiTouchRipple-root span": {
     backgroundColor: "var(--iconButtonActive) !important",
   },
+  "&.Mui-disabled": {
+    opacity: 0.5,
+    color: "var(--color-white)",
+    cursor: "default !important",
+  },
 };
 
 export const iconButtonStylesBrighter = {
@@ -603,6 +628,11 @@ export const iconButtonStylesBrighter = {
   },
   "& .MuiTouchRipple-root span": {
     backgroundColor: "var(--iconButtonActive2) !important",
+  },
+  "&.Mui-disabled": {
+    opacity: 0.5,
+    color: "var(--color-white)",
+    cursor: "default !important",
   },
 };
 

@@ -9,15 +9,19 @@ import { iconButtonStyles } from "../pages/Homepage/DrawerComponent";
 function DesignIcon({
   id,
   name,
-  onOpen,
+  onOpen = () => {},
+  onDelete = () => {},
   projectType = false,
+  createdAt = "",
   modifiedAt = "",
+  deletedAt = "",
   optionsState = {},
   design = {},
   setOptionsState = () => {},
   isProjectSpace = false,
   openConfirmRemove = () => {},
   isManagerContentManager = false,
+  isTrash = false,
 }) {
   const { designs, userDesigns, designVersions, userDesignVersions, projects, userProjects } =
     useSharedProps();
@@ -69,52 +73,86 @@ function DesignIcon({
     return fetchedLatestDesignVersion.images[0].link || "";
   };
 
+  const getTrashDesignImage = (designId) => {
+    if (!designId) {
+      console.log("No design ID provided");
+      return "";
+    }
+
+    // Get the design
+    const fetchedDesign =
+      userDesigns.find((design) => design.id === designId) ||
+      designs.find((design) => design.id === designId);
+    if (!fetchedDesign || !fetchedDesign.history || fetchedDesign.history.length === 0) {
+      return "";
+    }
+
+    // Get the latest designVersionId
+    const latestDesignVersionId = fetchedDesign.history[fetchedDesign.history.length - 1];
+    if (!latestDesignVersionId) {
+      return "";
+    }
+    const fetchedLatestDesignVersion =
+      userDesignVersions.find((designVer) => designVer.id === latestDesignVersionId) ||
+      designVersions.find((designVer) => designVer.id === latestDesignVersionId);
+    if (!fetchedLatestDesignVersion?.images?.length) {
+      return "";
+    }
+
+    // Return the first image's link from the fetched design version
+    return fetchedLatestDesignVersion.images[0].link || "";
+  };
+
   return (
     <div className={projectType ? "iconFrameAlt" : "iconFrame"}>
-      <HomepageOptions
-        isDesign={true}
-        id={id}
-        onOpen={onOpen}
-        optionsState={optionsState}
-        setOptionsState={setOptionsState}
-        clickedId={clickedId}
-        setClickedId={setClickedId}
-        toggleOptions={toggleOptions}
-        object={design}
-      />
-      {isProjectSpace && isManagerContentManager && (
-        <div
-          className="options"
-          style={{ right: "54px", width: "35px", height: "35px" }}
-          data-options
-        >
-          <div className="selectOption" style={{ position: "absolute" }}>
-            <IconButton
-              sx={{
-                ...iconButtonStyles,
-                color: "var(--color-white)",
-                padding: "5.5px",
-                "&:hover": {
-                  backgroundColor: "var(--nav-card-modal) !important",
-                },
-                "& .MuiTouchRipple-root span": {
-                  backgroundColor: "var(--nav-card-modal) !important",
-                },
-              }}
-              onClick={(e) => {
-                e.stopPropagation();
-                openConfirmRemove(id);
-              }}
+      {!isTrash && (
+        <>
+          <HomepageOptions
+            isDesign={true}
+            id={id}
+            onOpen={onOpen}
+            optionsState={optionsState}
+            setOptionsState={setOptionsState}
+            clickedId={clickedId}
+            setClickedId={setClickedId}
+            toggleOptions={toggleOptions}
+            object={design}
+          />
+          {isProjectSpace && isManagerContentManager && (
+            <div
+              className="options"
+              style={{ right: "54px", width: "35px", height: "35px" }}
+              data-options
             >
-              <CloseRoundedIcon />
-            </IconButton>
-          </div>
-        </div>
+              <div className="selectOption" style={{ position: "absolute" }}>
+                <IconButton
+                  sx={{
+                    ...iconButtonStyles,
+                    color: "var(--color-white)",
+                    padding: "5.5px",
+                    "&:hover": {
+                      backgroundColor: "var(--nav-card-modal) !important",
+                    },
+                    "& .MuiTouchRipple-root span": {
+                      backgroundColor: "var(--nav-card-modal) !important",
+                    },
+                  }}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    openConfirmRemove(id);
+                  }}
+                >
+                  <CloseRoundedIcon />
+                </IconButton>
+              </div>
+            </div>
+          )}
+        </>
       )}
       {/* Design image */}
       <div className="homepage-thumbnail" onClick={onOpen}>
         <img
-          src={getDesignImage(design.id)}
+          src={!isTrash ? getDesignImage(design.id) : getTrashDesignImage(design.id)}
           className="pic"
           alt=""
           style={{ objectFit: "cover", objectPosition: "center" }}
@@ -126,7 +164,9 @@ function DesignIcon({
         <h3 className="titleDesign" onClick={onOpen}>
           {name}
         </h3>
-        <span className="dateModified">{`Modified ${modifiedAt}`}</span>
+        <span className="dateModified">
+          {!isTrash ? `Modified ${modifiedAt}` : `Deleted ${deletedAt}`}
+        </span>
       </div>
     </div>
   );

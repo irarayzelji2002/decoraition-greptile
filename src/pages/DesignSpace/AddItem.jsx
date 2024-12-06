@@ -281,6 +281,48 @@ const AddItem = () => {
     }
   }, [searchItemClicked]);
 
+  // Search item key down
+  const handleKeyDown = (event) => {
+    // Handle arrow keys for navigation when options are open
+    if (openSearchResultOptions && ebaySearchResults.length > 0) {
+      if (event.key === "ArrowDown") {
+        event.preventDefault();
+        setSelectedIndex((prev) => (prev < ebaySearchResults.length - 1 ? prev + 1 : prev));
+      } else if (event.key === "ArrowUp") {
+        event.preventDefault();
+        setSelectedIndex((prev) => (prev > 0 ? prev - 1 : 0));
+      }
+    }
+
+    // Handle Enter key
+    if (event.key === "Enter") {
+      event.preventDefault();
+      if (openSearchResultOptions && ebaySearchResults.length > 0) {
+        // If options are open, select the highlighted item
+        const selectedItem =
+          selectedIndex >= 0 ? ebaySearchResults[selectedIndex] : ebaySearchResults[0];
+        setSearchItemClicked(selectedItem);
+        setSelectedIndex(-1);
+        setOpenSearchResultOptions(false);
+        setEbaySearchQuery("");
+      } else if (ebaySearchQuery) {
+        // If no options are open, and has search query, trigger search
+        handleEbaySearch();
+      }
+    }
+  };
+
+  // Search query change handler
+  const handleSearchQueryChange = (e) => {
+    const value = e.target.value;
+    setEbaySearchQuery(value);
+    // Hide options if search query is empty
+    if (!value.trim()) {
+      setOpenSearchResultOptions(false);
+      setSelectedIndex(-1);
+    }
+  };
+
   // Remove only the specified field error
   const clearFieldError = (field) => {
     setErrors((prevErrors) => {
@@ -417,7 +459,8 @@ const AddItem = () => {
           <TextField
             placeholder="Search for an item"
             value={ebaySearchQuery}
-            onChange={(e) => setEbaySearchQuery(e.target.value)}
+            onChange={handleSearchQueryChange}
+            onKeyDown={handleKeyDown}
             InputProps={{
               startAdornment: (
                 <InputAdornment position="start" sx={{ color: "var(--color-white)" }}>
@@ -475,7 +518,7 @@ const AddItem = () => {
                   borderRadius: "10px",
                 }}
               >
-                {/* {ebaySearchResults.slice(0, 10).map((design, index) => ( */}
+                {/* {ebaySearchResults.slice(0, 10).map((item, index) => ( */}
                 {ebaySearchResults.map((item, index) => (
                   <CustomMenuItem
                     key={item.itemId}
@@ -700,9 +743,10 @@ export const ItemInfoTooltip = ({ item }) => (
           color: "var(--color-white)",
           fontSize: "0.875rem",
           fontWeight: "bold",
-          wordBreak: "break-all",
+          wordBreak: "break-word",
           overflow: "visible",
           textWrap: "wrap",
+          textAlign: "justify",
         }}
       >
         {item?.title || "Item"}

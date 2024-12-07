@@ -236,7 +236,7 @@ export const handleRestoreProject = async (user, userDoc, projectId) => {
 };
 
 // Empty trash
-const emptyTrash = async (user, userDoc, toDelete) => {
+export const emptyTrash = async (user, userDoc, toDelete) => {
   try {
     const response = await axios.post(
       `/api/trash/empty-trash`,

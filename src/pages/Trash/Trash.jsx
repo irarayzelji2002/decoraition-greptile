@@ -46,7 +46,7 @@ import {
 } from "../../components/RenameModal";
 import { useSharedProps } from "../../contexts/SharedPropsContext.js";
 import { showToast } from "../../functions/utils.js";
-import { emptyTrash } from "../Homepage/backend/HomepageActions.js";
+import { emptyTrash } from "../Homepage/backend/HomepageActions.jsx";
 
 export default function Trash() {
   const {

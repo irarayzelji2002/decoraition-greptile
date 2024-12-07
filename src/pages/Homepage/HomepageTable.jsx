@@ -19,7 +19,6 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import { visuallyHidden } from "@mui/utils";
 import { getUsername } from "./backend/HomepageActions";
 import "../../css/homepage.css";
-import { projectId } from "../../../server/firebaseConfig";
 import { TablePagination } from "@mui/material";
 import { useSharedProps } from "../../contexts/SharedPropsContext";
 import { CloseRounded as CloseRoundedIcon } from "@mui/icons-material";
@@ -187,8 +186,18 @@ function EnhancedTable({
   isTrash,
 }) {
   const navigate = useNavigate();
-  const { designs, userDesigns, designVersions, userDesignVersions, projects, userProjects } =
-    useSharedProps();
+  const {
+    designs,
+    userDesigns,
+    deletedDesigns,
+    userDeletedDesigns,
+    designVersions,
+    userDesignVersions,
+    projects,
+    userProjects,
+    deletedProjects,
+    userDeletedProjects,
+  } = useSharedProps();
 
   const [selected, setSelected] = useState([]);
   //   const [page, setPage] = useState(0);
@@ -331,21 +340,26 @@ function EnhancedTable({
     }
 
     // Get the design
-    const fetchedDesign =
-      userDesigns.find((design) => design.id === designId) ||
-      designs.find((design) => design.id === designId);
-    if (!fetchedDesign || !fetchedDesign.history || fetchedDesign.history.length === 0) {
+    const fetchedDeletedDesign =
+      userDeletedDesigns.find((design) => design.id === designId) ||
+      deletedDesigns.find((design) => design.id === designId);
+    if (
+      !fetchedDeletedDesign ||
+      !fetchedDeletedDesign.history ||
+      fetchedDeletedDesign.history.length === 0
+    ) {
       return "";
     }
 
     // Get the latest designVersionId
-    const latestDesignVersionId = fetchedDesign.history[fetchedDesign.history.length - 1];
+    const latestDesignVersionId =
+      fetchedDeletedDesign.history[fetchedDeletedDesign.history.length - 1];
     if (!latestDesignVersionId) {
       return "";
     }
-    const fetchedLatestDesignVersion =
-      userDesignVersions.find((designVer) => designVer.id === latestDesignVersionId) ||
-      designVersions.find((designVer) => designVer.id === latestDesignVersionId);
+    const fetchedLatestDesignVersion = designVersions.find(
+      (designVer) => designVer.id === latestDesignVersionId
+    );
     if (!fetchedLatestDesignVersion?.images?.length) {
       return "";
     }
@@ -372,15 +386,15 @@ function EnhancedTable({
 
   const getTrashProjectImage = (projectId) => {
     // Get the project
-    const fetchedProject =
-      userProjects.find((project) => project.id === projectId) ||
-      projects.find((project) => project.id === projectId);
-    if (!fetchedProject || fetchedProject.designs.length === 0) {
+    const fetchedDeletedProject =
+      userDeletedProjects.find((project) => project.id === projectId) ||
+      deletedProjects.find((project) => project.id === projectId);
+    if (!fetchedDeletedProject || fetchedDeletedProject.designs.length === 0) {
       return "";
     }
 
     // Get the latest designId (the last one in the designIds array)
-    const latestDesignId = fetchedProject.designs[fetchedProject.designs.length - 1];
+    const latestDesignId = fetchedDeletedProject.designs[fetchedDeletedProject.designs.length - 1];
 
     // Return the design image by calling getDesignImage
     return getTrashDesignImage(latestDesignId);

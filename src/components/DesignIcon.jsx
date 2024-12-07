@@ -10,7 +10,6 @@ function DesignIcon({
   id,
   name,
   onOpen = () => {},
-  onDelete = () => {},
   projectType = false,
   createdAt = "",
   modifiedAt = "",
@@ -23,8 +22,14 @@ function DesignIcon({
   isManagerContentManager = false,
   isTrash = false,
 }) {
-  const { designs, userDesigns, designVersions, userDesignVersions, projects, userProjects } =
-    useSharedProps();
+  const {
+    designs,
+    userDesigns,
+    designVersions,
+    userDesignVersions,
+    deletedDesigns,
+    userDeletedDesigns,
+  } = useSharedProps();
   const [clickedId, setClickedId] = useState("");
 
   const toggleOptions = (id) => {
@@ -80,21 +85,26 @@ function DesignIcon({
     }
 
     // Get the design
-    const fetchedDesign =
-      userDesigns.find((design) => design.id === designId) ||
-      designs.find((design) => design.id === designId);
-    if (!fetchedDesign || !fetchedDesign.history || fetchedDesign.history.length === 0) {
+    const fetchedDeletedDesign =
+      userDeletedDesigns.find((design) => design.id === designId) ||
+      deletedDesigns.find((design) => design.id === designId);
+    if (
+      !fetchedDeletedDesign ||
+      !fetchedDeletedDesign.history ||
+      fetchedDeletedDesign.history.length === 0
+    ) {
       return "";
     }
 
     // Get the latest designVersionId
-    const latestDesignVersionId = fetchedDesign.history[fetchedDesign.history.length - 1];
+    const latestDesignVersionId =
+      fetchedDeletedDesign.history[fetchedDeletedDesign.history.length - 1];
     if (!latestDesignVersionId) {
       return "";
     }
-    const fetchedLatestDesignVersion =
-      userDesignVersions.find((designVer) => designVer.id === latestDesignVersionId) ||
-      designVersions.find((designVer) => designVer.id === latestDesignVersionId);
+    const fetchedLatestDesignVersion = designVersions.find(
+      (designVer) => designVer.id === latestDesignVersionId
+    );
     if (!fetchedLatestDesignVersion?.images?.length) {
       return "";
     }

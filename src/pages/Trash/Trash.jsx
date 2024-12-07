@@ -25,8 +25,16 @@ import { iconButtonStyles } from "../Homepage/DrawerComponent.jsx";
 import { gradientButtonStyles } from "../DesignSpace/PromptBar.jsx";
 
 export default function Trash() {
-  const { user, users, userDoc, designs, userDesigns, projects, userProjects, isDarkMode } =
-    useSharedProps();
+  const {
+    user,
+    users,
+    userDoc,
+    deletedDesigns,
+    userDeletedDesigns,
+    deletedProjects,
+    userDeletedProjects,
+    isDarkMode,
+  } = useSharedProps();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [filteredDesigns, setFilteredDesigns] = useState([]);
@@ -51,12 +59,12 @@ export default function Trash() {
   const [selectedTab, setSelectedTab] = useState("Designs");
 
   const loadDesignDataForView = async () => {
-    if (userDesigns.length > 0) {
+    if (userDeletedDesigns.length > 0) {
       try {
         setLoadingDesigns(true);
 
         // Sort designs by latest modified date
-        const designsByLatest = [...userDesigns].sort(
+        const designsByLatest = [...userDeletedDesigns].sort(
           (a, b) => b?.deletedAt?.toMillis() - a?.deletedAt?.toMillis()
         );
 
@@ -94,12 +102,12 @@ export default function Trash() {
   };
 
   const loadProjectDataForView = async () => {
-    if (userProjects.length > 0) {
+    if (userDeletedProjects.length > 0) {
       try {
         setLoadingProjects(true);
 
         // Sort projects by latest modified date
-        const projectsByLatest = [...userProjects].sort(
+        const projectsByLatest = [...userDeletedProjects].sort(
           (a, b) => b?.deletedAt?.toMillis() - a?.deletedAt?.toMillis()
         );
 
@@ -156,7 +164,7 @@ export default function Trash() {
       else if (selectedTab === "Projects") await loadProjectDataForView();
     };
     loadData();
-  }, [userDesigns, userProjects]);
+  }, [userDeletedDesigns, userDeletedProjects]);
 
   const handleOwnerChange = (owner) => {
     setSelectedOwner(owner);
@@ -170,7 +178,7 @@ export default function Trash() {
 
   const applyFilters = (searchQuery, owner, dateRange) => {
     if (selectedTab === "Designs") {
-      let filteredDesigns = userDesigns.filter((design) => {
+      let filteredDesigns = userDeletedDesigns.filter((design) => {
         const matchesSearchQuery = design.designName
           .toLowerCase()
           .includes(searchQuery.trim().toLowerCase());
@@ -205,7 +213,7 @@ export default function Trash() {
       setFilteredDesigns(filteredDesigns);
       setPage(1); // Reset to the first page after filtering
     } else if (selectedTab === "Projects") {
-      let filteredProjects = userProjects.filter((project) => {
+      let filteredProjects = userDeletedProjects.filter((project) => {
         const matchesSearchQuery = project.projectName
           .toLowerCase()
           .includes(searchQuery.trim().toLowerCase());
@@ -244,15 +252,23 @@ export default function Trash() {
       else if (selectedTab === "Projects") await loadProjectDataForView();
     };
     loadData();
-  }, [designs, projects, selectedTab, userDesigns, searchQuery, selectedOwner, dateRange]);
+  }, [
+    deletedDesigns,
+    deletedProjects,
+    selectedTab,
+    userDeletedDesigns,
+    searchQuery,
+    selectedOwner,
+    dateRange,
+  ]);
 
   useEffect(() => {
     // applyFilters(searchQuery, selectedOwner, dateRange);
   }, [
-    designs,
-    userDesigns,
-    projects,
-    userProjects,
+    deletedDesigns,
+    userDeletedDesigns,
+    deletedProjects,
+    userDeletedProjects,
     searchQuery,
     selectedOwner,
     dateRange,

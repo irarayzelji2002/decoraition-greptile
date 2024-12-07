@@ -9,7 +9,6 @@ function ProjectOptionsHome({
   id,
   name,
   onOpen = () => {},
-  onDelete = () => {},
   managers = "",
   createdAt = "",
   modifiedAt = "",
@@ -19,8 +18,14 @@ function ProjectOptionsHome({
   setOptionsState = () => {},
   isTrash = false,
 }) {
-  const { designs, userDesigns, designVersions, userDesignVersions, projects, userProjects } =
-    useSharedProps();
+  const {
+    designs,
+    userDesigns,
+    designVersions,
+    userDesignVersions,
+    deletedDesigns,
+    userDeletedDesigns,
+  } = useSharedProps();
   const [clickedId, setClickedId] = useState("");
 
   const toggleOptions = (id) => {
@@ -102,28 +107,30 @@ function ProjectOptionsHome({
   };
 
   const getTrashLatestDesignImage = (projectId) => {
-    console.log("getLatestDesignImage called with projectId:", projectId); // Debug log
-    const designsForProject = userDesigns.filter((design) => design.projectId === projectId);
+    console.log("getTrashLatestDesignImage called with projectId:", projectId); // Debug log
+    const designsForProject =
+      userDeletedDesigns.filter((design) => design.projectId === projectId) ||
+      deletedDesigns.filter((design) => design.projectId === projectId);
     if (designsForProject.length === 0) {
-      console.log("No designs found for project:", projectId); // Debug log
+      console.log("No deleted designs found for project:", projectId); // Debug log
       return "";
     }
 
     const latestDesign = designsForProject.sort(
-      (a, b) => b.modifiedAt.toMillis() - a.modifiedAt.toMillis()
+      (a, b) => b?.deletedAt.toMillis() - a?.deletedAt.toMillis()
     )[0];
     if (!latestDesign) {
-      console.log("No latest design found for project:", projectId); // Debug log
+      console.log("No latest deleted design found for project:", projectId); // Debug log
       return "";
     }
 
     const latestDesignVersionId = latestDesign.history[latestDesign.history.length - 1];
-    const fetchedLatestDesignVersion =
-      userDesignVersions.find((designVer) => designVer.id === latestDesignVersionId) ||
-      designVersions.find((designVer) => designVer.id === latestDesignVersionId);
+    const fetchedLatestDesignVersion = designVersions.find(
+      (designVer) => designVer.id === latestDesignVersionId
+    );
 
     if (!fetchedLatestDesignVersion?.images?.length) {
-      console.log("No images found for latest design version:", latestDesignVersionId); // Debug log
+      console.log("No images found for latest deleted design version:", latestDesignVersionId); // Debug log
       return "";
     }
 

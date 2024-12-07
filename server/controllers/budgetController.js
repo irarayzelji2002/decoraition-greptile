@@ -1,13 +1,5 @@
 const { db, storage } = require("../firebase");
 const { ref, uploadBytes, getDownloadURL } = require("firebase/storage");
-const EbayOAuth2Api = require("ebay-oauth-nodejs-client");
-
-const ebayAuth = new EbayOAuth2Api({
-  clientId: "<YOUR_APP_ID>",
-  clientSecret: "<YOUR_CERT_ID>",
-  redirectUri: "<YOUR_REDIRECT_URI>",
-  env: "SANDBOX", // or 'PRODUCTION'
-});
 
 const getPHCurrency = () => {
   let currency = {

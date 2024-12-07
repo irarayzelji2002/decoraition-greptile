@@ -132,26 +132,25 @@ function EnhancedTableHead(props) {
             </IconButton>
           </TableCell>
         )}
-        {!isTrash && (
-          <TableCell
-            sx={{
-              paddingTop: "5px",
-              paddingBottom: "5px",
-              width: "34px",
+
+        <TableCell
+          sx={{
+            paddingTop: "5px",
+            paddingBottom: "5px",
+            width: "34px",
+            backgroundColor: "var(--bgMain)",
+            color: "var(--color-white)",
+            borderBottom: "1px solid var(--table-stroke)",
+            "&:hover": {
               backgroundColor: "var(--bgMain)",
               color: "var(--color-white)",
-              borderBottom: "1px solid var(--table-stroke)",
-              "&:hover": {
-                backgroundColor: "var(--bgMain)",
-                color: "var(--color-white)",
-              },
-            }}
-          >
-            <IconButton aria-label="expand row" size="small" sx={{ visibility: "hidden" }}>
-              <MoreVertIcon />
-            </IconButton>
-          </TableCell>
-        )}
+            },
+          }}
+        >
+          <IconButton aria-label="expand row" size="small" sx={{ visibility: "hidden" }}>
+            <MoreVertIcon />
+          </IconButton>
+        </TableCell>
       </TableRow>
     </TableHead>
   );

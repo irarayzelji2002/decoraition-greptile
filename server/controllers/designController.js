@@ -1,6 +1,7 @@
 const { db, auth, clientAuth, clientDb, storage } = require("../firebase");
 const { ref, uploadBytes, getDownloadURL, deleteObject } = require("firebase/storage");
 const { doc, getDoc, arrayUnion } = require("firebase/firestore");
+const projectController = require("./projectController");
 const { createNotification } = require("./notificationController");
 const { Resend } = require("resend");
 const axios = require("axios");
@@ -210,6 +211,13 @@ const isCollaboratorDesign = (designDoc, userId) => {
     const isViewer = designData.viewers.includes(userId);
     return isOwner || isEditor || isCommenter || isViewer;
   }
+};
+
+// Check if user is manage (manage), manager not in generalAccessRole
+const isManagerProject = (projectDoc, userId) => {
+  const projectData = projectDoc.data();
+  const isManager = projectData.managers.includes(userId);
+  return isManager;
 };
 
 // Update Name
@@ -2206,6 +2214,19 @@ exports.deleteDesign = async (req, res) => {
       error: "Failed to delete design and related documents",
       details: error.message,
     });
+  }
+};
+
+exports.emptyTrash = async (req, res) => {
+  try {
+    const { userId, toDelete } = req.body;
+    const designsToDelete = toDelete?.designs || [];
+    const projectsToDelete = toDelete?.projects || [];
+
+    res.status(200).json({ message: "Trash emptied successfully" });
+  } catch (error) {
+    console.error("Error emptying trash:", error);
+    res.status(500).json({ error: "Failed to empty trash" });
   }
 };
 

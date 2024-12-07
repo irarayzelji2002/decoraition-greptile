@@ -33,14 +33,11 @@ const DeleteConfirmationModal = ({ isOpen, onClose, handleDelete, isDesign, obje
   const onSubmit = async () => {
     setIsDeleteBtnDisabled(true);
     try {
-      if (confirmText !== initConfirmText) {
-        setError("Incorrect value entered");
-        return;
-      }
-      const result = await handleDelete();
-      if (!result.success) {
-        return;
-      }
+      // if (confirmText !== initConfirmText) {
+      //   setError("Incorrect value entered");
+      //   return;
+      // }
+      await handleDelete();
       handleClose();
     } finally {
       setIsDeleteBtnDisabled(false);
@@ -81,7 +78,7 @@ const DeleteConfirmationModal = ({ isOpen, onClose, handleDelete, isDesign, obje
         </IconButton>
       </DialogTitle>
       <DialogContent sx={dialogContentStyles}>
-        <Typography variant="body1" sx={{ marginBottom: "10px" }}>
+        {/* <Typography variant="body1" sx={{ marginBottom: "10px" }}>
           Enter "{initConfirmText}" to confirm deletion
         </Typography>
         <TextField
@@ -99,7 +96,25 @@ const DeleteConfirmationModal = ({ isOpen, onClose, handleDelete, isDesign, obje
             marginBottom: "16px",
           }}
           inputProps={textFieldInputProps}
-        />
+        /> */}
+        <Typography variant="body1" sx={{ marginBottom: "10px", textAlign: "center" }}>
+          Are you sure you want to delete the{" "}
+          {isDesign ? `design "${initConfirmText}"` : `project "${initConfirmText}"`}?
+        </Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            marginBottom: "10px",
+            textAlign: "center",
+            fontSize: "0.875rem",
+            fontWeight: "400",
+            color: "var(--greyText)",
+          }}
+        >
+          Collaborators of the {isDesign ? "design" : "project"} will not be able to edit or view it
+          anymore, but {isDesign ? "you and the design's editors" : "the project's managers"} can
+          restore it from the trash within 30 days.
+        </Typography>
       </DialogContent>
       <DialogActions sx={dialogActionsStyles}>
         <Button

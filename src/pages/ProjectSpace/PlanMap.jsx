@@ -17,7 +17,7 @@ import { AddIcon } from "../../components/svg/DefaultMenuIcons";
 import "../../css/project.css";
 import "../../css/seeAll.css";
 import "../../css/budget.css";
-import { AddPin, AdjustPin, ChangeOrder, ChangePlan } from "../DesignSpace/svg/AddImage";
+import { AddPin, AdjustPin, ChangeOrder, ChangePlan, AddPlan } from "../DesignSpace/svg/AddImage";
 import Dialog from "@mui/material/Dialog";
 import DialogTitle from "@mui/material/DialogTitle";
 import DialogContent from "@mui/material/DialogContent";
@@ -44,6 +44,8 @@ import {
   isManagerContentManagerContributorProject,
   isCollaboratorProject,
 } from "./Project";
+import { iconButtonStyles } from "../Homepage/DrawerComponent";
+import { gradientButtonStyles, outlinedButtonStyles } from "../DesignSpace/PromptBar";
 
 function PlanMap() {
   const { projectId } = useParams();
@@ -56,12 +58,11 @@ function PlanMap() {
   const [pins, setPins] = useState([]);
   const [menuOpen, setMenuOpen] = useState(false);
   const [user, setUser] = useState(null);
-  const [styleRefModalOpen, setStyleRefModalOpen] = useState(false);
-  const [styleRefPreview, setStyleRefPreview] = useState(null);
-  const [initStyleRef, setInitStyleRef] = useState(null);
-  const styleRefFileInputRef = useRef(null);
-  const [planImage, setPlanImage] = useState("../../img/floorplan.png");
+  const [planImageModalOpen, setPlanImageModalOpen] = useState(false);
+  const [planImagePreview, setPlanImagePreview] = useState(null);
+  const [planImage, setPlanImage] = useState(null);
   const [initPlanImage, setInitPlanImage] = useState(null);
+  const [isContinueBtnDisabled, setIsContinueBtnDisabled] = useState(false);
   const planImageFileInputRef = useRef(null);
   const [loadingImage, setLoadingImage] = useState(true);
   const [loadingProject, setLoadingProject] = useState(true);
@@ -122,7 +123,7 @@ function PlanMap() {
 
   useEffect(() => {
     if (user) {
-      fetchPlanImage(projectId, setPlanImage);
+      fetchPlanImage(projectId, setPlanImage, setPlanImagePreview);
     }
     const unsubscribeAuth = onAuthStateChanged(auth, (user) => {
       if (user) {
@@ -167,12 +168,14 @@ function PlanMap() {
     });
   };
 
-  const handleStyleRefModalOpen = () => {
-    setStyleRefModalOpen(true);
+  const handlePlanImageModalOpen = () => {
+    setPlanImageModalOpen(true);
   };
 
   const handleStyleRefModalClose = () => {
-    setStyleRefModalOpen(false);
+    setInitPlanImage(null);
+    setPlanImagePreview("");
+    setPlanImageModalOpen(false);
   };
 
   const handleUploadClick = (ref) => {
@@ -187,14 +190,14 @@ function PlanMap() {
     e.preventDefault();
   };
 
-  const handleDrop = (e, setInitStyleRef, setStyleRefPreview) => {
+  const handleDrop = (e, setInitStyleRef, setPlanImagePreview) => {
     e.preventDefault();
     const file = e.dataTransfer.files[0];
     if (file) {
       setInitStyleRef(file);
       const reader = new FileReader();
       reader.onload = (event) => {
-        setStyleRefPreview(event.target.result);
+        setPlanImagePreview(event.target.result);
       };
       reader.readAsDataURL(file);
     }
@@ -216,26 +219,36 @@ function PlanMap() {
     }
   };
 
-  const onFileUpload = (event, setInitStyleRef, setStyleRefPreview) => {
+  const onFileUpload = (event, setInitStyleRef, setPlanImagePreview) => {
     const file = event.target.files[0];
     if (file) {
       setInitStyleRef(file);
       const reader = new FileReader();
       reader.onload = (event) => {
-        setStyleRefPreview(event.target.result);
+        setPlanImagePreview(event.target.result);
       };
       reader.readAsDataURL(file);
     }
   };
 
-  const handlePlanImageContinue = () => {
-    if (initPlanImage) {
-      handlePlanImageUpload(initPlanImage, projectId, setPlanImage).then(() => {
+  const handlePlanImageContinue = async () => {
+    setIsContinueBtnDisabled(true);
+    try {
+      if (initPlanImage) {
+        const result = await handlePlanImageUpload(initPlanImage, projectId, setPlanImage);
+        if (!result.success) {
+          showToast("error", result.message || "Failed to upload plan image");
+          return;
+        }
         showToast("success", "Plan map uploaded successfully");
-      });
-      setInitPlanImage(null);
+        setInitPlanImage(null);
+        setPlanImagePreview(null);
+        setPlanImageModalOpen(false);
+        setMenuOpen(false);
+      }
+    } finally {
+      setIsContinueBtnDisabled(false);
     }
-    setStyleRefModalOpen(false);
   };
 
   const handleNoPlanImage = () => {
@@ -264,7 +277,7 @@ function PlanMap() {
             {planImage ? (
               <ImageFrame
                 src={planImage}
-                alt="design preview"
+                alt=""
                 pins={pins}
                 projectId={projectId}
                 setPins={setPins}
@@ -276,7 +289,7 @@ function PlanMap() {
               </div>
             )}
           </div>
-          <div className="budgetSpaceImg">
+          <div className="budgetSpaceImg pinsCont">
             {pins.length > 0 ? (
               pins
                 .sort((a, b) => a.order - b.order) // Sort pins by design.order
@@ -313,7 +326,7 @@ function PlanMap() {
                   src={`/img/design-placeholder${!isDarkMode ? "-dark" : ""}.png`}
                   alt="No designs yet"
                 />
-                <p>No designs yet. Start creating.</p>
+                <p>No pins yet. Start adding.</p>
               </div>
             )}
             <div className="bottom-filler" />
@@ -333,18 +346,20 @@ function PlanMap() {
                       changeMode === "Managing" ||
                       changeMode === "Contributing") && (
                       <>
-                        <div className="small-button-container" onClick={handleStyleRefModalOpen}>
-                          <span className="small-button-text">Change plan</span>
+                        <div className="small-button-container" onClick={handlePlanImageModalOpen}>
+                          <span className="small-button-text">
+                            {!planImage ? "Add a plan" : "Change plan"}
+                          </span>
                           <div className="small-circle-button">
-                            <ChangePlan />
+                            {!planImage ? <AddPlan /> : <ChangePlan />}
                           </div>
                         </div>
-                        {planImage && pins.length > 0 && (
+                        {planImage && pins.length > 1 && (
                           <div
                             className="small-button-container"
                             onClick={planImage ? navigateToPinLayout : handleNoPlanImage}
                           >
-                            <span className="small-button-text">Change pins order</span>
+                            <span className="small-button-text">Change pins' order</span>
                             <div className="small-circle-button">
                               <ChangeOrder />
                             </div>
@@ -356,7 +371,7 @@ function PlanMap() {
                             className="small-button-container"
                             onClick={planImage ? navigateToAdjustPin : handleNoPlanImage}
                           >
-                            <span className="small-button-text">Adjust Pins</span>
+                            <span className="small-button-text">Adjust pins</span>
                             <div className="small-circle-button">
                               <AdjustPin />
                             </div>
@@ -367,7 +382,7 @@ function PlanMap() {
                             className="small-button-container"
                             onClick={planImage ? navigateToAddPin : handleNoPlanImage}
                           >
-                            <span className="small-button-text">Add a Pin</span>
+                            <span className="small-button-text">Add a pin</span>
                             <div className="small-circle-button">
                               <AddPin />
                             </div>
@@ -385,7 +400,7 @@ function PlanMap() {
       </ProjectSpace>
 
       {/* Change Plan Modal */}
-      <Dialog open={styleRefModalOpen} onClose={handleStyleRefModalClose} sx={dialogStyles}>
+      <Dialog open={planImageModalOpen} onClose={handleStyleRefModalClose} sx={dialogStyles}>
         <DialogTitle sx={dialogTitleStyles}>
           <TypographyMUI
             variant="body1"
@@ -397,11 +412,12 @@ function PlanMap() {
               whiteSpace: "normal",
             }}
           >
-            Add a venue or floor plan
+            {`${!planImage ? "Add a" : "Change the"} venue or floor plan`}
           </TypographyMUI>
           <IconButtonMUI
             onClick={handleStyleRefModalClose}
             sx={{
+              ...iconButtonStyles,
               flexShrink: 0,
               marginLeft: "auto",
             }}
@@ -430,12 +446,12 @@ function PlanMap() {
             onDragOver={handleDragOver}
             onDragLeave={handleDragLeave}
             onDrop={(e) => {
-              handleDrop(e, setInitPlanImage, setStyleRefPreview);
+              handleDrop(e, setInitPlanImage, setPlanImagePreview);
             }}
           >
-            {styleRefPreview ? (
+            {planImagePreview ? (
               <img
-                src={styleRefPreview}
+                src={planImagePreview}
                 alt="Selected"
                 style={{
                   objectFit: "cover",
@@ -461,7 +477,7 @@ function PlanMap() {
                   }}
                 >
                   <NoImage />
-                  <div className="image-placeholder">Upload a map layout</div>
+                  <div className="image-placeholder">Upload a plan</div>
                 </div>
               </div>
             )}
@@ -471,7 +487,7 @@ function PlanMap() {
             accept="image/png, image/jpeg, image/gif, image/webp"
             ref={planImageFileInputRef}
             style={{ display: "none" }}
-            onChange={(event) => onFileUpload(event, setInitPlanImage, setStyleRefPreview)}
+            onChange={(event) => onFileUpload(event, setInitPlanImage, setPlanImagePreview)}
           />
           <div style={dialogActionsVertButtonsStyles}>
             <ButtonMUI
@@ -482,16 +498,31 @@ function PlanMap() {
                   ? () => handleUploadClick(planImageFileInputRef)
                   : handlePlanImageContinue
               }
-              className="confirm-button"
+              sx={{
+                ...gradientButtonStyles,
+                opacity: isContinueBtnDisabled ? "0.5" : "1",
+                cursor: isContinueBtnDisabled ? "default" : "pointer",
+                "&:hover": {
+                  backgroundImage: !isContinueBtnDisabled && "var(--gradientButtonHover)",
+                },
+              }}
+              // className="confirm-button"
+              disabled={isContinueBtnDisabled}
             >
-              {!initPlanImage ? "Add Plan" : "Continue"}
+              {(() => {
+                if (!initPlanImage) {
+                  if (planImage) return "Change Plan";
+                  else return "Add Plan";
+                } else return "Continue";
+              })()}
             </ButtonMUI>
             {initPlanImage && (
               <ButtonMUI
                 variant="contained"
                 fullWidth
                 onClick={() => handleUploadClick(planImageFileInputRef)}
-                className="confirm-button"
+                sx={gradientButtonStyles}
+                // className="confirm-button"
               >
                 Reupload Image
               </ButtonMUI>
@@ -500,7 +531,8 @@ function PlanMap() {
               variant="contained"
               fullWidth
               onClick={handleStyleRefModalClose}
-              className="cancel-button"
+              // className="cancel-button"
+              sx={outlinedButtonStyles}
               onMouseOver={(e) =>
                 (e.target.style.backgroundImage =
                   "var(--lightGradient), var(--gradientButtonHover)")

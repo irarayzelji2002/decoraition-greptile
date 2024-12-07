@@ -178,8 +178,8 @@ function AddPin({ EditMode }) {
       <div className="sectionPins" style={{ background: "none", paddingTop: "104px" }}>
         <div className="budgetSpaceImg">
           <ImageFrame
-            src="../../img/floorplan.png"
-            alt="design preview"
+            src="/img/transparent-image.png"
+            alt=""
             projectId={projectId}
             pins={pins}
             setPins={setPins}

@@ -89,6 +89,7 @@ function TrashOptions({
       const result = await handleRestoreDesign(user, userDoc, id);
       if (!result.success) {
         showToast("error", "Failed to restore design");
+        return;
       }
       showToast("success", "Design restored");
       navigate("/seeAllDesigns", {
@@ -98,6 +99,7 @@ function TrashOptions({
       const result = await handleRestoreProject(user, userDoc, id);
       if (!result.success) {
         showToast("error", "Failed to restore project");
+        return;
       }
       showToast("success", "Project restored");
       navigate("/seeAllProjects", {
@@ -108,17 +110,27 @@ function TrashOptions({
 
   const handleDelete = async () => {
     if (isDesign) {
+      console.log("Trash - Starting design deletion...");
       const result = await handleDeleteDesign(user, userDoc, id);
+      console.log("Trash - Delete result:", result);
       if (!result.success) {
+        console.log("Trash - Delete failed, showing error toast");
         showToast("error", "Failed to delete design");
+        return;
       }
+      console.log("Trash - Delete succeeded, showing success toast");
       showToast("success", "Design deleted");
       closeDeleteModal();
     } else {
+      console.log("Trash - Starting project deletion...");
       const result = await handleDeleteProject(user, userDoc, id);
+      console.log("Trash - Delete result:", result);
       if (!result.success) {
+        console.log("Trash - Delete failed, showing error toast");
         showToast("error", "Failed to delete project");
+        return;
       }
+      console.log("Trash - Delete succeeded, showing success toast");
       showToast("success", "Project deleted");
       closeDeleteModal();
     }
@@ -174,7 +186,7 @@ function TrashOptions({
               <div className="icon">
                 <DeleteForeverIcon style={{ fontSize: 20 }} className="icon" />
               </div>
-              Delete permanently
+              Delete forever
             </div>
           </div>
         )}
@@ -236,10 +248,24 @@ const ConfirmDeleteForeverModal = ({
       </DialogTitle>
       <DialogContent sx={dialogContentStyles}>
         <Typography variant="body1" sx={{ marginBottom: "10px", textAlign: "center" }}>
-          Are you sure you want to delete your{" "}
+          Are you sure you want to delete the{" "}
           {isDesign ? `design "${object?.designName}"` : `project "${object?.projectName}"`} trashed{" "}
-          {formatDateDetailComma(object?.deletedAt)?.includes(",") ? "at " : ""}$
+          {formatDateDetailComma(object?.deletedAt)?.includes(",") ? "at " : ""}
           {formatDateDetailComma(object?.deletedAt)} permanently?
+        </Typography>
+        <Typography
+          variant="body1"
+          sx={{
+            marginBottom: "10px",
+            textAlign: "center",
+            fontSize: "0.875rem",
+            fontWeight: "400",
+            color: "var(--greyText)",
+          }}
+        >
+          This will permanently delete the{" "}
+          {isDesign ? "design. You and the design's editors" : "project. The project's managers"}{" "}
+          will not be able to restore it anymore after deletion.
         </Typography>
       </DialogContent>
       <DialogActions sx={dialogActionsStyles}>

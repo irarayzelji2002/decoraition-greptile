@@ -243,14 +243,16 @@ function EnhancedTable({
     }
     setSelected(newSelected);
 
-    if (isDesign) {
-      navigate(`/design/${id}`, {
-        state: { designId: id },
-      });
-    } else {
-      navigate(`/project/${id}`, {
-        state: { projectId: id },
-      });
+    if (!isTrash) {
+      if (isDesign) {
+        navigate(`/design/${id}`, {
+          state: { designId: id },
+        });
+      } else {
+        navigate(`/project/${id}`, {
+          state: { projectId: id },
+        });
+      }
     }
   };
 
@@ -464,7 +466,7 @@ function EnhancedTable({
                     key={row.id}
                     selected={isItemSelected}
                     sx={{
-                      cursor: "pointer",
+                      cursor: !isTrash ? "pointer" : "default",
                       "&MuiTableRow-hover": {
                         backgroundColor: "var(--table-rows-hover) !important",
                       },

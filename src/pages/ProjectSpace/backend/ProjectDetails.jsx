@@ -446,16 +446,17 @@ export const handlePlanImageUpload = async (file, projectId, setPlanImage) => {
 
     if (response.status === 200) {
       setPlanImage(response.data.planImage);
+      return { success: true, message: "Plan image uploaded successfully" };
     } else {
-      showToast("error", "Failed to upload plan image");
+      return { success: false, message: "Failed to upload plan image" };
     }
   } catch (error) {
     console.error("Error uploading plan image:", error);
-    showToast("error", "Failed to upload plan image");
+    return { success: false, message: "Failed to upload plan image" };
   }
 };
 
-export const fetchPlanImage = async (projectId, setPlanImage) => {
+export const fetchPlanImage = async (projectId, setPlanImage, setPlanImagePreview) => {
   console.log(`Fetching plan image for project ${projectId}`); // Debug log
   try {
     const token = await auth.currentUser.getIdToken();
@@ -469,9 +470,11 @@ export const fetchPlanImage = async (projectId, setPlanImage) => {
 
     if (response.status === 200 && response.data.planImage) {
       setPlanImage(response.data.planImage);
+      setPlanImagePreview(response.data.planImage);
     } else if (response.status === 404) {
       console.warn("Plan image not found, please upload an image.");
       setPlanImage(null);
+      setPlanImagePreview(null);
     } else {
       showToast("error", "Failed to fetch plan image");
     }

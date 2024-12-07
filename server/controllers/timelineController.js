@@ -63,6 +63,8 @@ exports.deleteTimeline = async (req, res) => {
 
 // Create Event
 exports.createEvent = async (req, res) => {
+  const createdDocuments = [];
+  const updatedDocuments = [];
   try {
     const { timelineId, eventName, dateRange, repeating, repeatEvery, description, reminders } =
       req.body;
@@ -70,6 +72,22 @@ exports.createEvent = async (req, res) => {
     const startDate = new Date(dateRange.start);
     const endDate = new Date(dateRange.end);
 
+    // Get timeline document first
+    const timelineRef = db.collection("timelines").doc(timelineId);
+    const timelineDoc = await timelineRef.get();
+    if (!timelineDoc.exists) {
+      return res.status(404).json({ error: "Timeline not found" });
+    }
+
+    // Store previous state for rollback
+    const previousEvents = timelineDoc.data().events || [];
+    updatedDocuments.push({
+      ref: timelineRef,
+      field: "events",
+      previousValue: previousEvents,
+    });
+
+    // Create event document
     const eventData = {
       timelineId,
       eventName,
@@ -85,52 +103,81 @@ exports.createEvent = async (req, res) => {
       updatedAt: new Date(),
     };
 
-    console.log("Creating event with data:", eventData);
-
     const eventRef = db.collection("events").doc();
     await eventRef.set(eventData);
+    createdDocuments.push({
+      ref: eventRef,
+      data: eventData,
+    });
+
+    // Update timeline's events array
+    await timelineRef.update({
+      events: [...previousEvents, eventRef.id],
+      modifiedAt: new Date(),
+    });
 
     console.log(`Event added to database with ID: ${eventRef.id}`);
-
-    // // Schedule notifications for reminders
-    // if (reminders && reminders.length > 0) {
-    //   const eventDoc = await eventRef.get();
-    //   const event = eventDoc.data();
-    //   // Get project users to notify
-    //   const projectDoc = await db.collection("projects").doc(event.projectId).get();
-    //   const project = projectDoc.data();
-    //   const usersToNotify = [
-    //     ...project.managers,
-    //     ...project.contentManagers,
-    //     ...project.contributors,
-    //   ];
-
-    //   // Create notification entries for each reminder
-    //   for (const reminder of reminders) {
-    //     const reminderDate = new Date(startDate);
-    //     reminderDate.setMinutes(reminderDate.getMinutes() - reminder);
-    //     for (const userId of usersToNotify) {
-    //       try {
-    //         await createNotification(
-    //           userId,
-    //           "event-reminder",
-    //           "Event Reminder",
-    //           `Reminder: "${eventName}" starts in ${reminder} minutes`,
-    //           ""
-    //         );
-    //       } catch (notifError) {
-    //         console.error("Error scheduling reminder notification:", notifError);
-    //       }
-    //     }
-    //   }
-    // }
 
     res.status(201).json({ id: eventRef.id, ...eventData });
   } catch (error) {
     console.error("Error creating event:", error);
+
+    // Rollback updates
+    for (const doc of updatedDocuments) {
+      try {
+        await doc.ref.update({ [doc.field]: doc.previousValue });
+        console.log(`Rolled back ${doc.field} in document ${doc.ref.path}`);
+      } catch (rollbackError) {
+        console.error(`Error rolling back document ${doc.ref.path}:`, rollbackError);
+      }
+    }
+
+    // Delete created documents
+    for (const doc of createdDocuments) {
+      try {
+        await doc.ref.delete();
+        console.log(`Deleted document ${doc.ref.path}`);
+      } catch (deleteError) {
+        console.error(`Error deleting document ${doc.ref.path}:`, deleteError);
+      }
+    }
+
     res.status(500).json({ error: "Failed to create event" });
   }
 };
+
+// // Schedule notifications for reminders
+// if (reminders && reminders.length > 0) {
+//   const eventDoc = await eventRef.get();
+//   const event = eventDoc.data();
+//   // Get project users to notify
+//   const projectDoc = await db.collection("projects").doc(event.projectId).get();
+//   const project = projectDoc.data();
+//   const usersToNotify = [
+//     ...project.managers,
+//     ...project.contentManagers,
+//     ...project.contributors,
+//   ];
+
+//   // Create notification entries for each reminder
+//   for (const reminder of reminders) {
+//     const reminderDate = new Date(startDate);
+//     reminderDate.setMinutes(reminderDate.getMinutes() - reminder);
+//     for (const userId of usersToNotify) {
+//       try {
+//         await createNotification(
+//           userId,
+//           "event-reminder",
+//           "Event Reminder",
+//           `Reminder: "${eventName}" starts in ${reminder} minutes`,
+//           ""
+//         );
+//       } catch (notifError) {
+//         console.error("Error scheduling reminder notification:", notifError);
+//       }
+//     }
+//   }
+// }
 
 // Update Event
 exports.updateEvent = async (req, res) => {

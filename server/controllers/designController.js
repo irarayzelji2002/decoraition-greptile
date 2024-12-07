@@ -1772,7 +1772,7 @@ exports.moveDesignToTrash = async (req, res) => {
     }
 
     // Check user role in design
-    const allowAction = isOwnerEditorDesign(designDoc, userId);
+    const allowAction = isOwnerDesign(designDoc, userId);
     if (!allowAction) {
       return res.status(403).json({ error: "User does not have permission to delete design" });
     }
@@ -1789,6 +1789,7 @@ exports.moveDesignToTrash = async (req, res) => {
     const deletedDesignRef = db.collection("deletedDesigns").doc(designId);
     const deletedDesignData = {
       ...designData,
+      modifiedAt: new Date(),
       deletedAt: new Date(),
     };
     batch.set(deletedDesignRef, deletedDesignData);
@@ -1982,17 +1983,15 @@ exports.deleteDesign = async (req, res) => {
     const { userId } = req.body;
 
     // Get design data first to check existence
-    const designRef = db.collection("designs").doc(designId);
+    const designRef = db.collection("deletedDesigns").doc(designId);
     const designDoc = await designRef.get();
     if (!designDoc.exists) {
-      return res.status(404).json({ error: "Design not found" });
+      return res.status(404).json({ error: "Deleted design not found" });
     }
     const designData = designDoc.data();
     const allowAction = isOwnerDesign(designDoc, userId);
     if (!allowAction) {
-      return res
-        .status(403)
-        .json({ error: "User does not have permission to create design version" });
+      return res.status(403).json({ error: "User does not have permission to delete design" });
     }
 
     // 1. Update parent documents first (users, projects, designs)
@@ -2010,25 +2009,29 @@ exports.deleteDesign = async (req, res) => {
         newValue: updatedDesigns,
       });
       await userRef.update({ designs: updatedDesigns });
+      console.log(`Successfully updated document: ${userRef.path}, field: designs`);
     }
 
     // Update projects containing this design
-    const projectsSnapshot = await db
-      .collection("projects")
-      .where("designs", "array-contains", { designId })
-      .get();
+    if (designId) {
+      const projectsSnapshot = await db
+        .collection("projects")
+        .where("designs", "in", [{ designId }])
+        .get();
 
-    for (const projectDoc of projectsSnapshot.docs) {
-      const projectData = projectDoc.data();
-      const previousDesigns = [...projectData.designs];
-      const updatedDesigns = previousDesigns.filter((design) => design.designId !== designId);
-      updatedDocuments.push({
-        ref: projectDoc.ref,
-        field: "designs",
-        previousValue: previousDesigns,
-        newValue: updatedDesigns,
-      });
-      await projectDoc.ref.update({ designs: updatedDesigns });
+      for (const projectDoc of projectsSnapshot.docs) {
+        const projectData = projectDoc.data();
+        const previousDesigns = [...projectData.designs];
+        const updatedDesigns = previousDesigns.filter((design) => design.designId !== designId);
+        updatedDocuments.push({
+          ref: projectDoc.ref,
+          field: "designs",
+          previousValue: previousDesigns,
+          newValue: updatedDesigns,
+        });
+        await projectDoc.ref.update({ designs: updatedDesigns });
+        console.log(`Successfully updated document: ${projectDoc.ref.path}, field: designs`);
+      }
     }
 
     // Delete the design document first as it's also a parent
@@ -2037,6 +2040,7 @@ exports.deleteDesign = async (req, res) => {
       data: designData,
     });
     await designRef.delete();
+    console.log(`Successfully deleted document: ${designRef.path}`);
 
     // 2. Handle pins and planMaps
     const pinsSnapshot = await db.collection("pins").where("designId", "==", designId).get();
@@ -2044,22 +2048,25 @@ exports.deleteDesign = async (req, res) => {
     const pinIdsToDelete = pinsSnapshot.docs.map((doc) => doc.id);
 
     // Update planMaps FIRST before deleting pins
-    const planMapsSnapshot = await db
-      .collection("planMaps")
-      .where("pins", "array-contains-any", pinIdsToDelete)
-      .get();
+    if (pinIdsToDelete && pinIdsToDelete.length > 0) {
+      const planMapsSnapshot = await db
+        .collection("planMaps")
+        .where("pins", "in", pinIdsToDelete)
+        .get();
 
-    for (const planMapDoc of planMapsSnapshot.docs) {
-      const planMapData = planMapDoc.data();
-      const previousPins = [...planMapData.pins];
-      const updatedPins = previousPins.filter((pinId) => !pinIdsToDelete.includes(pinId));
-      updatedDocuments.push({
-        ref: planMapDoc.ref,
-        field: "pins",
-        previousValue: previousPins,
-        newValue: updatedPins,
-      });
-      await planMapDoc.ref.update({ pins: updatedPins });
+      for (const planMapDoc of planMapsSnapshot.docs) {
+        const planMapData = planMapDoc.data();
+        const previousPins = [...planMapData.pins];
+        const updatedPins = previousPins.filter((pinId) => !pinIdsToDelete.includes(pinId));
+        updatedDocuments.push({
+          ref: planMapDoc.ref,
+          field: "pins",
+          previousValue: previousPins,
+          newValue: updatedPins,
+        });
+        await planMapDoc.ref.update({ pins: updatedPins });
+        console.log(`Successfully updated document: ${planMapDoc.ref.path}, field: pins`);
+      }
     }
 
     // Then delete pins
@@ -2069,6 +2076,7 @@ exports.deleteDesign = async (req, res) => {
         data: pinDoc.data(),
       });
       await pinDoc.ref.delete();
+      console.log(`Successfully deleted document: ${pinDoc.ref.path}`);
     }
 
     // 3-4. Delete designVersions, comments, handle budget, projectBudgets
@@ -2082,6 +2090,7 @@ exports.deleteDesign = async (req, res) => {
           data: versionData,
         });
         await versionRef.delete();
+        console.log(`Successfully deleted document: ${versionRef.path}`);
 
         // Delete comments after design version is deleted
         if (versionData.images) {
@@ -2097,6 +2106,7 @@ exports.deleteDesign = async (req, res) => {
                 data: commentDoc.data(),
               });
               await commentDoc.ref.delete();
+              console.log(`Successfully deleted document: ${commentDoc.ref.path}`);
             }
           }
         }
@@ -2110,24 +2120,29 @@ exports.deleteDesign = async (req, res) => {
             const budgetData = budgetDoc.data();
 
             // Update projectBudgets FIRST before deleting budget
-            const projectBudgetsSnapshot = await db
-              .collection("projectBudgets")
-              .where("budgets", "array-contains", versionData.budgetId)
-              .get();
+            if (versionData.budgetId) {
+              const projectBudgetsSnapshot = await db
+                .collection("projectBudgets")
+                .where("budgets", "in", [versionData.budgetId])
+                .get();
 
-            for (const projectBudgetDoc of projectBudgetsSnapshot.docs) {
-              const projectBudgetData = projectBudgetDoc.data();
-              const previousBudgets = [...projectBudgetData.budgets];
-              const updatedBudgets = previousBudgets.filter(
-                (budgetId) => budgetId !== versionData.budgetId
-              );
-              updatedDocuments.push({
-                ref: projectBudgetDoc.ref,
-                field: "budgets",
-                previousValue: previousBudgets,
-                newValue: updatedBudgets,
-              });
-              await projectBudgetDoc.ref.update({ budgets: updatedBudgets });
+              for (const projectBudgetDoc of projectBudgetsSnapshot.docs) {
+                const projectBudgetData = projectBudgetDoc.data();
+                const previousBudgets = [...projectBudgetData.budgets];
+                const updatedBudgets = previousBudgets.filter(
+                  (budgetId) => budgetId !== versionData.budgetId
+                );
+                updatedDocuments.push({
+                  ref: projectBudgetDoc.ref,
+                  field: "budgets",
+                  previousValue: previousBudgets,
+                  newValue: updatedBudgets,
+                });
+                await projectBudgetDoc.ref.update({ budgets: updatedBudgets });
+                console.log(
+                  `Successfully updated document: ${projectBudgetDoc.ref.path}, field: budgets`
+                );
+              }
             }
 
             // Delete items after updating projectBudgets
@@ -2140,6 +2155,7 @@ exports.deleteDesign = async (req, res) => {
                   data: itemDoc.data(),
                 });
                 await itemRef.delete();
+                console.log(`Successfully deleted document: ${itemRef.path}`);
               }
             }
 
@@ -2149,6 +2165,7 @@ exports.deleteDesign = async (req, res) => {
               data: budgetData,
             });
             await budgetRef.delete();
+            console.log(`Successfully deleted document: ${budgetRef.path}`);
           }
         }
       }
@@ -2165,9 +2182,12 @@ exports.deleteDesign = async (req, res) => {
     for (const doc of updatedDocuments) {
       try {
         await doc.ref.update({ [doc.field]: doc.previousValue });
-        console.log(`Rolled back update for ${doc.ref.path}`);
+        console.log(`Rolled back update for ${doc.ref.path}, field: ${doc.field}`);
       } catch (rollbackError) {
-        console.error(`Error rolling back update for ${doc.ref.path}:`, rollbackError);
+        console.error(
+          `Error rolling back update for ${doc.ref.path}, field: ${doc.field}:`,
+          rollbackError.message
+        );
       }
     }
 
@@ -2177,7 +2197,7 @@ exports.deleteDesign = async (req, res) => {
         await doc.ref.set(doc.data);
         console.log(`Restored deleted document ${doc.ref.path}`);
       } catch (rollbackError) {
-        console.error(`Error restoring document ${doc.ref.path}:`, rollbackError);
+        console.error(`Error restoring document ${doc.ref.path}:`, rollbackError.message);
       }
     }
 

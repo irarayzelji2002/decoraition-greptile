@@ -64,22 +64,85 @@ exports.deletePlanMap = async (req, res) => {
 
 // Create Pin
 exports.createPin = async (req, res) => {
+  const createdDocuments = [];
+  const updatedDocuments = [];
   try {
-    const { planMapId } = req.params;
-    const { x, y, label, description } = req.body;
-    const pinRef = db.collection("planMaps").doc(planMapId).collection("pins").doc();
+    const { projectId } = req.params;
+    const { designId, designName, location, color, order } = req.body;
+
+    // Get planMap document first
+    const planMapSnapshot = await db
+      .collection("planMaps")
+      .where("projectId", "==", projectId)
+      .limit(1)
+      .get();
+
+    if (planMapSnapshot.empty) {
+      return res.status(404).json({ error: "PlanMap not found" });
+    }
+
+    const planMapRef = planMapSnapshot.docs[0].ref;
+    const planMapDoc = await planMapRef.get();
+    const previousPins = planMapDoc.data().pins || [];
+
+    // Store previous state for rollback
+    updatedDocuments.push({
+      ref: planMapRef,
+      field: "pins",
+      previousValue: previousPins,
+    });
+
+    // Create pin document
     const pinData = {
-      x,
-      y,
-      label,
-      description,
+      projectId,
+      designId,
+      designName,
+      location,
+      color,
+      order,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      modifiedAt: new Date(),
     };
+
+    const pinRef = db.collection("pins").doc();
     await pinRef.set(pinData);
+    createdDocuments.push({
+      ref: pinRef,
+      data: pinData,
+    });
+
+    // Update planMap's pins array
+    await planMapRef.update({
+      pins: [...previousPins, pinRef.id],
+      modifiedAt: new Date(),
+    });
+
+    console.log(`Pin added to database with ID: ${pinRef.id}`);
+
     res.status(201).json({ id: pinRef.id, ...pinData });
   } catch (error) {
     console.error("Error creating pin:", error);
+
+    // Rollback updates
+    for (const doc of updatedDocuments) {
+      try {
+        await doc.ref.update({ [doc.field]: doc.previousValue });
+        console.log(`Rolled back ${doc.field} in document ${doc.ref.path}`);
+      } catch (rollbackError) {
+        console.error(`Error rolling back document ${doc.ref.path}:`, rollbackError);
+      }
+    }
+
+    // Delete created documents
+    for (const doc of createdDocuments) {
+      try {
+        await doc.ref.delete();
+        console.log(`Deleted document ${doc.ref.path}`);
+      } catch (deleteError) {
+        console.error(`Error deleting document ${doc.ref.path}:`, deleteError);
+      }
+    }
+
     res.status(500).json({ error: "Failed to create pin" });
   }
 };

@@ -258,14 +258,25 @@ export const fetchPins = async (projectId, setPins) => {
   }
 };
 
-export const addPinToDatabase = async (projectId, pinData) => {
+export const addPinToDatabase = async (projectId, pinData, userDoc, user) => {
   try {
-    const pinRef = collection(db, "pins");
-    await addDoc(pinRef, {
-      projectId,
-      ...pinData,
-    });
-    showToast("success", "Pin added successfully");
+    console.log(`Adding pin to project ${projectId} with data:`, pinData);
+    const response = await axios.post(
+      `/api/project/${projectId}/addPin`,
+      {
+        userId: userDoc.id,
+        ...pinData,
+      },
+      {
+        headers: {
+          Authorization: `Bearer ${user.getIdToken()}`,
+        },
+      }
+    );
+    if (response.status === 200) {
+      showToast("success", "Pin added successfully");
+    }
+    showToast("error", "Failed to add pin");
   } catch (error) {
     console.error("Error adding pin: ", error);
     showToast("error", "Failed to add pin");

@@ -13,6 +13,8 @@
   display: flex;
   align-items: center;
   flex-grow: 1;
+  width: 100%;
+  max-width: calc(100% - 107px);
 }
 
 .itemDetailsContText {
@@ -22,6 +24,7 @@
   width: calc(100% - 28px);
   justify-content: center;
   flex-grow: 1;
+  overflow: hidden;
 }
 
 .mapPin {
@@ -47,14 +50,14 @@
 .pinName {
   font-size: var(--font-size-h7);
   color: var(--color-white);
+  font-weight: bold;
+  overflow: hidden;
   display: -webkit-box;
-  line-clamp: 2;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
-  overflow: hidden;
   text-overflow: ellipsis;
+  max-width: 100%;
   white-space: normal;
-  font-weight: bold;
 }
 
 .pinColor {
@@ -111,6 +114,9 @@
   .itemDetailsCont {
     flex-direction: column;
     align-items: center;
+  }
+  .itemDetailsContText {
+    width: calc(100% - 24px);
   }
   .itemActions {
     margin-left: 2px !important;

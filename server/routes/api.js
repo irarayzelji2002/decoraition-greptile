@@ -245,6 +245,7 @@ router.post(
   upload.single("file"),
   planMapController.handlePlanImageUpload
 );
+router.post("/project/:projectId/addPin", authenticateUser, planMapController.createPin);
 router.put(
   "/project/:projectId/import-design",
   authenticateUser,

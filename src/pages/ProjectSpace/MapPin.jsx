@@ -176,7 +176,7 @@ const MapPin = ({
           </div>
         </Modal>
       )}
-      <div className="mapPin" style={{ width: "100%" }}>
+      <div className="mapPin">
         <div className="mapPinDetails">
           <img
             src={getDesignImage(designId) || "/img/transparent-image.png"}

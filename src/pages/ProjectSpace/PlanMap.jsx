@@ -49,7 +49,7 @@ import { gradientButtonStyles, outlinedButtonStyles } from "../DesignSpace/Promp
 
 function PlanMap() {
   const { projectId } = useParams();
-  const { userDoc, isDarkMode, projects, userProjects } = useSharedProps();
+  const { userDoc, isDarkMode, designs, projects, userProjects } = useSharedProps();
   const navigate = useNavigate();
   const location = useLocation();
   const navigateFrom = location.pathname;
@@ -293,17 +293,20 @@ function PlanMap() {
             {pins.length > 0 ? (
               pins
                 .sort((a, b) => a.order - b.order) // Sort pins by design.order
-                .map((design) => {
+                .map((pin) => {
                   return (
                     <>
                       <MapPin
-                        title={design.designName}
-                        pinColor={design.color}
-                        pinNo={design.order}
-                        pinId={design.id}
-                        designId={design.designId}
-                        deletePin={() => deletePin(design.id)} // Pass design.id to deletePin
-                        editPin={() => navigateToEditPin(design.id)} // Pass design.id to editPin
+                        title={
+                          designs.find((design) => design.id === pin.designId)?.designName ??
+                          "Untitled Design"
+                        }
+                        pinColor={pin.color}
+                        pinNo={pin.order}
+                        pinId={pin.id}
+                        designId={pin.designId}
+                        deletePin={() => deletePin(pin.id)}
+                        editPin={() => navigateToEditPin(pin.id)}
                         manager={
                           isManagerContentManager &&
                           (changeMode === "Managing Content" || changeMode === "Managing")

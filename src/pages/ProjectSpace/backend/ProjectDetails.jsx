@@ -154,14 +154,17 @@ export const fetchTasks = async (timelineId) => {
   }
 };
 
-export const deleteTask = async (userId, projectId, taskId) => {
+export const deleteTask = async (timelineId, taskId, user, userDoc) => {
   try {
-    const token = await auth.currentUser.getIdToken();
-    await axios.delete(`/api/timeline/event/${taskId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    await axios.post(
+      `/api/timeline/${timelineId}/delete-event`,
+      { userId: userDoc.id, taskId },
+      {
+        headers: {
+          Authorization: `Bearer ${await user.getIdToken()}`,
+        },
+      }
+    );
   } catch (e) {
     console.error("Error deleting document: ", e);
     showToast("error", "Error deleting task! Please try again.");
@@ -185,7 +188,7 @@ export const createEvent = async (timelineId, eventData) => {
   try {
     const token = await auth.currentUser.getIdToken();
     const response = await axios.post(
-      `/api/timeline/${timelineId}/event`,
+      `/api/timeline/${timelineId}/add-event`,
       {
         timelineId: eventData.timelineId,
         eventName: eventData.eventName,
@@ -262,19 +265,21 @@ export const addPinToDatabase = async (projectId, pinData, userDoc, user) => {
   try {
     console.log(`Adding pin to project ${projectId} with data:`, pinData);
     const response = await axios.post(
-      `/api/project/${projectId}/addPin`,
+      `/api/project/${projectId}/add-pin`,
       {
         userId: userDoc.id,
         ...pinData,
       },
       {
         headers: {
-          Authorization: `Bearer ${user.getIdToken()}`,
+          Authorization: `Bearer ${await user.getIdToken()}`,
         },
       }
     );
+    console.log("Add pin response:", response);
     if (response.status === 200) {
       showToast("success", "Pin added successfully");
+      return;
     }
     showToast("error", "Failed to add pin");
   } catch (error) {
@@ -303,15 +308,19 @@ export const savePinOrder = async (projectId, pins) => {
   }
 };
 
-export const deleteProjectPin = async (projectId, pinId) => {
+export const deleteProjectPin = async (projectId, pinId, user, userDoc) => {
   try {
-    console.log(`Deleting pin ${pinId} from project ${projectId}`); // Debug log
-    const token = await auth.currentUser.getIdToken();
-    const response = await axios.delete(`/api/project/${projectId}/pin/${pinId}`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
-    });
+    console.log(`Deleting pin ${pinId} from project ${projectId}`);
+    const token = await user.getIdToken();
+    const response = await axios.post(
+      `/api/project/${projectId}/deletePin`,
+      { userId: userDoc.id, pinId },
+      {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      }
+    );
     if (response.status === 200) {
       showToast("success", "Pin deleted successfully");
     } else {

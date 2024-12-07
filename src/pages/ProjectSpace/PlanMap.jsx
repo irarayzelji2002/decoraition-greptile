@@ -129,7 +129,9 @@ function PlanMap() {
       if (user) {
         setUser(user);
         fetchPins(projectId, setPins);
-        fetchPlanImage(projectId, setPlanImage).finally(() => setLoadingImage(false));
+        fetchPlanImage(projectId, setPlanImage, setPlanImagePreview).finally(() =>
+          setLoadingImage(false)
+        );
       } else {
         setUser(null);
         setPins([]);
@@ -204,7 +206,7 @@ function PlanMap() {
   };
   const deletePin = async (pinId) => {
     try {
-      await deleteProjectPin(projectId, pinId);
+      await deleteProjectPin(projectId, pinId, user, userDoc);
       console.log("Deleting pin", pinId);
       const updatedPins = pins
         .filter((pin) => pin.id !== pinId)

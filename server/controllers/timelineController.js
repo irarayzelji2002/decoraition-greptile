@@ -10,10 +10,10 @@ exports.createTimeline = async (req, res) => {
       projectId,
       name,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      modifiedAt: new Date(),
     };
     await timelineRef.set(timelineData);
-    res.status(201).json({ id: timelineRef.id, ...timelineData });
+    res.status(200).json({ id: timelineRef.id, ...timelineData });
   } catch (error) {
     console.error("Error creating timeline:", error);
     res.status(500).json({ error: "Failed to create timeline" });
@@ -40,7 +40,7 @@ exports.updateTimeline = async (req, res) => {
   try {
     const { timelineId } = req.params;
     const updateData = req.body;
-    updateData.updatedAt = new Date();
+    updateData.modifiedAt = new Date();
     await db.collection("timelines").doc(timelineId).update(updateData);
     res.json({ message: "Timeline updated successfully" });
   } catch (error) {
@@ -100,7 +100,7 @@ exports.createEvent = async (req, res) => {
       description,
       reminders,
       createdAt: new Date(),
-      updatedAt: new Date(),
+      modifiedAt: new Date(),
     };
 
     const eventRef = db.collection("events").doc();
@@ -118,7 +118,7 @@ exports.createEvent = async (req, res) => {
 
     console.log(`Event added to database with ID: ${eventRef.id}`);
 
-    res.status(201).json({ id: eventRef.id, ...eventData });
+    res.status(200).json({ id: eventRef.id, ...eventData });
   } catch (error) {
     console.error("Error creating event:", error);
 
@@ -200,12 +200,12 @@ exports.updateEvent = async (req, res) => {
       repeatEvery,
       description,
       reminders,
-      updatedAt: new Date(),
+      modifiedAt: new Date(),
     };
 
     console.log("Updating event with data:", updateData);
     await db.collection("events").doc(taskId).update(updateData);
-    res.json({ message: "Event updated successfully" });
+    res.status(200).json({ message: "Event updated successfully" });
   } catch (error) {
     console.error("Error updating event:", error);
     res.status(500).json({ error: "Failed to update event" });
@@ -230,12 +230,71 @@ exports.getEvents = async (req, res) => {
 
 // Delete Event
 exports.deleteEvent = async (req, res) => {
+  const deletedDocuments = [];
+  const updatedDocuments = [];
   try {
-    const { taskId } = req.params;
-    await db.collection("events").doc(taskId).delete();
-    res.json({ message: "Event deleted successfully" });
+    const { timelineId } = req.params;
+    const { userId, taskId } = req.body;
+
+    // Get timeline document first
+    const timelineRef = db.collection("timelines").doc(timelineId);
+    const timelineDoc = await timelineRef.get();
+
+    if (!timelineDoc.exists) {
+      return res.status(404).json({ error: "Timeline not found" });
+    }
+
+    const previousEvents = timelineDoc.data().events || [];
+
+    // Store previous state for rollback
+    updatedDocuments.push({
+      ref: timelineRef,
+      field: "events",
+      previousValue: previousEvents,
+    });
+
+    // Remove taskId from timeline's events array
+    const updatedEvents = previousEvents.filter((id) => id !== taskId);
+    await timelineRef.update({
+      events: updatedEvents,
+      modifiedAt: new Date(),
+    });
+
+    // Delete the event document
+    const eventRef = db.collection("events").doc(taskId);
+    const eventDoc = await eventRef.get();
+    if (eventDoc.exists) {
+      deletedDocuments.push({
+        ref: eventRef,
+        data: eventDoc.data(),
+      });
+      await eventRef.delete();
+    }
+
+    res.status(200).json({ message: "Event deleted successfully" });
   } catch (error) {
     console.error("Error deleting event:", error);
+
+    // Rollback updates
+    for (const doc of updatedDocuments) {
+      try {
+        await doc.ref.update({ [doc.field]: doc.previousValue });
+        console.log(`Rolled back ${doc.field} in document ${doc.ref.path}`);
+      } catch (rollbackError) {
+        console.error(`Error rolling back document ${doc.ref.path}:`, rollbackError);
+      }
+    }
+
+    // Restore deleted documents
+    for (const doc of deletedDocuments) {
+      try {
+        await doc.ref.set(doc.data);
+        console.log(`Restored document ${doc.ref.path}`);
+      } catch (restoreError) {
+        console.error(`Error restoring document ${doc.ref.path}:`, restoreError);
+      }
+    }
+
     res.status(500).json({ error: "Failed to delete event" });
   }
 };

@@ -1366,7 +1366,7 @@ function Settings() {
               }
               helperText={
                 unlinkErr.find((e) => e.field === "password")?.errMessage ||
-                (unlinkPassword.length >= 50
+                (unlinkPassword.length >= 128
                   ? "Character limit reached!"
                   : unlinkPassword.length > 0
                   ? passwordValidation.message
@@ -1409,6 +1409,7 @@ function Settings() {
                   </InputAdornment>
                 ),
               }}
+              inputProps={{ maxLength: 128 }}
             />
             <Typography variant="body1" sx={{ marginBottom: "10px" }}>
               Confirm password
@@ -1426,7 +1427,7 @@ function Settings() {
               }
               helperText={
                 unlinkErr.find((e) => e.field === "confirmPassword")?.errMessage ||
-                (unlinkConfirmPassword.length >= 50
+                (unlinkConfirmPassword.length >= 128
                   ? "Character limit reached!"
                   : unlinkConfirmPassword.length > 0
                   ? passwordMatch === false
@@ -1475,6 +1476,7 @@ function Settings() {
                   </InputAdornment>
                 ),
               }}
+              inputProps={{ maxLength: 128 }}
             />
           </DialogContent>
           <DialogActions sx={dialogActionsStyles}>

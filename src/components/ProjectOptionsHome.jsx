@@ -26,6 +26,10 @@ function ProjectOptionsHome({
     userDesignVersions,
     deletedDesigns,
     userDeletedDesigns,
+    userProjects,
+    projects,
+    userDeletedProjects,
+    deletedProjects,
   } = useSharedProps();
   const [clickedId, setClickedId] = useState("");
 
@@ -76,68 +80,91 @@ function ProjectOptionsHome({
     return fetchedLatestDesignVersion.images[0].link || "";
   };
 
-  const getLatestDesignImage = (projectId) => {
-    console.log("getLatestDesignImage called with projectId:", projectId); // Debug log
-    const designsForProject = userDesigns.filter((design) => design.projectId === projectId);
-    if (designsForProject.length === 0) {
-      console.log("No designs found for project:", projectId); // Debug log
+  const getProjectImage = (projectId) => {
+    // Get the project
+    const fetchedProject =
+      userProjects.find((project) => project.id === projectId) ||
+      projects.find((project) => project.id === projectId);
+    if (!fetchedProject || fetchedProject.designs.length === 0) {
       return "";
     }
 
-    const latestDesign = designsForProject.sort(
-      (a, b) => b.modifiedAt.toMillis() - a.modifiedAt.toMillis()
-    )[0];
-    if (!latestDesign) {
-      console.log("No latest design found for project:", projectId); // Debug log
-      return "";
-    }
+    // Get all designs for this project
+    const projectDesigns = designs.filter((design) => fetchedProject.designs.includes(design.id));
 
-    const latestDesignVersionId = latestDesign.history[latestDesign.history.length - 1];
-    const fetchedLatestDesignVersion =
-      userDesignVersions.find((designVer) => designVer.id === latestDesignVersionId) ||
-      designVersions.find((designVer) => designVer.id === latestDesignVersionId);
+    // Sort designs by modifiedAt timestamp (most recent first)
+    const sortedDesigns = projectDesigns.sort(
+      (a, b) => (b.modifiedAt?.toMillis() || 0) - (a.modifiedAt?.toMillis() || 0)
+    );
 
-    if (!fetchedLatestDesignVersion?.images?.length) {
-      console.log("No images found for latest design version:", latestDesignVersionId); // Debug log
-      return "";
-    }
+    // Get the latest designId (the first one after sorting)
+    const latestDesignId = sortedDesigns[0]?.id;
 
-    const imageUrl = fetchedLatestDesignVersion.images[0].link || "";
-    console.log("Image URL found:", imageUrl); // Debug log
-    return imageUrl;
+    // Return the design image by calling getDesignImage
+    return getDesignImage(latestDesignId);
   };
 
-  const getTrashLatestDesignImage = (projectId) => {
-    console.log("getTrashLatestDesignImage called with projectId:", projectId); // Debug log
-    const designsForProject =
-      userDeletedDesigns.filter((design) => design.projectId === projectId) ||
-      deletedDesigns.filter((design) => design.projectId === projectId);
-    if (designsForProject.length === 0) {
-      console.log("No deleted designs found for project:", projectId); // Debug log
+  const getTrashDesignImage = (designId) => {
+    if (!designId) {
+      console.log("No design ID provided");
       return "";
     }
 
-    const latestDesign = designsForProject.sort(
-      (a, b) => b?.deletedAt.toMillis() - a?.deletedAt.toMillis()
-    )[0];
-    if (!latestDesign) {
-      console.log("No latest deleted design found for project:", projectId); // Debug log
+    // Get the design
+    const fetchedDeletedDesign =
+      userDeletedDesigns.find((design) => design.id === designId) ||
+      deletedDesigns.find((design) => design.id === designId) ||
+      userDesigns.find((design) => design.id === designId) ||
+      designs.find((design) => design.id === designId);
+    if (
+      !fetchedDeletedDesign ||
+      !fetchedDeletedDesign.history ||
+      fetchedDeletedDesign.history.length === 0
+    ) {
       return "";
     }
 
-    const latestDesignVersionId = latestDesign.history[latestDesign.history.length - 1];
+    // Get the latest designVersionId
+    const latestDesignVersionId =
+      fetchedDeletedDesign.history[fetchedDeletedDesign.history.length - 1];
+    if (!latestDesignVersionId) {
+      return "";
+    }
     const fetchedLatestDesignVersion = designVersions.find(
       (designVer) => designVer.id === latestDesignVersionId
     );
-
     if (!fetchedLatestDesignVersion?.images?.length) {
-      console.log("No images found for latest deleted design version:", latestDesignVersionId); // Debug log
       return "";
     }
 
-    const imageUrl = fetchedLatestDesignVersion.images[0].link || "";
-    console.log("Image URL found:", imageUrl); // Debug log
-    return imageUrl;
+    // Return the first image's link from the fetched design version
+    return fetchedLatestDesignVersion.images[0].link || "";
+  };
+
+  const getTrashProjectImage = (projectId) => {
+    // Get the project
+    const fetchedDeletedProject =
+      userDeletedProjects.find((project) => project.id === projectId) ||
+      deletedProjects.find((project) => project.id === projectId);
+    if (!fetchedDeletedProject || fetchedDeletedProject.designs.length === 0) {
+      return "";
+    }
+
+    // Get all designs for this project from both designs and deletedDesigns arrays
+    const projectDesigns = [...designs, ...deletedDesigns].filter((design) =>
+      fetchedDeletedProject.designs.includes(design.id)
+    );
+
+    // Sort designs by modifiedAt timestamp (most recent first)
+    const sortedDesigns = projectDesigns.sort(
+      (a, b) => (b.modifiedAt?.toMillis() || 0) - (a.modifiedAt?.toMillis() || 0)
+    );
+
+    // Get the latest designId (the first one after sorting)
+    const latestDesignId = sortedDesigns[0]?.id;
+
+    // Return the design image by calling getDesignImage
+    return getTrashDesignImage(latestDesignId);
   };
 
   return (
@@ -174,7 +201,7 @@ function ProjectOptionsHome({
         onClick={onOpen}
       >
         <img
-          src={!isTrash ? getLatestDesignImage(project.id) : getTrashLatestDesignImage(project.id)}
+          src={!isTrash ? getProjectImage(project.id) : getTrashProjectImage(project.id)}
           className="pic"
           alt=""
           style={{

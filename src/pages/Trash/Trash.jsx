@@ -506,9 +506,9 @@ export default function Trash() {
         <section className="recent-section">
           <div className="recent-designs">
             <div className="separator see-all">
-              <h2>{`${searchQuery ? "Searched in " : ""}Trash`}</h2>
+              <h2>{`${searchQuery ? "Searched in " : ""} ${selectedTab} Trash`}</h2>
               <div style={{ marginLeft: "auto", display: "inline-flex", marginBottom: "10px" }}>
-                {filteredDesigns.length > 0 && (
+                {(filteredDesigns.length > 0 || filteredProjects.length > 0) && (
                   <div>
                     <IconButton
                       onClick={() =>
